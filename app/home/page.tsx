@@ -3,7 +3,7 @@ import React from 'react'
 const page = () => {
   return (
     <div>
-      <h1>hieee hello</h1>
+      <h1>Welcome to TailBuddies!</h1>
     </div>
   )
 }
