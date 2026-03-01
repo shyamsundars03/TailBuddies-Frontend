@@ -1,4 +1,4 @@
-// components/auth/AuthLayout.tsx
+
 "use client"
 
 import type React from "react"

@@ -1,18 +1,18 @@
-// components/auth/ResetPasswordForm.tsx
+
 "use client"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { PasswordInput } from "../../components/common/forms/PasswordInput"
 import { Button } from "../../components/common/ui/Button"
 import { usePasswordRecovery } from "../../lib/hooks/auth"
-import logger from "../../lib/logger"
 
 export function ResetPasswordForm() {
     const { resetPassword, isLoading: isSubmitting } = usePasswordRecovery()
     const searchParams = useSearchParams()
-    const resetToken = searchParams.get("token") || ""
+    const email = searchParams.get("email") || ""
+    const otp = searchParams.get("otp") || ""
 
     const [formData, setFormData] = useState({
         password: "",
@@ -21,11 +21,16 @@ export function ResetPasswordForm() {
 
     const handleSubmit = async () => {
         if (formData.password !== formData.confirmPassword) {
-            toast.error("Passwords do not match");
-            return;
+            toast.error("Passwords do not match")
+            return
         }
 
-        await resetPassword({ token: resetToken, password: formData.password })
+        if (!email || !otp) {
+            toast.error("Missing email or OTP. Please go through the forgot password flow again.")
+            return
+        }
+
+        await resetPassword({ email, otp, newPassword: formData.password })
     }
 
     return (

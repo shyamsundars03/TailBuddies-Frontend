@@ -1,4 +1,4 @@
-// app/(auth)/layout.tsx
+
 import { GoogleAuthProvider } from "../../lib/providers/GoogleAuthProvider";
 
 export default function AuthLayout({

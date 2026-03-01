@@ -1,4 +1,4 @@
-// components/auth/SigninForm.tsx
+
 "use client"
 
 import type React from "react"
@@ -10,7 +10,8 @@ import { Input } from "../../components/common/forms/Input"
 import { PasswordInput } from "../../components/common/forms/PasswordInput"
 import { Button } from "../../components/common/ui/Button"
 import { Badge } from "../../components/common/ui/Badge"
-import { GoogleLogin } from "@react-oauth/google"
+
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
 import { useSignin } from "../../lib/hooks/auth"
 import { signinSchema } from "../../lib/validation/auth/signin.schema"
 import logger from "../../lib/logger"
@@ -30,20 +31,28 @@ export function SignInForm() {
   const [errors, setLocalErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-  // Merge local errors and hook errors
+  // Merging local errors and hook errors
   const allErrors = { ...errors, ...hookErrors };
 
   useEffect(() => {
-    if (urlRole && (urlRole === "owner" || urlRole === "doctor")) {
-      setFormData((prev) => ({ ...prev, role: urlRole as any }))
+    if (!urlRole) return;
+    const targetRole = urlRole === "doctor" ? "doctor" : "owner";
+    if (formData.role !== targetRole) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFormData((prev) => ({ ...prev, role: targetRole }));
     }
-  }, [urlRole])
+  }, [urlRole, formData.role]);
+
+
+
+
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
 
-    // Clear local error
+    // Clearing local error
     if (errors[name]) {
       setLocalErrors((prev) => {
         const newErrors = { ...prev }
@@ -52,7 +61,7 @@ export function SignInForm() {
       })
     }
 
-    // Clear hook error
+    // Clearing hook error
     if (hookErrors[name]) {
       setHookErrors((prev) => {
         const newErrors = { ...prev }
@@ -83,14 +92,14 @@ export function SignInForm() {
 
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }))
-    validateField(field, (formData as any)[field])
+    validateField(field, formData[field as keyof typeof formData])
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     logger.info('Signin form submission started', { email: formData.email });
 
-    // Mark all fields as touched to show validation errors
+   
     setTouched({
       email: true,
       password: true,
@@ -106,7 +115,7 @@ export function SignInForm() {
       if (loginResult?.success) {
         logger.info('Login success, redirecting...', { email: formData.email });
       } else if (!loginResult?.success && !loginResult?.error) {
-        // Validation handled by hook, but we should make sure local errors reflect it if needed
+        
         toast.error("Please fix the validation errors");
       }
     } catch (error) {
@@ -115,7 +124,7 @@ export function SignInForm() {
     }
   }
 
-  const onGoogleSuccess = async (credentialResponse: any) => {
+  const onGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
       await googleLogin(credentialResponse.credential, formData.role)
     }
@@ -204,7 +213,7 @@ export function SignInForm() {
 
           <div className="text-center">
             <p className="text-xs text-gray-600">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/signup" className="text-gray-900 font-semibold hover:text-yellow-600">
                 Sign Up
               </Link>

@@ -1,4 +1,4 @@
-// app/(auth)/reset-password/page.tsx
+
 import { Suspense } from "react"
 import { AuthLayout } from "../../../components/auth/AuthLayout"
 import { AuthLeftPanel } from "../../../components/auth/AuthLeftPanel"

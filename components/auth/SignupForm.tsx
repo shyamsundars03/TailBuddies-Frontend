@@ -1,9 +1,8 @@
-// components/auth/SignupForm.tsx
+
 "use client"
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Input } from "../../components/common/forms/Input"
@@ -11,7 +10,7 @@ import { PasswordInput } from "../../components/common/forms/PasswordInput"
 import { RadioGroup } from "../../components/common/forms/RadioGroup"
 import { RoleSelector } from "../../components/common/forms/RoleSelector"
 import { Button } from "../../components/common/ui/Button"
-import { GoogleLogin } from "@react-oauth/google"
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
 import { signupSchema } from "../../lib/validation/auth/signup.schema"
 import { useSignup, useSignin } from "../../lib/hooks/auth"
 import logger from "../../lib/logger"
@@ -41,8 +40,7 @@ const genderOptions = [
 ]
 
 export function SignUpForm() {
-    const router = useRouter()
-    const { handleSubmit: submitSignup } = useSignup()
+    const { handleSubmit: submitHookForm, isLoading: hookLoading, errors: hookErrors, setErrors: setHookErrors } = useSignup()
     const { googleLogin } = useSignin()
     const [formData, setFormData] = useState({
         username: "",
@@ -62,10 +60,11 @@ export function SignUpForm() {
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
 
-        if (errors[name]) {
-            setErrors((prev) => {
+        // Clearing hook errors
+        if ((hookErrors as Record<string, string>)[name]) {
+            setHookErrors((prev) => {
                 const newErrors = { ...prev }
-                delete newErrors[name]
+                delete (newErrors as Record<string, string>)[name]
                 return newErrors
             })
         }
@@ -78,9 +77,10 @@ export function SignUpForm() {
         }
         const result = signupSchema.safeParse(schemaData)
         if (!result.success) {
-            const fieldError = result.error.format() as any
-            const message = fieldError[name]?._errors?.[0]
+            const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>
+            const message = fieldErrors[name]?.[0]
             setErrors((prev) => ({ ...prev, [name]: message || "" }))
+
         } else {
             setErrors((prev) => {
                 const newErrors = { ...prev }
@@ -92,7 +92,7 @@ export function SignUpForm() {
 
     const handleBlur = (field: string) => {
         setTouched((prev) => ({ ...prev, [field]: true }))
-        validateField(field, (formData as any)[field])
+        validateField(field, formData[field as keyof typeof formData])
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -131,11 +131,10 @@ export function SignUpForm() {
         }
 
         try {
-            const signupResult = await submitSignup(formData)
+            const signupResult = await submitHookForm(formData)
 
             if (signupResult.success) {
-                // Success is handled by the hook (redirect, toast)
-                // We could add extra logic here if needed
+                // Success is handled by the hook.
             }
         } catch (error) {
             logger.error('Signup general error', error);
@@ -145,11 +144,11 @@ export function SignUpForm() {
         }
     }
 
-    const onGoogleSuccess = async (credentialResponse: any) => {
+    const onGoogleSuccess = async (credentialResponse: CredentialResponse) => {
         if (credentialResponse.credential) {
             const result = await googleLogin(credentialResponse.credential, formData.role)
             if (result.success) {
-                toast.success(`Welcome to TailBuddies!`);
+                toast.success(`Welcome back!`);
             }
         }
     }
@@ -170,7 +169,7 @@ export function SignUpForm() {
                 <RoleSelector
                     options={roleOptions}
                     value={formData.role}
-                    onChange={(value) => setFormData((prev) => ({ ...prev, role: value as any }))}
+                    onChange={(value) => setFormData((prev) => ({ ...prev, role: value as "owner" | "doctor" }))}
                 />
 
                 <Input
@@ -200,7 +199,7 @@ export function SignUpForm() {
                     label="Gender"
                     options={genderOptions}
                     value={formData.gender}
-                    onChange={(value) => setFormData((prev) => ({ ...prev, gender: value as any }))}
+                    onChange={(value) => setFormData((prev) => ({ ...prev, gender: value as "Male" | "Female" | "Other" }))}
                 />
 
                 <Input
@@ -239,7 +238,7 @@ export function SignUpForm() {
 
                 <Button
                     onClick={handleSubmit}
-                    isLoading={isSubmitting}
+                    isLoading={isSubmitting || hookLoading}
                     loadingText="Creating Account..."
                     variant={formData.role === "doctor" ? "doctor" : "owner"}
                     fullWidth
