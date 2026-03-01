@@ -1,4 +1,4 @@
-// lib/types/auth/otp.types.ts
+
 
 export interface VerifyOtpRequest {
     email: string;

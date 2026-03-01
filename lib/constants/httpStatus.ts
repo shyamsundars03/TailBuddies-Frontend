@@ -1,4 +1,4 @@
-// lib/constants/httpStatus.ts
+
 
 export const HttpStatus = {
   // Success

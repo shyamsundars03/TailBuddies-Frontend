@@ -1,11 +1,15 @@
-// lib/utils/jwt.ts
 
-import { SignJWT, jwtVerify } from 'jose';
+
+
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 
 const JWT_SECRET = process.env.NEXT_PUBLIC_JWT_SECRET || 'fallback-secret-for-demo-only';
 const key = new TextEncoder().encode(JWT_SECRET);
 
-export async function signToken(payload: any) {
+
+
+
+export async function signToken(payload: JWTPayload) {
     return await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
@@ -19,7 +23,8 @@ export async function verifyToken(token: string) {
             algorithms: ['HS256'],
         });
         return payload;
-    } catch (error) {
+    } catch {
         return null;
     }
+
 }

@@ -1,14 +1,31 @@
-// lib/services/auth/signin.service.ts
-
-import { signinApi } from '../../api/auth';
+import { signinApi, googleAuthApi } from '../../api/auth';
 import logger from '../../logger';
+import { SigninCredentials, AuthApiResponse } from '../../types/auth';
+
 
 export const signinService = {
-    login: async (credentials: any): Promise<any> => {
+
+
+login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
+
+
+
         logger.info('signinService.login called', { email: credentials.email });
-        // This will call the actual API once backend is ready
-        // For now, we interact with the mock logic if needed, 
-        // but the instruction is to move towards the architecture
         return await signinApi.login(credentials);
+},
+
+
+
+    googleLogin: async (idToken: string, role: string): Promise<AuthApiResponse> => {
+
+
+        logger.info('signinService.googleLogin called', { role });
+        return await googleAuthApi.login(idToken, role);
+        
     },
+
+
+
+
 };
+

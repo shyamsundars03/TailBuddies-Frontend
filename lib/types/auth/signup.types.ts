@@ -1,4 +1,4 @@
-// lib/types/auth/signup.types.ts
+
 
 export type UserRole = 'owner' | 'doctor';
 
@@ -7,7 +7,7 @@ export interface SignupFormData {
   email: string;
   phone: string;
   password: string;
-  confirmPassword: string;  // Local-only: used for validation but not sent to API
+  confirmPassword: string;  // used for validation but not sent to API
   gender: 'Male' | 'Female' | 'Other';
   role: UserRole;
 }
@@ -16,7 +16,7 @@ export interface SignupApiRequest {
   username: string;
   email: string;
   phone: string;
-  password: string; // The only password field sent to the backend
+  password: string; 
   gender: string;
   role: UserRole;
 }

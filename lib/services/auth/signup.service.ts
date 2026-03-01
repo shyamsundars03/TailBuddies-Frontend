@@ -1,4 +1,4 @@
-// lib/services/auth/signup.service.ts
+
 
 import { signupApi } from '../../api/auth/signup.api';
 import { SignupDTO } from '../../dto/auth/signup.dto';
@@ -6,9 +6,12 @@ import type { SignupFormData, SignupApiResponse } from '../../types/auth/signup.
 import logger from '../../logger/index';
 
 export const signupService = {
-  register: async (formData: SignupFormData): Promise<SignupApiResponse> => {
+
+
+
+register: async (formData: SignupFormData): Promise<SignupApiResponse> => {
     try {
-      // Transform form data to API format (removes confirmPassword)
+      
       const apiData = SignupDTO.toApi(formData);
 
       logger.info('Signup service: sending data', { email: apiData.email });
@@ -30,5 +33,16 @@ export const signupService = {
         error: error instanceof Error ? error.message : 'Signup failed',
       };
     }
+
+
+
+
+
+
+    
   },
+
+
+
+
 };

@@ -1,4 +1,4 @@
-// lib/types/auth/signin.types.ts
+import { AuthApiResponse } from './common.types';
 
 export interface SigninCredentials {
     email: string;
@@ -6,17 +6,5 @@ export interface SigninCredentials {
     role: 'owner' | 'doctor' | 'admin';
 }
 
-export interface SigninApiResponse {
-    success: boolean;
-    message?: string;
-    data?: {
-        user: {
-            id: string;
-            email: string;
-            role: string;
-            username: string;
-        };
-        token: string;
-    };
-    error?: string;
-}
+export type SigninApiResponse = AuthApiResponse;
+

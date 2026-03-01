@@ -1,4 +1,4 @@
-// lib/hooks/auth/useSignin.ts
+
 
 'use client';
 
@@ -11,9 +11,10 @@ import type { SigninCredentials, SigninApiResponse } from '../../types/auth/sign
 import logger from '../../logger/index';
 import { toast } from 'sonner';
 
-import { signToken } from '../../utils/jwt';
 import { signinSchema } from '../../validation/auth/signin.schema';
 import { z } from 'zod';
+import { clientCookies } from '../../utils/clientCookies';
+
 
 export const useSignin = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -21,12 +22,28 @@ export const useSignin = () => {
     const router = useRouter();
     const dispatch = useAppDispatch();
 
+
+
+
+
+
+
     const login = async (credentials: SigninCredentials): Promise<SigninApiResponse> => {
+
+
+
         const validateForm = (data: SigninCredentials): boolean => {
             try {
+
+
                 logger.debug('Validating signin form data', data);
                 signinSchema.parse(data);
-                setErrors({}); // Clear errors on successful validation
+
+
+                setErrors({}); 
+
+
+
                 return true;
             } catch (error) {
                 if (error instanceof z.ZodError) {
@@ -42,6 +59,8 @@ export const useSignin = () => {
             }
         };
 
+
+
         try {
             if (!validateForm(credentials)) {
                 logger.warn('Signin form validation failed');
@@ -49,22 +68,34 @@ export const useSignin = () => {
             }
 
             setIsLoading(true);
-            setErrors({}); // Clear any previous errors before API call
+            setErrors({}); 
 
             logger.info('signinService.login called', { email: credentials.email });
 
             const response = await signinService.login(credentials);
             if (response.success && response.data?.user) {
-                const token = await signToken(response.data.user);
-
-                logger.info('Login successful, generated JWT', { token });
                 dispatch(setUser(response.data.user));
+                const token = response.data.accessToken;
+                if (token) {
+                    clientCookies.set('token', token, 7 * 24 * 60 * 60); // 7 days
+                    localStorage.setItem('user', JSON.stringify(response.data.user));
+                }
                 toast.success(`Welcome back, ${response.data.user.username || 'User'}!`);
 
-                const role = response.data.user.role;
-                if (role === 'ADMIN') router.push('/admin/dashboard');
-                else if (role === 'DOCTOR') router.push('/doctor/dashboard');
-                else router.push('/owner/dashboard');
+
+
+
+                const role = response.data.user.role?.toLowerCase();
+                if (role === 'admin') {
+                    router.push('/admin/dashboard');
+                } else if (role === 'doctor') {
+                    router.push('/doctor/dashboard');
+                } else {
+                    router.push('/home'); 
+                }
+
+
+
 
                 return response;
             } else {
@@ -72,17 +103,7 @@ export const useSignin = () => {
                 toast.error(response.error || 'Login failed - unexpected response from server');
                 return response;
             }
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                const newErrors: Record<string, string> = {};
-                error.issues.forEach((issue) => {
-                    if (issue.path[0]) {
-                        newErrors[issue.path[0].toString()] = issue.message;
-                    }
-                });
-                setErrors(newErrors);
-                return { success: false, error: 'Validation failed' };
-            }
+        } catch (error: unknown) {
             logger.error('Signin submission error', error);
             toast.error('An unexpected error occurred');
             return { success: false, error: 'Login failed' };
@@ -91,22 +112,54 @@ export const useSignin = () => {
         }
     };
 
+
+
+
+
+
+
     const googleLogin = async (credential: string, role: string) => {
+
+
         setIsLoading(true);
         logger.info('Google login attempt', { role });
 
+
+
         try {
-            // Mock google login logic
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const mockUser = { id: 'google-123', email: 'google@example.com', role, username: 'Google User' };
-            const token = await signToken(mockUser);
+            const response = await signinService.googleLogin(credential, role);
+            if (response.success && response.data?.user) {
+                dispatch(setUser(response.data.user));
+                const token = response.data.accessToken;
+                if (token) {
+                    clientCookies.set('token', token, 7 * 24 * 60 * 60); 
+                    localStorage.setItem('user', JSON.stringify(response.data.user));
+                }
+                toast.success('Signed in with Google!');
 
-            logger.info('Google login success', { token });
+                const userRole = response.data.user.role?.toLowerCase();
 
-            dispatch(setUser(mockUser));
-            toast.success('Signed in with Google!');
-            router.push('/');
-            return { success: true };
+
+
+
+                if (userRole === 'admin') router.push('/admin/dashboard');
+                else if (userRole === 'doctor') router.push('/doctor/dashboard');
+                else router.push('/home');
+
+
+
+                
+                return { success: true };
+            } else {
+                logger.warn('Google login failed', { response });
+                toast.error(response.error || 'Google sign in failed');
+                return { success: false };
+            }
+
+
+
+
+
         } catch (error) {
             logger.error('Google login error', error);
             toast.error('Google sign in failed');
@@ -118,6 +171,8 @@ export const useSignin = () => {
 
     const logout = () => {
         logger.info('Logging out');
+        clientCookies.delete('token');
+        localStorage.removeItem('user');
         dispatch(logoutAction());
         router.push('/signin');
     };

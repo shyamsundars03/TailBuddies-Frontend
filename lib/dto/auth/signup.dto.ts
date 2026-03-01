@@ -1,4 +1,4 @@
-// lib/dto/auth/signup.dto.ts
+
 
 import type { SignupFormData, SignupApiRequest } from '../../types/auth/signup.types';
 
@@ -8,7 +8,7 @@ export class SignupDTO {
       username: formData.username.trim(),
       email: formData.email.toLowerCase().trim(),
       phone: formData.phone.trim(),
-      password: formData.password, // Only password, no confirmPassword
+      password: formData.password, 
       gender: formData.gender,
       role: formData.role,
     };

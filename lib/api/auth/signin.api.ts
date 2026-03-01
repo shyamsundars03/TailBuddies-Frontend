@@ -1,33 +1,40 @@
-// lib/api/auth/signin.api.ts
+
 
 import apiClient from '../apiClient';
 import logger from '../../logger';
 import { AxiosError } from 'axios';
+import { SigninCredentials, AuthApiResponse } from '../../types/auth';
 
 export const signinApi = {
-    login: async (credentials: any): Promise<any> => {
-        try {
-            logger.info('Signin API call', { email: credentials.email });
-            const response = await apiClient.post('/auth/signin', credentials);
 
-            // Transform backend response to match frontend expectation
-            if (response.data?.success && response.data?.data) {
-                const apiData = response.data.data;
-                return {
-                    success: true,
-                    message: response.data.message,
-                    data: {
-                        user: {
-                            id: apiData.id,
-                            email: apiData.email,
-                            role: apiData.role,
-                            username: apiData.userName, // Map userName to username
-                        },
-                        token: apiData.accessToken, // Map accessToken to token
-                    }
-                };
-            }
-            return response.data;
+
+
+
+
+    login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
+
+        try {
+                                logger.info('Signin API call', { email: credentials.email });
+                        const response = await apiClient.post('/auth/signin', credentials);
+
+            
+                        if (response.data?.success && response.data?.data) {
+                            const apiData = response.data.data;
+                            return {
+                                success: true,
+                                message: response.data.message,
+                                data: {
+                                    user: {
+                                        id: apiData.id,
+                                        email: apiData.email,
+                                        role: apiData.role,
+                                        username: apiData.userName, 
+                                    },
+                                    accessToken: apiData.accessToken, 
+                                }
+                            };
+                        }
+                        return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
                 logger.error('Signin API error', {
@@ -43,4 +50,21 @@ export const signinApi = {
             return { success: false, error: 'An unknown error occurred' };
         }
     },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 };

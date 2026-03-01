@@ -1,11 +1,14 @@
-// lib/api/auth/password.api.ts
 
 import apiClient from '../apiClient';
-import logger from '../../logger';
 import { AxiosError } from 'axios';
+import { AuthApiResponse } from '../../types/auth';
 
 export const passwordApi = {
-    forgot: async (email: string): Promise<any> => {
+
+
+
+
+    forgot: async (email: string): Promise<AuthApiResponse> => {
         try {
             const response = await apiClient.post('/auth/forgot-password', { email });
             return response.data;
@@ -16,7 +19,17 @@ export const passwordApi = {
             return { success: false, error: 'An unknown error occurred' };
         }
     },
-    reset: async (data: any): Promise<any> => {
+
+
+
+
+
+
+
+
+
+    
+    reset: async (data: unknown): Promise<AuthApiResponse> => {
         try {
             const response = await apiClient.post('/auth/reset-password', data);
             return response.data;
