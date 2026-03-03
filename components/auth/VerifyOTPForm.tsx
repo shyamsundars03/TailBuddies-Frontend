@@ -35,10 +35,14 @@ export function VerifyOTPForm() {
 
     // Redirect if no pending registration or reset purpose
     useEffect(() => {
-        if (email && !isValidated && !verifyAction(email)) {
-            logger.warn('Unauthorized access to OTP page, redirecting to signup', { email });
-            toast.error('Session expired. Please sign up again.');
-            router.push('/signup');
+        // Wait for router and email to be ready
+        if (email && !isValidated) {
+            const canVerify = verifyAction(email);
+            if (!canVerify) {
+                logger.warn('Unauthorized access to OTP page, redirecting to signup', { email });
+                toast.error('Session expired. Please sign up again.');
+                router.push('/signup');
+            }
         }
     }, [email, verifyAction, router, isValidated])
 
@@ -80,10 +84,7 @@ export function VerifyOTPForm() {
             setIsValidated(true)
             if (result.purpose === 'reset') {
                 toast.success('OTP verified! Please set your new password.');
-                // Clear purpose so they can't come back to OTP page easily
-                if (typeof window !== 'undefined') {
-                    sessionStorage.removeItem(`otp_purpose_${email}`);
-                }
+                // Redirect first, cleanup in the next page or after navigation
                 router.push(`/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}&role=${role}`);
             }
         }

@@ -24,7 +24,8 @@ export const usePasswordRecovery = () => {
 
 
                 if (typeof window !== 'undefined') {
-                    sessionStorage.setItem(`otp_purpose_${email}`, 'reset');
+                    const normalizedEmail = email.toLowerCase();
+                    sessionStorage.setItem(`otp_purpose_${normalizedEmail}`, 'reset');
                     clientCookies.set('auth_action_pending', 'true', 600);
                 }
 

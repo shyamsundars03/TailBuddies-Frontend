@@ -8,7 +8,7 @@ export const otpService = {
 
 
 
-    verify: async (data: { email: string; otp: string; userData?: unknown }): Promise<AuthApiResponse> => {
+    verify: async (data: { email: string; otp: string; userData?: unknown; purpose?: string }): Promise<AuthApiResponse> => {
 
         logger.info('otpService.verify called', { email: data.email });
 
@@ -20,7 +20,7 @@ export const otpService = {
     resend: async (email: string): Promise<AuthApiResponse> => {
 
         logger.info('otpService.resend called', { email });
-        
+
         return await otpApi.resend(email);
     },
 

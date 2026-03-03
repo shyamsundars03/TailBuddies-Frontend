@@ -9,26 +9,26 @@ export const otpApi = {
 
 
 
-    verify: async (data: { email: string; otp: string; userData?: unknown }): Promise<AuthApiResponse> => {
+    verify: async (data: { email: string; otp: string; userData?: unknown; purpose?: string }): Promise<AuthApiResponse> => {
 
-try {
-            logger.info('OTP Verification API call', { email: data.email });
+        try {
+            logger.info('OTP Verification API call', { email: data.email, purpose: data.purpose });
             const response = await apiClient.post('/auth/verify-otp', data);
             return response.data;
-} catch (error: unknown) {
-    if (error instanceof AxiosError) {
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
                 logger.error('OTP Verification API error', {
-                      status: error.response?.status,
-                       data: error.response?.data,
-                      message: error.message
-     });
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    message: error.message
+                });
                 return {
                     success: false,
                     error: error.response?.data?.message || 'Verification failed',
                 };
-     }
+            }
             return { success: false, error: 'An unknown error occurred' };
-}
+        }
     },
 
 

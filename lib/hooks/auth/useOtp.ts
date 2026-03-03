@@ -16,13 +16,16 @@ import { toast } from 'sonner';
 
 
 function getOtpPurpose(email: string): string | null {
-    if (typeof window === 'undefined') return null;
-    const sessionPurpose = sessionStorage.getItem(`otp_purpose_${email}`);
+    if (typeof window === 'undefined' || !email) return null;
+    const normalizedEmail = email.toLowerCase();
+    const sessionPurpose = sessionStorage.getItem(`otp_purpose_${normalizedEmail}`);
     if (sessionPurpose) return sessionPurpose;
 
     // Fallback to URL search params
     const params = new URLSearchParams(window.location.search);
-    return params.get('purpose');
+    const urlPurpose = params.get('purpose');
+    logger.debug('getOtpPurpose check', { email, normalizedEmail, sessionPurpose, urlPurpose });
+    return urlPurpose;
 }
 
 
@@ -118,10 +121,10 @@ export const useOtp = () => {
                 userData = JSON.parse(pendingReg);
             }
 
-            const result = await otpService.verify({ email, otp, userData });
+            const purpose = getOtpPurpose(email) || undefined;
+            const result = await otpService.verify({ email, otp, userData, purpose });
 
             if (result.success) {
-                const purpose = getOtpPurpose(email);
 
 
                 logger.info('OTP Verification Success', { email, purpose });
@@ -129,13 +132,13 @@ export const useOtp = () => {
 
                 clearOtpTimer(email);
 
-                
-                sessionStorage.removeItem('pending_registration');
-                clientCookies.delete('auth_action_pending');
 
                 if (purpose === 'reset') {
+                    logger.info('OTP purpose is reset, returning for client-side redirection', { email });
                     return { success: true, purpose: 'reset' };
                 } else {
+                    sessionStorage.removeItem('pending_registration');
+                    clientCookies.delete('auth_action_pending');
                     const apiUserData = result.data?.user;
                     const accessToken = result.data?.accessToken;
 
