@@ -17,7 +17,12 @@ import { toast } from 'sonner';
 
 function getOtpPurpose(email: string): string | null {
     if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(`otp_purpose_${email}`);
+    const sessionPurpose = sessionStorage.getItem(`otp_purpose_${email}`);
+    if (sessionPurpose) return sessionPurpose;
+
+    // Fallback to URL search params
+    const params = new URLSearchParams(window.location.search);
+    return params.get('purpose');
 }
 
 function clearOtpPurpose(email: string) {
@@ -73,14 +78,14 @@ export const useOtp = () => {
     const dispatch = useAppDispatch();
     const [isLoading, setIsLoading] = useState(false);
 
-//Action Verification: purpose finding.
+    //Action Verification: purpose finding.
 
     const verifyAction = useCallback((email: string) => {
         if (!email) return false;
         const purpose = getOtpPurpose(email);
         const pendingReg = sessionStorage.getItem('pending_registration');
 
-        
+
 
         if (!purpose && !pendingReg) {
             return false;
@@ -98,7 +103,7 @@ export const useOtp = () => {
         logger.info('Verifying OTP', { email });
 
         try {
-           
+
             let userData = null;
             const pendingReg = sessionStorage.getItem('pending_registration');
             if (pendingReg) {
@@ -109,24 +114,15 @@ export const useOtp = () => {
 
             if (result.success) {
                 const purpose = getOtpPurpose(email);
+                logger.info('OTP Verification Success', { email, purpose });
 
-                
+
                 clearOtpTimer(email);
                 sessionStorage.removeItem('pending_registration');
                 clientCookies.delete('auth_action_pending');
 
                 if (purpose === 'reset') {
-                    clearOtpPurpose(email);
-
-
-                    toast.success('OTP verified! Please set your new password.');
-
-
-
-                    router.push(
-                        `/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(enteredOtp || otp)}`
-                    );
-                    return { success: true };
+                    return { success: true, purpose: 'reset' };
                 } else {
                     const apiUserData = result.data?.user;
                     const accessToken = result.data?.accessToken;
@@ -136,7 +132,7 @@ export const useOtp = () => {
                             id: apiUserData.id,
                             email: apiUserData.email,
                             role: apiUserData.role,
-                            username: apiUserData.username || null,
+                            username: apiUserData.userName || null,
                         };
                         dispatch(setUser(user));
                         localStorage.setItem('user', JSON.stringify(user));
@@ -189,13 +185,13 @@ export const useOtp = () => {
         try {
             const result = await otpService.resend(email);
             if (result.success) {
-                setOtpTimer(email); 
+                setOtpTimer(email);
 
 
                 toast.success('OTP resent successfully!');
 
 
-                
+
                 return { success: true };
             } else {
                 toast.error(result.error || 'Failed to resend OTP.');

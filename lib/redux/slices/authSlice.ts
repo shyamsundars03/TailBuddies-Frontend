@@ -7,6 +7,11 @@ interface UserState {
     email: string | null;
     role: string | null;
     username: string | null;
+    googleId?: string | null;
+    phone?: string | null;
+    gender?: string | null;
+    image?: string | null;
+    profilePic?: string | null;
 }
 
 interface AuthState {

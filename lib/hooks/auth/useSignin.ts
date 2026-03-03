@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -8,13 +7,12 @@ import { useAppDispatch } from '../../redux/hooks';
 import { setUser, logout as logoutAction } from '../../redux/slices/authSlice';
 import { signinService } from '../../services/auth/signin.service';
 import type { SigninCredentials, SigninApiResponse } from '../../types/auth/signin.types';
-import logger from '../../logger/index';
+import logger from '../../logger';
 import { toast } from 'sonner';
 
 import { signinSchema } from '../../validation/auth/signin.schema';
 import { z } from 'zod';
 import { clientCookies } from '../../utils/clientCookies';
-
 
 export const useSignin = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -22,28 +20,12 @@ export const useSignin = () => {
     const router = useRouter();
     const dispatch = useAppDispatch();
 
-
-
-
-
-
-
     const login = async (credentials: SigninCredentials): Promise<SigninApiResponse> => {
-
-
-
         const validateForm = (data: SigninCredentials): boolean => {
             try {
-
-
                 logger.debug('Validating signin form data', data);
                 signinSchema.parse(data);
-
-
-                setErrors({}); 
-
-
-
+                setErrors({});
                 return true;
             } catch (error) {
                 if (error instanceof z.ZodError) {
@@ -59,8 +41,6 @@ export const useSignin = () => {
             }
         };
 
-
-
         try {
             if (!validateForm(credentials)) {
                 logger.warn('Signin form validation failed');
@@ -68,34 +48,40 @@ export const useSignin = () => {
             }
 
             setIsLoading(true);
-            setErrors({}); 
+            setErrors({});
 
             logger.info('signinService.login called', { email: credentials.email });
 
             const response = await signinService.login(credentials);
             if (response.success && response.data?.user) {
-                dispatch(setUser(response.data.user));
+                const apiUser = response.data.user;
+                const userToStore = {
+                    id: apiUser.id,
+                    email: apiUser.email,
+                    role: apiUser.role,
+                    username: apiUser.userName,
+                    googleId: apiUser.googleId,
+                    profilePic: apiUser.profilePic,
+                    phone: apiUser.phone,
+                    gender: apiUser.gender,
+                };
+                dispatch(setUser(userToStore));
+
                 const token = response.data.accessToken;
                 if (token) {
                     clientCookies.set('token', token, 7 * 24 * 60 * 60); // 7 days
-                    localStorage.setItem('user', JSON.stringify(response.data.user));
+                    localStorage.setItem('user', JSON.stringify(userToStore));
                 }
-                toast.success(`Welcome back, ${response.data.user.username || 'User'}!`);
+                toast.success(`Welcome back, ${userToStore.username || 'User'}!`);
 
-
-
-
-                const role = response.data.user.role?.toLowerCase();
+                const role = apiUser.role?.toLowerCase();
                 if (role === 'admin') {
                     router.push('/admin/dashboard');
                 } else if (role === 'doctor') {
                     router.push('/doctor/dashboard');
                 } else {
-                    router.push('/home'); 
+                    router.push('/home');
                 }
-
-
-
 
                 return response;
             } else {
@@ -112,58 +98,48 @@ export const useSignin = () => {
         }
     };
 
-
-
-
-
-
-
     const googleLogin = async (credential: string, role: string) => {
-
-
         setIsLoading(true);
         logger.info('Google login attempt', { role });
-
-
 
         try {
             const response = await signinService.googleLogin(credential, role);
             if (response.success && response.data?.user) {
-                dispatch(setUser(response.data.user));
+                const apiUser = response.data.user;
+                const userToStore = {
+                    id: apiUser.id,
+                    email: apiUser.email,
+                    role: apiUser.role,
+                    username: apiUser.userName,
+                    googleId: apiUser.googleId,
+                    profilePic: apiUser.profilePic,
+                    phone: apiUser.phone,
+                    gender: apiUser.gender,
+                };
+                dispatch(setUser(userToStore));
+
                 const token = response.data.accessToken;
                 if (token) {
-                    clientCookies.set('token', token, 7 * 24 * 60 * 60); 
-                    localStorage.setItem('user', JSON.stringify(response.data.user));
+                    clientCookies.set('token', token, 7 * 24 * 60 * 60);
+                    localStorage.setItem('user', JSON.stringify(userToStore));
                 }
                 toast.success('Signed in with Google!');
 
-                const userRole = response.data.user.role?.toLowerCase();
-
-
-
-
+                const userRole = apiUser.role?.toLowerCase();
                 if (userRole === 'admin') router.push('/admin/dashboard');
                 else if (userRole === 'doctor') router.push('/doctor/dashboard');
                 else router.push('/home');
 
-
-
-                
-                return { success: true };
+                return response;
             } else {
                 logger.warn('Google login failed', { response });
                 toast.error(response.error || 'Google sign in failed');
-                return { success: false };
+                return response;
             }
-
-
-
-
-
         } catch (error) {
             logger.error('Google login error', error);
             toast.error('Google sign in failed');
-            return { success: false };
+            return { success: false, error: 'Google login failed' };
         } finally {
             setIsLoading(false);
         }
@@ -175,6 +151,7 @@ export const useSignin = () => {
         localStorage.removeItem('user');
         dispatch(logoutAction());
         router.push('/signin');
+        toast.success('Logged Out Successfully!!');
     };
 
     return {

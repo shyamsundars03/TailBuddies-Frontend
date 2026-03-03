@@ -34,7 +34,7 @@ export const usePasswordRecovery = () => {
 
 
 
-                router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
+                router.push(`/verify-otp?email=${encodeURIComponent(email)}&purpose=reset`);
                 return { success: true };
             } else {
 
@@ -91,7 +91,7 @@ export const usePasswordRecovery = () => {
             logger.error('Reset password error', error);
             toast.error("An error occurred.");
 
-            
+
             return { success: false };
         } finally {
             setIsLoading(false);
