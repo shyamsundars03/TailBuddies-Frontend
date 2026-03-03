@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from "react"
 import { Plus, Edit, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { useAdmin } from "../../lib/hooks/useAdmin"
-import { specialtySchema } from "../../lib/utils/validators/admin.schema"
-import type { Specialty } from "../../types/admin.types"
+// import { specialtySchema } from "../../lib/utils/validators/admin.schema"
+import { specialtySchema } from "../../lib/validation/admin/admin.schema"
+// import type { Specialty } from "../../types/admin.types"
+import type { Specialty } from "../../lib/types/admin/admin.types"
 import { cn } from "@/lib/utils/utils"
 import { SearchInput } from "../common/ui/SearchInput"
 import { DataTable, Column } from "../common/ui/DataTable"
@@ -13,6 +15,10 @@ import { Pagination } from "../common/ui/Pagination"
 import { Dropdown } from "../common/ui/Dropdown"
 import Link from "next/link"
 import Swal from "sweetalert2"
+
+
+
+
 interface SpecialitiesManagementProps {
     initialSpecialties?: Specialty[]
 }
@@ -24,6 +30,8 @@ const INITIAL_FORM_STATE: Omit<Specialty, "id"> = {
     typicalKeywords: [],
     status: "active"
 }
+
+
 
 export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties = [] }: SpecialitiesManagementProps) {
     const {
@@ -43,7 +51,9 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [currentPage, setCurrentPage] = useState(1)
 
-    // Tag input states
+    
+
+
     const [designationInput, setDesignationInput] = useState("")
     const [keywordInput, setKeywordInput] = useState("")
 
@@ -55,9 +65,18 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
         }
     }, [getSpecialties, currentPage])
 
+
+
+
+
+
     useEffect(() => {
         fetchSpecialties(searchTerm)
     }, [currentPage])
+
+
+
+
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -67,19 +86,36 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
         return () => clearTimeout(timer)
     }, [searchTerm])
 
+
+
+
+
     const toggleStatus = async (id: string) => {
         const spec = specialties.find((s: Specialty) => s.id === id)
         if (!spec) return
         try {
             const newStatus = spec.status === "active" ? "inactive" : "active"
             await editSpecialty(id, { status: newStatus })
+
+
             toast.success("Specialty status updated")
+
+
         } catch {
+
+
             toast.error("Failed to update status")
+
         }
     }
 
+
+
+
+
     const handleAddTag = (type: "designation" | "keyword") => {
+
+
         if (type === "designation" && designationInput.trim()) {
             if (!formData.commonDesignation.includes(designationInput.trim())) {
                 setFormData(prev => ({
@@ -87,33 +123,52 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
                     commonDesignation: [...prev.commonDesignation, designationInput.trim()]
                 }))
             }
+
+
+
             setDesignationInput("")
+
+
         } else if (type === "keyword" && keywordInput.trim()) {
+            
+            
             if (!formData.typicalKeywords.includes(keywordInput.trim())) {
                 setFormData(prev => ({
                     ...prev,
                     typicalKeywords: [...prev.typicalKeywords, keywordInput.trim()]
                 }))
             }
+
+
             setKeywordInput("")
         }
     }
 
     const removeTag = (type: "designation" | "keyword", tag: string) => {
+        
+        
+        
         if (type === "designation") {
             setFormData(prev => ({
                 ...prev,
                 commonDesignation: prev.commonDesignation.filter(t => t !== tag)
             }))
         } else {
+
+
             setFormData(prev => ({
                 ...prev,
                 typicalKeywords: prev.typicalKeywords.filter(t => t !== tag)
             }))
         }
+
+
     }
 
     const handleSave = async () => {
+        
+        
+        
         setErrors({})
         const result = specialtySchema.safeParse(formData)
 
@@ -128,14 +183,24 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
 
         try {
             if (editingId) {
+
+
                 await editSpecialty(editingId, formData)
+                
                 toast.success("Specialty updated successfully")
             } else {
                 await addSpecialty(formData)
+                
+                
                 toast.success("Specialty created successfully")
             }
-            fetchSpecialties() // Refresh current page
+
+
+
+            fetchSpecialties() 
             handleCloseModal()
+
+
         } catch (e: unknown) {
             const err = e as { response?: { data?: { message?: string } } };
             const message =
@@ -149,6 +214,9 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
     }
 
     const handleEdit = (spec: Specialty) => {
+
+
+
         setFormData({
             name: spec.name,
             description: spec.description,
@@ -156,11 +224,19 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
             typicalKeywords: spec.typicalKeywords,
             status: spec.status
         })
+
+
+
         setEditingId(spec.id)
+
+
         setShowModal(true)
     }
 
     const handleCloseModal = () => {
+
+
+
         setShowModal(false)
         setEditingId(null)
         setFormData(INITIAL_FORM_STATE)
@@ -170,6 +246,10 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
     }
 
 const handleDelete = async (id: string) => {
+
+
+
+
     try {
         const result = await Swal.fire({
             title: "Are you sure?",
@@ -182,7 +262,7 @@ const handleDelete = async (id: string) => {
             cancelButtonColor: "#3085d6",
         })
 
-        // If user clicks "Yes"
+    
         if (result.isConfirmed) {
             await removeSpecialty(id)
             fetchSpecialties()

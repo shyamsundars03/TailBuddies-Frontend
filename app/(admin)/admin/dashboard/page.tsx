@@ -1,4 +1,4 @@
-"use client"
+// "use client"
 
 // import { AdminHeader } from "../../../../components/common/layout/admin/Header"
 // import { AdminSidebar } from "../../../../components/common/layout/admin/Sidebar"

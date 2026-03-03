@@ -6,7 +6,7 @@ import { DataTable, Column } from "../common/ui/DataTable"
 import { Pagination } from "../common/ui/Pagination"
 import { Dropdown } from "../common/ui/Dropdown"
 import Link from "next/link"
-import type { AdminUser } from "../../types/admin.types"
+import type { AdminUser } from "../../lib/types/admin/admin.types"
 import { cn } from "@/lib/utils/utils"
 import { useAdmin } from "../../lib/hooks/useAdmin"
 import { toast } from "sonner"
@@ -179,7 +179,7 @@ export function UsersManagement({ initialUsers: _initialUsers = [] }: UsersManag
                     isLoading={apiLoading}
                     emptyMessage="No users found."
                     className="border-0 shadow-none rounded-none"
-                // DataTable doesn't have defaultSort but simulates descending order if entries are reverse in data
+
                 />
 
                 <div className="px-6 py-4 bg-gray-50/30">
@@ -193,5 +193,25 @@ export function UsersManagement({ initialUsers: _initialUsers = [] }: UsersManag
                 </div>
             </div>
         </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     )
 }

@@ -1,4 +1,4 @@
-"use client"
+// "use client"
 
 import React from 'react'
 import { AdminPageContainer } from '../../../../components/common/layout/admin/PageContainer'
