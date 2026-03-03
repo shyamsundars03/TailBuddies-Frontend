@@ -6,8 +6,8 @@ import Image from "next/image"
 import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
 import { setUser } from "../../lib/redux/slices/authSlice"
 import { useSignin } from "../../lib/hooks/auth/useSignin"
-
-import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search } from "lucide-react"
+import Swal from "sweetalert2"
+import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search ,LogOut } from "lucide-react"
 
 export default function HomePage() {
   const dispatch = useAppDispatch()
@@ -47,6 +47,22 @@ const dashboardUrl =
     ? roleUrlMap[user.role.toLowerCase()] ?? "/home"
     : "/home"
 
+     const handleLogout = () => {
+            Swal.fire({
+                title: "Are you sure?",
+                text: "You will be logged out of your session.",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#3085d6",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Yes, logout!",
+                cancelButtonText: "No, stay"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    logout()
+                }
+            })
+        }
 
   return (
     <div className="min-h-screen bg-linear-to-b from-blue-50 to-blue-100">
@@ -96,11 +112,11 @@ const dashboardUrl =
                   <MessageSquare size={18} className="text-gray-700" />
                 </button>
                 <button
-                  onClick={logout}
-                  className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition"
-                  title="Logout"
+                    onClick={handleLogout}
+                    className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition text-gray-700"
+                    title="Logout"
                 >
-                  <User size={18} className="text-gray-700" />
+                    <LogOut size={18} />
                 </button>
               </div>
             </>
