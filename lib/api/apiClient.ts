@@ -9,7 +9,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true, 
+    withCredentials: true,
 });
 
 
@@ -21,7 +21,7 @@ const apiClient = axios.create({
 // Request interceptor 
 apiClient.interceptors.request.use(
     (config) => {
-        
+
         const token = clientCookies.get('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -62,6 +62,14 @@ apiClient.interceptors.response.use(
             message: error.message,
             data: error.response?.data
         });
+
+        // Handle account blocked in real-time
+        if (error.response?.status === 403 && error.response?.data?.message === 'Account is blocked') {
+            localStorage.removeItem('user');
+            clientCookies.delete('token');
+            window.location.href = '/signin?error=blocked';
+        }
+
         return Promise.reject(error);
     }
 );
