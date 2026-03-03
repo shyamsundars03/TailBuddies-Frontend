@@ -1,49 +1,55 @@
-// components/owner/AccountForm.tsx
-"use client"
-
-import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Input } from "../common/forms/Input"
 import { Select } from "../common/forms/Select"
 import { Button } from "../common/ui/Button"
+import { usePathname } from "next/navigation"
+import { userApi } from "../../lib/api/user"
+import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
+import { setUser } from "../../lib/redux/slices/authSlice"
+import { toast } from "sonner"
 
 export interface AccountData {
     userName: string
     gender: string
     email: string
     phone: string
-    address: string
-    city: string
-    state: string
-    country: string
-    pincode: string
 }
 
 export interface AccountFormProps {
     initialData?: Partial<AccountData>
-    onSave?: (data: AccountData) => void
-    onSaveAddress?: (data: Partial<AccountData>) => void
+    isReadOnly?: boolean
 }
 
-const genderOptions = [
-    { value: "Female", label: "Female" },
-    { value: "Male", label: "Male" },
-    { value: "Other", label: "Other" },
+const GENDER_OPTIONS = [
+    { value: "female", label: "Female" },
+    { value: "male", label: "Male" },
+    { value: "other", label: "Other" },
 ]
 
-export function AccountForm({ initialData, onSave, onSaveAddress }: AccountFormProps) {
+export function AccountForm({ initialData, isReadOnly = false }: AccountFormProps) {
+    const dispatch = useAppDispatch()
+    const { user } = useAppSelector((state) => state.auth)
+    const isGoogleUser = !!user?.googleId
+
     const [userData, setUserData] = useState<AccountData>({
         userName: initialData?.userName || "",
-        gender: initialData?.gender || "Female",
+        gender: initialData?.gender?.toLowerCase() || "female",
         email: initialData?.email || "",
         phone: initialData?.phone || "",
-        address: initialData?.address || "",
-        city: initialData?.city || "",
-        state: initialData?.state || "",
-        country: initialData?.country || "",
-        pincode: initialData?.pincode || "",
     })
+
+    // Sync state when initialData changes (e.g., after a successful save)
+    useEffect(() => {
+        if (initialData) {
+            setUserData({
+                userName: initialData.userName || "",
+                gender: initialData.gender?.toLowerCase() || "female",
+                email: initialData.email || "",
+                phone: initialData.phone || "",
+            })
+        }
+    }, [initialData])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
@@ -53,25 +59,40 @@ export function AccountForm({ initialData, onSave, onSaveAddress }: AccountFormP
         }))
     }
 
-    const handleSaveDetails = () => {
-        onSave?.(userData)
+    const handleSaveDetails = async () => {
+        try {
+            const response = await userApi.updateProfile(userData as unknown as Record<string, unknown>)
+            if (response.success) {
+                // Merge new data with existing user object to preserve other fields (like role, googleId, etc)
+                const updatedUser = { ...user, ...response.data }
+                dispatch(setUser(updatedUser))
+                // Sync to localStorage
+                localStorage.setItem('user', JSON.stringify(updatedUser))
+                toast.success("Profile details updated successfully")
+            } else {
+                toast.error(response.error || "Failed to update profile")
+            }
+        } catch {
+            toast.error("An error occurred while saving profile")
+        }
     }
 
-    const handleSaveAddress = () => {
-        onSaveAddress?.({
-            address: userData.address,
-            city: userData.city,
-            state: userData.state,
-            country: userData.country,
-            pincode: userData.pincode,
-        })
-    }
+    const pathname = usePathname()
+    const isDoctor = pathname.startsWith("/doctor")
+    const accountPrefix = isDoctor ? "/doctor/profile" : "/owner/account"
+    const variant = isDoctor ? "doctor" : "owner"
+
+    const pageTitle = isDoctor ? "Personal Information" : (pathname === "/owner/profile" ? "Profile" : "Account")
+
+    // Determine phone display value
+    const phoneValue = !userData.phone && isGoogleUser && isReadOnly ? "no phone number" : userData.phone
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Account</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">
+                {pageTitle}
+            </h2>
 
-            {/* Account Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <Input
                     label="User Name"
@@ -79,7 +100,9 @@ export function AccountForm({ initialData, onSave, onSaveAddress }: AccountFormP
                     name="userName"
                     value={userData.userName}
                     onChange={handleChange}
-                    className="bg-gray-50"
+                    className="bg-gray-50 text-gray-700"
+                    disabled={isReadOnly}
+                    placeholder="Enter username"
                 />
 
                 <Input
@@ -87,8 +110,7 @@ export function AccountForm({ initialData, onSave, onSaveAddress }: AccountFormP
                     type="email"
                     name="email"
                     value={userData.email}
-                    onChange={handleChange}
-                    className="bg-gray-50"
+                    className="bg-gray-50 text-gray-500"
                     disabled={true}
                 />
 
@@ -96,9 +118,16 @@ export function AccountForm({ initialData, onSave, onSaveAddress }: AccountFormP
                     label="Phone"
                     type="tel"
                     name="phone"
-                    value={userData.phone}
+                    value={phoneValue}
                     onChange={handleChange}
-                    className="bg-gray-50"
+                    onFocus={(e) => {
+                        if (isGoogleUser && !userData.phone) {
+                            // Clear virtual placeholder on focus
+                        }
+                    }}
+                    className="bg-gray-50 text-gray-700"
+                    disabled={isReadOnly}
+                    placeholder={isGoogleUser ? "no phone number" : "Enter phone number"}
                 />
 
                 <Select
@@ -106,50 +135,29 @@ export function AccountForm({ initialData, onSave, onSaveAddress }: AccountFormP
                     name="gender"
                     value={userData.gender}
                     onChange={handleChange}
-                    options={genderOptions}
+                    options={GENDER_OPTIONS}
+                    disabled={isReadOnly}
+                    className="bg-gray-50 text-gray-700"
                 />
             </div>
 
-            <div className="flex gap-4 mb-8 flex-wrap">
-                <Button onClick={handleSaveDetails} variant="owner">
-                    Save Details
-                </Button>
-                <Link href="/owner/account/change-password">
-                    <Button variant="owner">Change Password</Button>
-                </Link>
-                <Link href="/owner/account/change-email">
-                    <Button variant="owner">Change Email</Button>
-                </Link>
-            </div>
+            {!isReadOnly && (
+                <div className="flex flex-wrap gap-4">
+                    <Button onClick={handleSaveDetails} variant={variant} className="px-8">
+                        Save Details
+                    </Button>
 
-            {/* Address Section */}
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Address</h2>
+                    {!isGoogleUser && (
+                        <Link href={`${accountPrefix}/change-password`}>
+                            <Button variant={variant}>Change Password</Button>
+                        </Link>
+                    )}
 
-            <div className="mb-6">
-                <Input
-                    label="Address"
-                    type="text"
-                    name="address"
-                    value={userData.address}
-                    onChange={handleChange}
-                />
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                <Input label="City" type="text" name="city" value={userData.city} onChange={handleChange} />
-                <Input label="State" type="text" name="state" value={userData.state} onChange={handleChange} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                <Input label="Country" type="text" name="country" value={userData.country} onChange={handleChange} />
-                <Input label="Pincode" type="text" name="pincode" value={userData.pincode} onChange={handleChange} />
-            </div>
-
-            <div className="flex justify-end">
-                <Button onClick={handleSaveAddress} variant="owner" className="rounded-lg">
-                    Save Address
-                </Button>
-            </div>
+                    <Link href={`${accountPrefix}/change-email`}>
+                        <Button variant={variant}>Change Email</Button>
+                    </Link>
+                </div>
+            )}
         </div>
     )
 }

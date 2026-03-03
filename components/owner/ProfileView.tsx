@@ -1,4 +1,3 @@
-// components/owner/ProfileView.tsx
 "use client"
 
 import { Badge } from "../common/ui/Badge"
@@ -39,13 +38,13 @@ export function ProfileView({ data }: ProfileViewProps) {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">User Name</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">{data.userName || "—"}</p>
+                        <p className="text-sm text-gray-700">{data.userName}</p>
                     </div>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">{data.gender || "—"}</p>
+                        <p className="text-sm text-gray-700">{data.gender}</p>
                     </div>
                 </div>
             </div>
@@ -54,7 +53,7 @@ export function ProfileView({ data }: ProfileViewProps) {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">{data.email || "—"}</p>
+                        <p className="text-sm text-gray-700">{data.email}</p>
                     </div>
                 </div>
                 <div>
