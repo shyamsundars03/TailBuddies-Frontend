@@ -10,9 +10,15 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     formData.append('file', file);
     formData.append('upload_preset', uploadPreset);
 
-    console.log('CLOUDINARY_DEBUG: Starting upload', { cloudName, uploadPreset });
+    // console.log('CLOUDINARY_DEBUG: Starting upload', { cloudName, uploadPreset });
+    
+    
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-    console.log('CLOUDINARY_DEBUG: POSTing to', uploadUrl);
+
+    // console.log('CLOUDINARY_DEBUG: POSTing to', uploadUrl);
+
+
+
 
     try {
         const response = await fetch(
@@ -29,6 +35,8 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
 
         const data = await response.json();
         return data.secure_url;
+
+        
     } catch (error) {
         console.error('Cloudinary upload error:', error);
         throw error;
