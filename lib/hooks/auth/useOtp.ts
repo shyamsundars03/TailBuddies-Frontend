@@ -25,11 +25,13 @@ function getOtpPurpose(email: string): string | null {
     return params.get('purpose');
 }
 
-function clearOtpPurpose(email: string) {
-    if (typeof window !== 'undefined') {
-        sessionStorage.removeItem(`otp_purpose_${email}`);
-    }
-}
+
+
+// function clearOtpPurpose(email: string) {
+//     if (typeof window !== 'undefined') {
+//         sessionStorage.removeItem(`otp_purpose_${email}`);
+//     }
+// }
 
 
 const TIMER_DURATION = 75;
@@ -100,12 +102,18 @@ export const useOtp = () => {
 
     const verify = async (email: string, otp: string, enteredOtp?: string) => {
         setIsLoading(true);
+
+
+
         logger.info('Verifying OTP', { email });
 
         try {
 
             let userData = null;
+
+
             const pendingReg = sessionStorage.getItem('pending_registration');
+
             if (pendingReg) {
                 userData = JSON.parse(pendingReg);
             }
@@ -114,10 +122,14 @@ export const useOtp = () => {
 
             if (result.success) {
                 const purpose = getOtpPurpose(email);
+
+
                 logger.info('OTP Verification Success', { email, purpose });
 
 
                 clearOtpTimer(email);
+
+                
                 sessionStorage.removeItem('pending_registration');
                 clientCookies.delete('auth_action_pending');
 

@@ -5,9 +5,17 @@ import { AxiosError } from 'axios';
 import { AuthApiResponse } from '../../types/auth';
 
 export const googleAuthApi = {
+
+
+
+
+
     login: async (idToken: string, role: string): Promise<AuthApiResponse> => {
 
         try {
+
+
+
             logger.info('Google Auth API call', { role });
             const response = await apiClient.post('/auth/google-login', { idToken, role });
 
@@ -28,6 +36,10 @@ export const googleAuthApi = {
                 };
             }
             return response.data;
+
+
+
+
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
                 logger.error('Google Auth API error', {
@@ -40,6 +52,8 @@ export const googleAuthApi = {
                     error: error.response?.data?.message || error.message || 'Google Login failed',
                 };
             }
+
+            
             return { success: false, error: 'An unknown error occurred' };
         }
     },

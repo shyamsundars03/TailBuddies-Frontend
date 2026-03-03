@@ -21,6 +21,9 @@ export const useSignin = () => {
     const dispatch = useAppDispatch();
 
     const login = async (credentials: SigninCredentials): Promise<SigninApiResponse> => {
+
+
+        
         const validateForm = (data: SigninCredentials): boolean => {
             try {
                 logger.debug('Validating signin form data', data);
@@ -146,12 +149,38 @@ export const useSignin = () => {
     };
 
     const logout = () => {
+
+
+
+
         logger.info('Logging out');
+
+    const userStr = localStorage.getItem('user');
+    let userRole = null;
+
+
         clientCookies.delete('token');
-        localStorage.removeItem('user');
-        dispatch(logoutAction());
+    localStorage.removeItem('user');
+    dispatch(logoutAction());
+
+    
+    if (userStr) {
+        try {
+            const user = JSON.parse(userStr);
+            userRole = user.role?.toLowerCase();
+        } catch (e) {
+            logger.error('Failed to parse user from localStorage', e);
+        }
+    }
+    
+    // Redirect based on role
+    if (userRole === 'admin') {
+        router.push('/admin/signin');
+    } else {
         router.push('/signin');
-        toast.success('Logged Out Successfully!!');
+    }
+    
+    toast.success('Logged Out Successfully!!');
     };
 
     return {

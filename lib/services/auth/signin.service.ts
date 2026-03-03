@@ -6,13 +6,13 @@ import { SigninCredentials, AuthApiResponse } from '../../types/auth';
 export const signinService = {
 
 
-login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
+    login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
 
 
 
         logger.info('signinService.login called', { email: credentials.email });
         return await signinApi.login(credentials);
-},
+    },
 
 
 
@@ -23,9 +23,9 @@ login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
         return await googleAuthApi.login(idToken, role);
         
     },
-
-
-
-
+        async logout(): Promise < { success: boolean; message?: string; error?: string } > {
+            logger.info('signinService.logout called');
+            return await signinApi.logout();
+        },
 };
 

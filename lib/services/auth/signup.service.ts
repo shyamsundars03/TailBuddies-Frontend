@@ -19,8 +19,10 @@ register: async (formData: SignupFormData): Promise<SignupApiResponse> => {
       const response = await signupApi.register(apiData);
 
       if (response.success) {
+
         logger.info('Signup service: success', { email: apiData.email });
       } else {
+        
         logger.warn('Signup service: failed', { email: apiData.email, error: response.error });
       }
 

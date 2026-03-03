@@ -35,6 +35,9 @@ export const signinApi = {
                 };
             }
             return response.data;
+
+
+
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
                 logger.error('Signin API error', {
@@ -51,20 +54,24 @@ export const signinApi = {
         }
     },
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    logout: async (): Promise<{ success: boolean; message?: string; error?: string }> => {
+        try {
+            logger.info('Logout API call');
+            const response = await apiClient.post('/auth/logout');
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                logger.error('Logout API error', {
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    message: error.message
+                });
+                return {
+                    success: false,
+                    error: error.response?.data?.message || error.message || 'Logout failed',
+                };
+            }
+            return { success: false, error: 'An unknown error occurred during logout' };
+        }
+    },
 };

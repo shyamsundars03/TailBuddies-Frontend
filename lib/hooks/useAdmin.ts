@@ -2,11 +2,14 @@
 import { AxiosError } from "axios"
 
 import { useState, useCallback } from "react"
-import type { Specialty, AdminUser } from "../../types/admin.types"
+import type { Specialty, AdminUser } from "../../lib/types/admin/admin.types"
 import { adminApi } from "../api/admin"
 import { toast } from "sonner"
 
 export const useAdmin = () => {
+
+
+    
     const [isLoading, setIsLoading] = useState(false)
     const [specialties, setSpecialties] = useState<Specialty[]>([])
     const [users, setUsers] = useState<AdminUser[]>([])
