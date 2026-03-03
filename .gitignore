@@ -41,12 +41,11 @@ yarn-error.log*
 next-env.d.ts
 
 
-*.bat
-*.txt
-lint_results.json
-
-
-
 cleanup.bat/
 final_lint_check.txt/
 lint_results.json/
+# Frontend/backend .gitignore additions:
+*.txt
+lint_*.txt
+cleanup.bat
+lint_results.json
