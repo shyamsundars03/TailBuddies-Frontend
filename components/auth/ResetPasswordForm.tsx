@@ -9,8 +9,11 @@ import { Button } from "../../components/common/ui/Button"
 import { usePasswordRecovery } from "../../lib/hooks/auth"
 
 export function ResetPasswordForm() {
-    const { resetPassword, isLoading: isSubmitting } = usePasswordRecovery()
     const searchParams = useSearchParams()
+    const role = searchParams.get("role") || "owner"
+    const variant = role === "doctor" ? "doctor" : "owner"
+
+    const { resetPassword, isLoading: isSubmitting } = usePasswordRecovery()
     const email = searchParams.get("email") || ""
     const otp = searchParams.get("otp") || ""
 
@@ -59,7 +62,7 @@ export function ResetPasswordForm() {
                     onClick={handleSubmit}
                     isLoading={isSubmitting}
                     loadingText="Resetting..."
-                    variant="owner"
+                    variant={variant}
                     fullWidth
                     rounded
                     className="mt-4"

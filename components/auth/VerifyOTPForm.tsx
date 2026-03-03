@@ -9,15 +9,19 @@ import { useOtp, getOtpTimeRemaining, setOtpTimer } from "../../lib/hooks/auth/u
 import logger from "../../lib/logger"
 import { toast } from "sonner"
 
-const OTP_DURATION = 75 
+const OTP_DURATION = 75
 
 export function VerifyOTPForm() {
+    const searchParams = useSearchParams()
+    const role = searchParams.get("role") || "owner"
+    const variant = role === "doctor" ? "doctor" : "owner"
+
     const { verify, resend, verifyAction, isLoading: isSubmitting } = useOtp()
     const router = useRouter()
-    const searchParams = useSearchParams()
     const email = searchParams.get("email") || ""
 
     const [otp, setOtp] = useState("")
+    const [isValidated, setIsValidated] = useState(false)
     const [timer, setTimer] = useState(() => {
         if (typeof window === 'undefined' || !email) return 0;
         const remaining = getOtpTimeRemaining(email);
@@ -29,14 +33,14 @@ export function VerifyOTPForm() {
     });
     const [isResending, setIsResending] = useState(false)
 
-// Redirect if no pending registration or reset purpose
+    // Redirect if no pending registration or reset purpose
     useEffect(() => {
-        if (email && !verifyAction(email)) {
+        if (email && !isValidated && !verifyAction(email)) {
             logger.warn('Unauthorized access to OTP page, redirecting to signup', { email });
             toast.error('Session expired. Please sign up again.');
             router.push('/signup');
         }
-    }, [email, verifyAction, router])
+    }, [email, verifyAction, router, isValidated])
 
 
     useEffect(() => {
@@ -61,7 +65,6 @@ export function VerifyOTPForm() {
         const secs = seconds % 60
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
     }
-
     const handleVerify = async () => {
         if (timer <= 0) {
             toast.error("OTP expired. Please click Resend OTP.")
@@ -72,7 +75,18 @@ export function VerifyOTPForm() {
             return
         }
         logger.info('VerifyOTPForm: submitting', { email, otpLength: otp.length })
-        await verify(email, otp, otp) 
+        const result = await verify(email, otp, otp) as { success: boolean; purpose?: string };
+        if (result?.success) {
+            setIsValidated(true)
+            if (result.purpose === 'reset') {
+                toast.success('OTP verified! Please set your new password.');
+                // Clear purpose so they can't come back to OTP page easily
+                if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem(`otp_purpose_${email}`);
+                }
+                router.push(`/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}&role=${role}`);
+            }
+        }
     }
 
     const handleResend = async () => {
@@ -118,7 +132,7 @@ export function VerifyOTPForm() {
                     onClick={handleVerify}
                     isLoading={isSubmitting}
                     loadingText="Verifying..."
-                    variant="owner"
+                    variant={variant}
                     fullWidth
                     rounded
                     className="mt-4"
@@ -136,7 +150,7 @@ export function VerifyOTPForm() {
                     onClick={handleResend}
                     isLoading={isResending}
                     loadingText="Resending..."
-                    variant="owner"
+                    variant={variant}
                     fullWidth
                     rounded
                     disabled={timer > 0}

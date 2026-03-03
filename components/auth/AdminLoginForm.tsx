@@ -39,21 +39,20 @@ export function AdminLoginForm() {
             const result = response.data
 
             if (result.success && result.data) {
-                const { accessToken, ...userData } = result.data;
+                const { user, accessToken } = result.data;
 
-                
-                const user = {
-                    id: userData.id,
-                    email: userData.email,
-                    role: userData.role,
-                    username: userData.userName || 'Admin'
+                // Map backend userName to frontend username if needed, 
+                // but better to keep it consistent. authSlice uses 'username'.
+                const userToStore = {
+                    ...user,
+                    username: user.userName || 'Admin'
                 };
 
-                dispatch(setUser(user));
+                dispatch(setUser(userToStore));
 
                 if (accessToken) {
-                    clientCookies.set('token', accessToken, 7 * 24 * 60 * 60); 
-                    localStorage.setItem('user', JSON.stringify(user));
+                    clientCookies.set('token', accessToken, 7 * 24 * 60 * 60);
+                    localStorage.setItem('user', JSON.stringify(userToStore));
                     logger.info('Admin logged in', { email: user.email });
                 }
 

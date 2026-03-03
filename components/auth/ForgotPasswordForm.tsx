@@ -2,6 +2,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Input } from "../../components/common/forms/Input"
 import { Button } from "../../components/common/ui/Button"
@@ -9,6 +10,10 @@ import { usePasswordRecovery } from "../../lib/hooks/auth"
 
 
 export function ForgotPasswordForm() {
+    const searchParams = useSearchParams()
+    const role = searchParams.get("role") || "owner"
+    const variant = role === "doctor" ? "doctor" : "owner"
+
     const { forgotPassword, isLoading: isSubmitting } = usePasswordRecovery()
     const [email, setEmail] = useState("")
 
@@ -36,16 +41,16 @@ export function ForgotPasswordForm() {
                     onClick={handleSubmit}
                     isLoading={isSubmitting}
                     loadingText="Sending..."
-                    variant="owner"
+                    variant={variant}
                     fullWidth
                     rounded
                     className="mt-4"
                 >
-                    Send Reset Link
+                    Send Reset OTP
                 </Button>
 
                 <div className="text-center pt-2">
-                    <Link href="/auth/signin" className="text-gray-900 font-semibold hover:text-yellow-600 text-sm">
+                    <Link href="/signin" className="text-gray-900 font-semibold hover:text-yellow-600 text-sm">
                         ← Back to Sign In
                     </Link>
                 </div>
