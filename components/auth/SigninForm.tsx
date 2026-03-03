@@ -17,6 +17,8 @@ import { signinSchema } from "../../lib/validation/auth/signin.schema"
 import logger from "../../lib/logger"
 
 export function SignInForm() {
+
+
   const searchParams = useSearchParams()
   const { login, googleLogin, isLoading, errors: hookErrors, setErrors: setHookErrors } = useSignin()
 
@@ -31,10 +33,12 @@ export function SignInForm() {
   const [errors, setLocalErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-  // Merging local errors and hook errors
+
   const allErrors = { ...errors, ...hookErrors };
 
   useEffect(() => {
+
+
     if (!urlRole) return;
     const targetRole = urlRole === "doctor" ? "doctor" : "owner";
     if (formData.role !== targetRole) {
@@ -52,7 +56,7 @@ export function SignInForm() {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
 
-    // Clearing local error
+   
     if (errors[name]) {
       setLocalErrors((prev) => {
         const newErrors = { ...prev }
@@ -61,7 +65,7 @@ export function SignInForm() {
       })
     }
 
-    // Clearing hook error
+    
     if (hookErrors[name]) {
       setHookErrors((prev) => {
         const newErrors = { ...prev }
@@ -71,16 +75,26 @@ export function SignInForm() {
     }
   }
 
+
+
+
+
   const validateField = (name: string, value: string) => {
+
+
     const schemaData = {
       ...formData,
       [name]: value,
     }
+
     const result = signinSchema.safeParse(schemaData)
+
     if (!result.success) {
       const fieldError = result.error.flatten().fieldErrors as Record<string, string[]>
       const message = fieldError[name]?.[0]
+
       setLocalErrors((prev) => ({ ...prev, [name]: message || "" }))
+
     } else {
       setLocalErrors((prev) => {
         const newErrors = { ...prev }
@@ -91,11 +105,15 @@ export function SignInForm() {
   }
 
   const handleBlur = (field: string) => {
+
+
     setTouched((prev) => ({ ...prev, [field]: true }))
     validateField(field, formData[field as keyof typeof formData])
+
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault()
     logger.info('Signin form submission started', { email: formData.email });
 
@@ -113,14 +131,19 @@ export function SignInForm() {
       })
 
       if (loginResult?.success) {
+
+
         logger.info('Login success, redirecting...', { email: formData.email });
+
       } else if (!loginResult?.success && !loginResult?.error) {
         
         toast.error("Please fix the validation errors");
       }
     } catch (error) {
+
       logger.error('Signin submit error', error);
       toast.error("An error occurred. Please try again.");
+      
     }
   }
 

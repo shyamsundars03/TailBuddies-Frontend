@@ -14,9 +14,13 @@ export function ForgotPasswordForm() {
     const role = searchParams.get("role") || "owner"
     const variant = role === "doctor" ? "doctor" : "owner"
 
+
+
     const { forgotPassword, isLoading: isSubmitting } = usePasswordRecovery()
     const [email, setEmail] = useState("")
 
+
+    
     const handleSubmit = async () => {
         await forgotPassword(email)
     }

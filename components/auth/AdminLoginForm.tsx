@@ -22,8 +22,15 @@ export function AdminLoginForm() {
         email: "",
         password: "",
     })
-    const [showPassword, setShowPassword] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
+
+
+
+
+
+
+
+const [showPassword, setShowPassword] = useState(false)
+const [isLoading, setIsLoading] = useState(false)
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -41,8 +48,8 @@ export function AdminLoginForm() {
             if (result.success && result.data) {
                 const { user, accessToken } = result.data;
 
-                // Map backend userName to frontend username if needed, 
-                // but better to keep it consistent. authSlice uses 'username'.
+
+
                 const userToStore = {
                     ...user,
                     username: user.userName || 'Admin'
@@ -51,23 +58,38 @@ export function AdminLoginForm() {
                 dispatch(setUser(userToStore));
 
                 if (accessToken) {
+
+
                     clientCookies.set('token', accessToken, 7 * 24 * 60 * 60);
                     localStorage.setItem('user', JSON.stringify(userToStore));
+
+
+
+
                     logger.info('Admin logged in', { email: user.email });
+
+
                 }
 
                 toast.success("Admin login successful!")
                 router.push("/admin/dashboard")
+
             } else {
                 toast.error(result.message || "Invalid admin credentials")
             }
+
+
+
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                logger.error('Admin login error', {
-                    status: error.response?.status,
-                    data: error.response?.data,
-                    message: error.message
-                });
+
+
+if (error instanceof AxiosError) {
+logger.error('Admin login error', {
+status: error.response?.status,
+data: error.response?.data,
+message: error.message
+});
+
                 const message = error.response?.data?.message || "Invalid admin credentials";
                 toast.error(message);
             } else {

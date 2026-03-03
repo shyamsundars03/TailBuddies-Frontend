@@ -9,6 +9,9 @@ import { Button } from "../../components/common/ui/Button"
 import { usePasswordRecovery } from "../../lib/hooks/auth"
 
 export function ResetPasswordForm() {
+
+
+    
     const searchParams = useSearchParams()
     const role = searchParams.get("role") || "owner"
     const variant = role === "doctor" ? "doctor" : "owner"
