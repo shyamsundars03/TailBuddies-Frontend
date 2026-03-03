@@ -23,7 +23,7 @@ export const useSignin = () => {
     const login = async (credentials: SigninCredentials): Promise<SigninApiResponse> => {
 
 
-        
+
         const validateForm = (data: SigninCredentials): boolean => {
             try {
                 logger.debug('Validating signin form data', data);
@@ -78,13 +78,17 @@ export const useSignin = () => {
                 toast.success(`Welcome back, ${userToStore.username || 'User'}!`);
 
                 const role = apiUser.role?.toLowerCase();
-                if (role === 'admin') {
-                    router.push('/admin/dashboard');
-                } else if (role === 'doctor') {
-                    router.push('/doctor/dashboard');
-                } else {
-                    router.push('/home');
-                }
+
+                // Add a slight delay before redirecting to let the user see the success message
+                setTimeout(() => {
+                    if (role === 'admin') {
+                        router.push('/admin/dashboard');
+                    } else if (role === 'doctor') {
+                        router.push('/doctor/dashboard');
+                    } else {
+                        router.push('/home');
+                    }
+                }, 500);
 
                 return response;
             } else {
@@ -148,39 +152,42 @@ export const useSignin = () => {
         }
     };
 
-    const logout = () => {
-
-
-
-
+    const logout = async () => {
         logger.info('Logging out');
 
-    const userStr = localStorage.getItem('user');
-    let userRole = null;
+        const userStr = localStorage.getItem('user');
+        let userRole = null;
 
-
-        clientCookies.delete('token');
-    localStorage.removeItem('user');
-    dispatch(logoutAction());
-
-    
-    if (userStr) {
-        try {
-            const user = JSON.parse(userStr);
-            userRole = user.role?.toLowerCase();
-        } catch (e) {
-            logger.error('Failed to parse user from localStorage', e);
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                userRole = user.role?.toLowerCase();
+            } catch (e) {
+                logger.error('Failed to parse user from localStorage', e);
+            }
         }
-    }
-    
-    // Redirect based on role
-    if (userRole === 'admin') {
-        router.push('/admin/signin');
-    } else {
-        router.push('/signin');
-    }
-    
-    toast.success('Logged Out Successfully!!');
+
+        try {
+            // Call backend to clear refreshToken cookie
+            await signinService.logout();
+        } catch (error) {
+            logger.error('Backend logout failed', error);
+            // Continue with client-side logout even if backend fails
+        } finally {
+            // Client-side cleanup
+            clientCookies.delete('token');
+            localStorage.removeItem('user');
+            dispatch(logoutAction());
+
+            // Redirect based on role
+            if (userRole === 'admin') {
+                router.push('/admin/signin');
+            } else {
+                router.push('/signin');
+            }
+
+            toast.success('Logged Out Successfully!!');
+        }
     };
 
     return {

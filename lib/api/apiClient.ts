@@ -3,7 +3,7 @@
 import axios from 'axios';
 import logger from '../logger';
 import { clientCookies } from '../utils/clientCookies';
-
+import { toast } from 'sonner';
 const apiClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
     headers: {
@@ -80,14 +80,21 @@ apiClient.interceptors.response.use(
 
         // Handle account blocked in real-time
         if (error.response?.status === 403 && error.response?.data?.message === 'Account is blocked') {
+            // toast.error('Account Blocked');
             localStorage.removeItem('user');
             clientCookies.delete('token');
-            window.location.href = '/signin?error=blocked';
+            if (window.location.pathname !== '/signin') {
+                window.location.href = '/signin';
+            }
             return Promise.reject(error);
         }
 
         // Handle token expiration
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const isAuthRoute = originalRequest.url?.includes('/auth/signin') ||
+            originalRequest.url?.includes('/auth/verify-otp') ||
+            originalRequest.url?.includes('/auth/google-login');
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -119,7 +126,9 @@ apiClient.interceptors.response.use(
                 processQueue(err, null);
                 clientCookies.delete('token');
                 localStorage.removeItem('user');
-                window.location.href = '/signin?error=session_expired';
+                if (window.location.pathname !== '/signin') {
+                    window.location.href = '/signin?error=session_expired';
+                }
                 return Promise.reject(err);
             } finally {
                 isRefreshing = false;

@@ -55,24 +55,6 @@ export function SignInForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-
-   
-    if (errors[name]) {
-      setLocalErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors[name]
-        return newErrors
-      })
-    }
-
-    
-    if (hookErrors[name]) {
-      setHookErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors[name]
-        return newErrors
-      })
-    }
   }
 
 
@@ -117,7 +99,7 @@ export function SignInForm() {
     e.preventDefault()
     logger.info('Signin form submission started', { email: formData.email });
 
-   
+
     setTouched({
       email: true,
       password: true,
@@ -136,14 +118,14 @@ export function SignInForm() {
         logger.info('Login success, redirecting...', { email: formData.email });
 
       } else if (!loginResult?.success && !loginResult?.error) {
-        
+
         toast.error("Please fix the validation errors");
       }
     } catch (error) {
 
       logger.error('Signin submit error', error);
       toast.error("An error occurred. Please try again.");
-      
+
     }
   }
 
