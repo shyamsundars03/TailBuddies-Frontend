@@ -11,3 +11,14 @@ export const signinSchema = z.object({
 });
 
 export type SigninFormData = z.infer<typeof signinSchema>;
+
+//  password: z
+   // .string()
+ //   .min(1, 'Password is required')
+ //   .regex(
+  //    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/,
+ //     'Password must include uppercase, lowercase, number and special character'
+ //   ),
+
+
+

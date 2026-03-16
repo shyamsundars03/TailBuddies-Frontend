@@ -16,8 +16,8 @@ export function DoctorPageContainer({ children, title }: DoctorPageContainerProp
             </div>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-6 pb-12">
-                <div className="flex gap-6">{children}</div>
+            <div className="max-w-7xl mx-auto px-2  pb-12 overflow-x-hidden">
+                <div className="flex flex-col lg:flex-row gap-4">{children}</div>
             </div>
         </>
     )

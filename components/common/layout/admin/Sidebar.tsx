@@ -42,12 +42,12 @@ interface SidebarMenuItem {
 const menuItems: SidebarMenuItem[] = [
     { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: "/admin/dashboard" },
     { icon: Users, label: "Users", id: "users", href: "/admin/usersManagement" },
-    { icon: UserCheck, label: "Doctors Verifications", id: "doctors", href: "#" },
-    { icon: PawPrint, label: "Pets", id: "pets", href: "#" },
+    { icon: UserCheck, label: "Doctors Verifications", id: "doctors", href: "/admin/doctorVerifications" },
+    { icon: PawPrint, label: "Pets", id: "pets", href: "/admin/petsManagement" },
     { icon: Stethoscope, label: "Speacilities", id: "specialities", href: "/admin/specialitiesManagement" },
     { icon: Receipt, label: "Subscription", id: "subscriptions", href: "#" },
-    { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "#" },
-    { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "#" },
+    { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "/admin/appointmentManagement" },
+    { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "/admin/transactionManagement" },
     { icon: CreditCard, label: "Payments", id: "payments", href: "#" },
     { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "#" },
     { icon: Star, label: "Reviews", id: "reviews", href: "#" },
@@ -83,9 +83,9 @@ export function AdminSidebar({ onItemClick, className, activeItem }: AdminSideba
                 <div className="bg-linear-to-br from-[#828282] to-[#606060] p-6 relative">
                     <div className="flex flex-col items-center">
                         <div className="w-20 h-20 rounded-full bg-white/10 border-4 border-white/20 flex items-center justify-center mb-3 overflow-hidden">
-                            
-                                <User size={32} className="text-white/60" />
-                            
+
+                            <User size={32} className="text-white/60" />
+
                         </div>
                         <h3 className="text-white font-bold text-lg">{user?.username || "Admin User"}</h3>
                         <p className="text-white/60 text-xs font-medium tracking-wide">SYSTEM ADMINISTRATOR</p>

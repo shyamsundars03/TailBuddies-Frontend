@@ -1,7 +1,7 @@
 import apiClient from '../apiClient';
 import { AxiosError } from 'axios';
 import { Specialty } from '../../../lib/types/admin/admin.types';
-
+import { ADMIN_ENDPOINTS } from '../../endpoints/admin';
 export const adminApi = {
 
 
@@ -31,7 +31,7 @@ export const adminApi = {
 
     addSpecialty: async (data: Omit<Specialty, 'id'>) => {
         try {
-            const response = await apiClient.post('/admin/specialties', data);
+            const response = await apiClient.post(ADMIN_ENDPOINTS.SPECIALTIES, data);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -51,7 +51,7 @@ editSpecialty: async (id: string, data: Partial<Specialty>) => {
     try {
 
 
-        const response = await apiClient.patch(`/admin/specialties/${id}`, data);
+        const response = await apiClient.patch(ADMIN_ENDPOINTS.SPECIALTY_BY_ID(id), data);
             return response.data;
 
     } catch (error: unknown) {
@@ -72,7 +72,7 @@ editSpecialty: async (id: string, data: Partial<Specialty>) => {
         try {
 
 
-            const response = await apiClient.delete(`/admin/specialties/${id}`);
+            const response = await apiClient.delete(ADMIN_ENDPOINTS.SPECIALTY_BY_ID(id));
             return response.data;
 
         } catch (error: unknown) {
@@ -117,7 +117,7 @@ editSpecialty: async (id: string, data: Partial<Specialty>) => {
         try {
 
 
-            const response = await apiClient.patch(`/admin/users/${id}/block`);
+            const response = await apiClient.patch(ADMIN_ENDPOINTS.TOGGLE_USER_BLOCK(id));
             return response.data;
 
 

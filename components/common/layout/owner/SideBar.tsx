@@ -10,6 +10,7 @@ import {
     Bell,
     LogOut,
     ChevronRight,
+    Search,
     type LucideIcon,
 } from "lucide-react"
 import { cn } from "../../../../lib/utils/utils"
@@ -44,8 +45,9 @@ export interface OwnerSidebarProps {
 
 const defaultMenuItems: SidebarMenuItem[] = [
     { icon: User, label: "Account", id: "account", href: "/owner/account" },
-    { icon: Calendar, label: "My Pet", id: "pet", href: "#" },
-    { icon: FileText, label: "My Bookings", id: "bookings", href: "#" },
+    { icon: Search, label: "Find Doctor", id: "services", href: "/owner/services" },
+    { icon: Calendar, label: "My Pet", id: "pet", href: "/owner/pets" },
+    { icon: FileText, label: "My Bookings", id: "bookings", href: "/owner/bookings" },
     { icon: FileText, label: "Medical Records", id: "medical", href: "#" },
     { icon: Calendar, label: "Calendar", id: "calendar", href: "#" },
     { icon: Phone, label: "Chat / Call", id: "chat", href: "#", badge: true },

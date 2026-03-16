@@ -4,10 +4,8 @@ import apiClient from '../apiClient';
 import logger from '../../logger';
 import { AxiosError } from 'axios';
 import { SigninCredentials, AuthApiResponse } from '../../types/auth';
-
+import { AUTH_ENDPOINTS } from '../../endpoints/auth';
 export const signinApi = {
-
-
 
 
 
@@ -15,7 +13,7 @@ export const signinApi = {
 
         try {
             logger.info('Signin API call', { email: credentials.email });
-            const response = await apiClient.post('/auth/signin', credentials);
+            const response = await apiClient.post(AUTH_ENDPOINTS.SIGNIN, credentials);
 
 
             if (response.data?.success && response.data?.data) {
@@ -57,7 +55,7 @@ export const signinApi = {
     logout: async (): Promise<{ success: boolean; message?: string; error?: string }> => {
         try {
             logger.info('Logout API call');
-            const response = await apiClient.post('/auth/logout');
+            const response = await apiClient.post(AUTH_ENDPOINTS.LOGOUT);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {

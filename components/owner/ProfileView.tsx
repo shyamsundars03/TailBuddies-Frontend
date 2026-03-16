@@ -34,7 +34,7 @@ export function ProfileView({ data }: ProfileViewProps) {
             </div>
 
             {/* Profile Details */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">User Name</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
@@ -44,12 +44,12 @@ export function ProfileView({ data }: ProfileViewProps) {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">{data.gender}</p>
+                        <p className="text-sm text-gray-700 font-capitalize">{data.gender}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
@@ -68,9 +68,9 @@ export function ProfileView({ data }: ProfileViewProps) {
             {(data.address || data.city || data.state || data.country || data.pincode) && (
                 <>
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Address</h3>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {data.address && (
-                            <div className="col-span-2">
+                            <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
                                 <div className="p-3 bg-gray-50 rounded-lg">
                                     <p className="text-sm text-gray-700">{data.address}</p>

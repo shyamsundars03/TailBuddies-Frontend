@@ -1,6 +1,6 @@
 import apiClient from '../apiClient';
 import { AxiosError } from 'axios';
-
+import { USER_ENDPOINTS } from '../../endpoints/user';
 export const userApi = {
 
 
@@ -11,7 +11,7 @@ export const userApi = {
         try {
 
 
-            const response = await apiClient.get('/user/profile');
+            const response = await apiClient.get(USER_ENDPOINTS.PROFILE);
             return response.data;
 
 
@@ -27,7 +27,7 @@ export const userApi = {
         try {
 
 
-            const response = await apiClient.put('/user/profile', data);
+            const response = await apiClient.put(USER_ENDPOINTS.PROFILE, data);
             return response.data;
 
 
@@ -47,7 +47,7 @@ export const userApi = {
         try {
 
 
-            const response = await apiClient.patch('/user/profile-pic', { profilePic });
+            const response = await apiClient.patch(USER_ENDPOINTS.PROFILE_PIC, { profilePic });
             return response.data;
 
             
@@ -64,7 +64,7 @@ export const userApi = {
 
 
 
-            const response = await apiClient.post('/user/change-email/initiate');
+            const response = await apiClient.post(USER_ENDPOINTS.CHANGE_EMAIL_INITIATE);
             return response.data;
 
 
@@ -82,7 +82,7 @@ export const userApi = {
 
 
 
-            const response = await apiClient.post('/user/change-email/verify-current', { otp });
+            const response = await apiClient.post(USER_ENDPOINTS.CHANGE_EMAIL_VERIFY_CURRENT, { otp });
             return response.data;
 
 
@@ -115,7 +115,7 @@ export const userApi = {
 
 
 
-            const response = await apiClient.post('/user/change-email/send-otp-new', { newEmail });
+            const response = await apiClient.post(USER_ENDPOINTS.CHANGE_EMAIL_SEND_OTP_NEW, { newEmail });
             return response.data;
 
 
@@ -135,9 +135,8 @@ export const userApi = {
 
 
 
-            const response = await apiClient.post('/user/change-email/verify-new', { newEmail, otp });
+            const response = await apiClient.post(USER_ENDPOINTS.CHANGE_EMAIL_VERIFY_NEW, { newEmail, otp });
             return response.data;
-
 
 
         } catch (error: unknown) {
@@ -160,7 +159,7 @@ export const userApi = {
         try {
 
 
-            const response = await apiClient.post('/user/change-password', data);
+            const response = await apiClient.post(USER_ENDPOINTS.CHANGE_PASSWORD, data);
             return response.data;
 
 

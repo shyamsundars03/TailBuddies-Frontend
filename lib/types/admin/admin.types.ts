@@ -16,3 +16,16 @@ export interface AdminUser {
     isBlocked: boolean
     profilePic?: string
 }
+
+export interface Pet {
+    id: string
+    petId: string
+    name: string
+    age: string
+    ownerName: string
+    isBlocked: boolean
+    phone: string
+    lastVisit?: string
+    paid: string
+    image?: string
+}

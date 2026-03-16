@@ -3,7 +3,7 @@ import apiClient from '../apiClient';
 import logger from '../../logger';
 import { AxiosError } from 'axios';
 import { AuthApiResponse } from '../../types/auth';
-
+import { AUTH_ENDPOINTS } from '../../endpoints/auth';
 export const googleAuthApi = {
 
 
@@ -17,7 +17,7 @@ export const googleAuthApi = {
 
 
             logger.info('Google Auth API call', { role });
-            const response = await apiClient.post('/auth/google-login', { idToken, role });
+            const response = await apiClient.post(AUTH_ENDPOINTS.GOOGLE_LOGIN, { idToken, role });
 
             if (response.data?.success && response.data?.data) {
                 const { user: apiUser, accessToken } = response.data.data;

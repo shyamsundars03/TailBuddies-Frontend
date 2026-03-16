@@ -7,7 +7,7 @@ import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
 import { setUser } from "../../lib/redux/slices/authSlice"
 import { useSignin } from "../../lib/hooks/auth/useSignin"
 import Swal from "sweetalert2"
-import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search ,LogOut } from "lucide-react"
+import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search, LogOut } from "lucide-react"
 
 export default function HomePage() {
   const dispatch = useAppDispatch()
@@ -42,27 +42,27 @@ export default function HomePage() {
     owner: "/owner/profile",
   }
 
-const dashboardUrl =
-  user?.role
-    ? roleUrlMap[user.role.toLowerCase()] ?? "/home"
-    : "/home"
+  const dashboardUrl =
+    user?.role
+      ? roleUrlMap[user.role.toLowerCase()] ?? "/home"
+      : "/home"
 
-     const handleLogout = () => {
-            Swal.fire({
-                title: "Are you sure?",
-                text: "You will be logged out of your session.",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#3085d6",
-                cancelButtonColor: "#d33",
-                confirmButtonText: "Yes, logout!",
-                cancelButtonText: "No, stay"
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    logout()
-                }
-            })
-        }
+  const handleLogout = () => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You will be logged out of your session.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, logout!",
+      cancelButtonText: "No, stay"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        logout()
+      }
+    })
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-b from-blue-50 to-blue-100">
@@ -81,7 +81,7 @@ const dashboardUrl =
           <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
             About
           </Link>
-          <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/services" className="text-gray-700 hover:text-gray-900 font-medium">
             Services
           </Link>
           <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
@@ -93,7 +93,7 @@ const dashboardUrl =
           {user ? (
             <>
               <Link
-            
+
                 href={dashboardUrl}
                 className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium"
               >
@@ -112,11 +112,11 @@ const dashboardUrl =
                   <MessageSquare size={18} className="text-gray-700" />
                 </button>
                 <button
-                    onClick={handleLogout}
-                    className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition text-gray-700"
-                    title="Logout"
+                  onClick={handleLogout}
+                  className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition text-gray-700"
+                  title="Logout"
                 >
-                    <LogOut size={18} />
+                  <LogOut size={18} />
                 </button>
               </div>
             </>

@@ -30,25 +30,20 @@ export function UsersManagement({ initialUsers: _initialUsers = [] }: UsersManag
         }
     }, [getUsers, filterRole, currentPage])
 
-    // Initial fetch and pagination/filter fetch
-    useEffect(() => {
-        fetchUsers(searchTerm)
-    }, [currentPage, filterRole]) // Only trigger on page/filter change. Search is handled below.
+useEffect(() => {
+  if (!searchTerm) {
+    fetchUsers("");
+    return;
+  }
 
-    // Debounced search
-    useEffect(() => {
-        if (!searchTerm) {
-            fetchUsers("")
-            return
-        }
+  const timer = setTimeout(() => {
+    setCurrentPage(1);
+    fetchUsers(searchTerm);
+  }, 500);
 
-        const timer = setTimeout(() => {
-            setCurrentPage(1)
-            fetchUsers(searchTerm)
-        }, 500)
+  return () => clearTimeout(timer);
+}, [searchTerm, fetchUsers, setCurrentPage]);
 
-        return () => clearTimeout(timer)
-    }, [searchTerm])
 
     const handleToggleBlock = async (id: string) => {
         try {

@@ -51,10 +51,10 @@ interface DoctorSidebarMenuItem {
 }
 const menuItems: DoctorSidebarMenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: "/doctor/dashboard" },
-  { icon: ClipboardList, label: "Requests", id: "requests", href: "#", badge: true },
-  { icon: Calendar, label: "Appointments", id: "appointments", href: "#" },
-  { icon: Clock, label: "Available Timings", id: "timings", href: "#" },
-  { icon: Users, label: "My Patients", id: "patients", href: "#" },
+  { icon: ClipboardList, label: "Requests", id: "requests", href: "/doctor/requests", badge: true },
+  { icon: Calendar, label: "Appointments", id: "appointments", href: "/doctor/appointments" },
+  { icon: Clock, label: "Available Timings", id: "timings", href: "/doctor/slots" },
+  { icon: Users, label: "My Patients", id: "patients", href: "/doctor/patients" },
   { icon: CreditCard, label: "Subscription", id: "subscription", href: "#" },
   { icon: Star, label: "Reviews", id: "reviews", href: "#" },
   { icon: FileText, label: "Invoices", id: "invoices", href: "#" },
@@ -141,7 +141,7 @@ export function DoctorSidebar({
   }
 
   return (
-    <div className="w-80 shrink-0">
+    <div className="w-full lg:w-80 shrink-0">
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         {/* Profile Section */}
         <div className="bg-linear-to-br from-blue-600 to-blue-500 p-6 text-center">

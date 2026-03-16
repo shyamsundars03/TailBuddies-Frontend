@@ -4,7 +4,7 @@ import apiClient from '../apiClient';
 import logger from '../../logger';
 import { AxiosError } from 'axios';
 import { AuthApiResponse } from '../../types/auth';
-
+import { AUTH_ENDPOINTS } from '../../endpoints/auth';
 export const otpApi = {
 
 
@@ -13,7 +13,7 @@ export const otpApi = {
 
         try {
             logger.info('OTP Verification API call', { email: data.email, purpose: data.purpose });
-            const response = await apiClient.post('/auth/verify-otp', data);
+            const response = await apiClient.post(AUTH_ENDPOINTS.VERIFY_OTP, data);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {

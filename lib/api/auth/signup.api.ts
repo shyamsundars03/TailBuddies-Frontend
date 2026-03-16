@@ -2,7 +2,7 @@ import type { SignupApiRequest, SignupApiResponse } from '../../types/auth/signu
 import apiClient from '../apiClient';
 import logger from '../../logger';
 import { AxiosError } from 'axios';
-
+import { AUTH_ENDPOINTS } from '../../endpoints/auth';
 export const signupApi = {
 
 
@@ -11,7 +11,7 @@ export const signupApi = {
     try {
               logger.info('Signup API call', { email: data.email });
 
-      const response = await apiClient.post('/auth/signup', data);
+      const response = await apiClient.post(AUTH_ENDPOINTS.SIGNUP, data);
       return response.data;
 
     } catch (error: unknown) {

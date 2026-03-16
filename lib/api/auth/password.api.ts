@@ -2,7 +2,7 @@
 import apiClient from '../apiClient';
 import { AxiosError } from 'axios';
 import { AuthApiResponse } from '../../types/auth';
-
+import { AUTH_ENDPOINTS } from '../../endpoints/auth';
 export const passwordApi = {
 
 
@@ -10,7 +10,7 @@ export const passwordApi = {
 
     forgot: async (email: string): Promise<AuthApiResponse> => {
         try {
-            const response = await apiClient.post('/auth/forgot-password', { email });
+            const response = await apiClient.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, { email });
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -31,7 +31,7 @@ export const passwordApi = {
     
     reset: async (data: unknown): Promise<AuthApiResponse> => {
         try {
-            const response = await apiClient.post('/auth/reset-password', data);
+            const response = await apiClient.post(AUTH_ENDPOINTS.RESET_PASSWORD, data);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {

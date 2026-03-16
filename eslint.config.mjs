@@ -25,11 +25,17 @@ const eslintConfig = defineConfig([
       }],
     },
   },
-  // Special rule for logger file - allow all console methods
+
   {
     files: ["lib/logger/**/*.ts"],
     rules: {
-      "no-console": "off", // Turn off completely for logger files
+      "no-console": "off", 
+    },
+  },
+   {
+    files: ["**/apiClient.ts"], 
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ]);
