@@ -19,14 +19,36 @@ export function ForgotPasswordForm() {
 
     const { forgotPassword, isLoading: isSubmitting } = usePasswordRecovery()
     const [email, setEmail] = useState("")
+    const [emailError, setEmailError] = useState("")
+    const [isTouched, setIsTouched] = useState(false)
 
+    const validateEmail = (val: string) => {
+        if (!val) return "Please enter your email"
+        const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/
+        if (!gmailRegex.test(val)) return "Please enter a valid Gmail address (@gmail.com)"
+        return ""
+    }
 
-    
+    const handleEmailChange = (val: string) => {
+        setEmail(val)
+        if (isTouched) {
+            setEmailError(validateEmail(val))
+        }
+    }
+
+    const handleBlur = () => {
+        setIsTouched(true)
+        setEmailError(validateEmail(email))
+    }
+
     const handleSubmit = async () => {
-        if (!email) {
-            toast.error("Please enter your email")
+        const error = validateEmail(email)
+        if (error) {
+            setEmailError(error)
+            setIsTouched(true)
             return
         }
+
         try {
             await forgotPassword(email)
         } catch (error: any) {
@@ -47,7 +69,10 @@ export function ForgotPasswordForm() {
                     name="email"
                     placeholder="Email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    onBlur={handleBlur}
+                    error={emailError}
+                    touched={isTouched}
                 />
 
                 <Button

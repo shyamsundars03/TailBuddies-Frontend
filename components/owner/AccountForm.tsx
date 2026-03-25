@@ -51,6 +51,21 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
 
     const [errors, setErrors] = useState<Record<string, string>>({})
 
+    // Fetch fresh profile data on mount to ensure database values are shown
+    useEffect(() => {
+        const fetchFreshProfile = async () => {
+            try {
+                const response = await userApi.getProfile()
+                if (response.success && response.data) {
+                    dispatch(setUser(response.data))
+                }
+            } catch (error) {
+                console.error("Failed to fetch fresh profile:", error)
+            }
+        }
+        fetchFreshProfile()
+    }, [dispatch])
+
     const validateField = (name: string, value: string) => {
         let error = ""
         if (!value.trim()) {

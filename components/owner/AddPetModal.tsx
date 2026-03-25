@@ -33,6 +33,23 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
     const [pictureFile, setPictureFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [touched, setTouched] = useState<Record<string, boolean>>({})
+    const [breedData, setBreedData] = useState<{ dogs: string[], cats: string[] }>({ dogs: [], cats: [] })
+
+    // Fetch breeds data from Cloudinary on mount
+    useEffect(() => {
+        const fetchBreeds = async () => {
+            try {
+                const response = await fetch("https://res.cloudinary.com/dhezzaec7/raw/upload/breeds.json_buyf04.txt")
+                if (response.ok) {
+                    const data = await response.json()
+                    setBreedData(data)
+                }
+            } catch (error) {
+                console.error("Failed to fetch breeds:", error)
+            }
+        }
+        fetchBreeds()
+    }, [])
 
     useEffect(() => {
         if (isOpen) {
@@ -200,7 +217,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 )}
                                 value={formData.species}
                                 onChange={(e) => {
-                                    const newData = { ...formData, species: e.target.value }
+                                    const newData = { ...formData, species: e.target.value, breed: "" }
                                     setFormData(newData)
                                     if (touched.species) validateField('species', e.target.value, newData)
                                 }}
@@ -231,10 +248,12 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 onBlur={() => handleBlur('breed')}
                             >
                                 <option value="">Select Breed</option>
-                                <option value="Golden Retriever">Golden Retriever</option>
-                                <option value="German Shepherd">German Shepherd</option>
-                                <option value="Persian">Persian</option>
-                                <option value="Labrador">Labrador</option>
+                                {formData.species.toLowerCase() === "dog" && breedData.dogs.map(breed => (
+                                    <option key={breed} value={breed}>{breed}</option>
+                                ))}
+                                {formData.species.toLowerCase() === "cat" && breedData.cats.map(breed => (
+                                    <option key={breed} value={breed}>{breed}</option>
+                                ))}
                             </select>
                             {getErrorText('breed')}
                         </div>
