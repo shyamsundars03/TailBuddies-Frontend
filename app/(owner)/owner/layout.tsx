@@ -16,26 +16,30 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         if (pathname.startsWith('/owner/pets')) return 'pet'
         if (pathname.startsWith('/owner/bookings')) return 'bookings'
         if (pathname.startsWith('/owner/services')) return 'services'
+        if (pathname.startsWith('/owner/medical-records')) return 'medical'
+        if (pathname.startsWith('/owner/chat')) return 'chat'
         if (pathname.startsWith('/owner/profile')) return 'profile'
         if (pathname.startsWith('/owner/account')) return 'account'
         return 'account'
     }
 
     const userData = {
-        userName: user?.username || user?.email || "—",
+        userName: user?.userName || user?.email || "—",
         email: user?.email || "—",
     }
 
     const isServicesPage = pathname.startsWith('/owner/services')
+    const isVideoCall = pathname.includes('/video-call/')
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <OwnerHeader />
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            {!isVideoCall && <OwnerHeader />}
             <div className={cn(
-                "max-w-7xl mx-auto px-6 py-8 flex gap-8",
-                isServicesPage ? "flex-col" : "flex-row"
+                "max-w-7xl mx-auto px-6 py-8 flex gap-8 w-full flex-1",
+                isServicesPage ? "flex-col" : "flex-row",
+                isVideoCall && "max-w-none px-0 py-0 flex-col gap-0 h-screen"
             )}>
-                {!isServicesPage && (
+                {!isServicesPage && !isVideoCall && (
                     <OwnerSidebar
                         userName={userData.userName}
                         email={userData.email}

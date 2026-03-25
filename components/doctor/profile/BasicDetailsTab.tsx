@@ -216,6 +216,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
 
     return (
         <div className="space-y-12">
+            
             {/* Section 1: Personal Information */}
             <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

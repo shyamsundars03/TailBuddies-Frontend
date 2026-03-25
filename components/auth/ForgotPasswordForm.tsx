@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Input } from "../../components/common/forms/Input"
 import { Button } from "../../components/common/ui/Button"
 import { usePasswordRecovery } from "../../lib/hooks/auth"
+import { toast } from "sonner"
 
 
 export function ForgotPasswordForm() {
@@ -22,7 +23,15 @@ export function ForgotPasswordForm() {
 
     
     const handleSubmit = async () => {
-        await forgotPassword(email)
+        if (!email) {
+            toast.error("Please enter your email")
+            return
+        }
+        try {
+            await forgotPassword(email)
+        } catch (error: any) {
+            toast.error(error.message || "Failed to send reset OTP")
+        }
     }
 
     return (

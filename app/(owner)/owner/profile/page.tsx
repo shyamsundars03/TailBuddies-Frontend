@@ -19,10 +19,15 @@ function OwnerProfileInner() {
     }, [user, router])
 
     const userData = {
-        userName: user?.username || "—",
+        userName: user?.userName || "—",
         gender: user?.gender || "Female",
         email: user?.email || "—",
         phone: user?.phone || "",
+        address: user?.address || "",
+        city: user?.city || "",
+        state: user?.state || "",
+        country: user?.country || "",
+        pincode: user?.pincode || "",
     }
 
     return (

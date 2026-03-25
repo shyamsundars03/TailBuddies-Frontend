@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, Check, Star, MapPin } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils/utils"
+import { doctorApi } from "@/lib/api/doctor/doctor.api"
+import { toast } from "sonner"
 
 // Step Components (will be defined in separate files or inline for now)
 import { AppointmentTypeStep } from "./components/AppointmentTypeStep"
@@ -23,20 +25,118 @@ export default function AppointmentBookingPage() {
     const params = useParams()
     const router = useRouter()
     const [currentStep, setCurrentStep] = useState(1)
+    const [doctor, setDoctor] = useState<any>(null)
+    const [isFetchingDoctor, setIsFetchingDoctor] = useState(true)
 
     // Booking State
-    const [bookingData, setBookingData] = useState({
-        type: "Normal",
-        petId: "",
-        problemDescription: "",
-        symptoms: [] as string[],
-        date: "11 Nov 2025",
-        time: "10:00 AM",
-        paymentMethod: "Razerpay"
+    const [bookingData, setBookingData] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = sessionStorage.getItem(`booking_${params.id}`)
+            return saved ? JSON.parse(saved) : {
+                type: "Normal",
+                petId: "",
+                problemDescription: "",
+                symptoms: [] as string[],
+                date: "",
+                time: "",
+                paymentMethod: "Razerpay"
+            }
+        }
+        return {
+            type: "Normal",
+            petId: "",
+            problemDescription: "",
+            symptoms: [] as string[],
+            date: "",
+            time: "",
+            paymentMethod: "Razerpay"
+        }
     })
 
-    const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4))
-    const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1))
+    // Action Verification
+    const isStepValid = (step: number) => {
+        switch (step) {
+            case 1: return !!bookingData.type
+            case 2: return !!bookingData.petId && !!bookingData.problemDescription
+            case 3: return !!bookingData.date && !!bookingData.time
+            case 4: return true
+            default: return false
+        }
+    }
+
+    const nextStep = () => {
+        if (isStepValid(currentStep)) {
+            const next = currentStep + 1
+            setCurrentStep(next)
+            sessionStorage.setItem(`booking_${params.id}`, JSON.stringify(bookingData))
+            sessionStorage.setItem(`booking_step_${params.id}`, next.toString())
+        } else {
+            const messages = {
+                1: "Please select an appointment type",
+                2: "Please select a pet, provide a description, and add at least one symptom",
+                3: "Please select a date and time",
+            }
+
+            if (currentStep === 2) {
+                if (!bookingData.petId) {
+                    toast.error("Please select a pet")
+                } else if (!bookingData.problemDescription.trim()) {
+                    toast.error("Please provide a problem description")
+                } else if (!bookingData.symptoms || bookingData.symptoms.length === 0) {
+                    toast.error("Please add at least one symptom")
+                }
+                return
+            }
+
+            toast.error(messages[currentStep as keyof typeof messages] || "Please complete the current step")
+        }
+    }
+    
+    const prevStep = () => {
+        const prev = currentStep - 1
+        setCurrentStep(prev)
+        sessionStorage.setItem(`booking_step_${params.id}`, prev.toString())
+    }
+
+    // Sync step from session storage on mount
+    useEffect(() => {
+        const completed = sessionStorage.getItem(`booking_completed_${params.id}`)
+        if (completed) {
+            router.replace('/owner/bookings')
+            return
+        }
+
+        const savedStep = sessionStorage.getItem(`booking_step_${params.id}`)
+        if (savedStep) {
+            const stepNum = parseInt(savedStep)
+            // Ensure sequence: don't jump to a step if previous isn't valid
+            let validStep = 1
+            for (let i = 1; i < stepNum; i++) {
+                if (isStepValid(i)) validStep = i + 1
+                else break
+            }
+            setCurrentStep(validStep)
+        }
+    }, [])
+
+    // Save data whenever it changes
+    useEffect(() => {
+        sessionStorage.setItem(`booking_${params.id}`, JSON.stringify(bookingData))
+    }, [bookingData, params.id])
+
+    // Fetch Doctor Details
+    useEffect(() => {
+        const fetchDoctor = async () => {
+            if (!params.id) return
+            setIsFetchingDoctor(true)
+            const response = await doctorApi.getById(params.id as string)
+            if (response.success) {
+                setDoctor(response.data)
+            }
+            setIsFetchingDoctor(false)
+        }
+        fetchDoctor()
+    }, [params.id])
 
     return (
         <div className="min-h-screen bg-gray-50/30 -mt-8 -mx-8 p-8">
@@ -44,7 +144,11 @@ export default function AppointmentBookingPage() {
                 {/* Top Back Button (Only for Step 1) */}
                 {currentStep === 1 && (
                     <button
-                        onClick={() => router.push(`/owner/services/${params.id}`)}
+                        onClick={() => {
+                            sessionStorage.removeItem(`booking_${params.id}`)
+                            sessionStorage.removeItem(`booking_step_${params.id}`)
+                            router.push(`/owner/services/${params.id}`)
+                        }}
                         className="
     px-5 py-2
     bg-blue-600
@@ -60,15 +164,6 @@ export default function AppointmentBookingPage() {
                     >
                         Back
                     </button>
-                    // <button
-                    //     onClick={() => router.push(`/owner/services/${params.id}`)}
-                    //     className="absolute right-0 -top-2 flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-colors group z-10"
-                    // >
-                    //     <span className="text-[10px] font-bold uppercase tracking-widest">Back to Profile</span>
-                    //     <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center shadow-sm group-hover:border-blue-200 group-hover:shadow-md transition-all">
-                    //         <ChevronRight size={18} className="rotate-180" />
-                    //     </div>
-                    // </button>
                 )}
 
                 {/* Stepper */}
@@ -76,7 +171,13 @@ export default function AppointmentBookingPage() {
                     <div className="flex items-center gap-4">
                         {STEPS.map((step, index) => (
                             <div key={step.id} className="flex items-center">
-                                <div className="flex flex-col items-center gap-2">
+                                <button 
+                                    onClick={() => {
+                                        if (step.id < currentStep) setCurrentStep(step.id)
+                                    }}
+                                    disabled={step.id >= currentStep}
+                                    className="flex flex-col items-center gap-2 cursor-pointer disabled:cursor-default"
+                                >
                                     <div className={cn(
                                         "w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500",
                                         currentStep === step.id
@@ -93,7 +194,7 @@ export default function AppointmentBookingPage() {
                                     )}>
                                         {step.name}
                                     </span>
-                                </div>
+                                </button>
                                 {index < STEPS.length - 1 && (
                                     <div className={cn(
                                         "w-16 h-[2px] mx-4 -mt-6 transition-colors duration-500",
@@ -107,9 +208,9 @@ export default function AppointmentBookingPage() {
 
                 {/* Doctor Selection Preview (Fixed at top) */}
                 <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-50 shadow-sm">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-50 shadow-sm relative">
                         <Image
-                            src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=100&h=100"
+                            src={doctor?.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=100&h=100"}
                             alt="Doctor"
                             width={64}
                             height={64}
@@ -117,18 +218,34 @@ export default function AppointmentBookingPage() {
                         />
                     </div>
                     <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                            <h3 className="font-bold text-blue-950">Dr. Michael Brown</h3>
-                            <div className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
-                                <Star size={10} className="fill-white" />
-                                5.0
+                        {isFetchingDoctor ? (
+                            <div className="space-y-2">
+                                <div className="h-5 w-40 bg-gray-100 animate-pulse rounded"></div>
+                                <div className="h-4 w-28 bg-gray-100 animate-pulse rounded"></div>
                             </div>
-                        </div>
-                        <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">Psychologist</p>
-                        <div className="flex items-center gap-2 text-gray-400 mt-1">
-                            <MapPin size={12} className="text-gray-300" />
-                            <p className="text-[10px] font-semibold">5th Street - 1011 W 5th St, Suite 120, Austin, TX 78703</p>
-                        </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center gap-3">
+                                    <h3 className="font-bold text-blue-950">
+                                        {doctor?.userId?.userName ? `Dr. ${doctor.userId.userName}` : 'Doctor Details'}
+                                    </h3>
+                                    <div className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                                        <Star size={10} className="fill-white" />
+                                        5.0
+                                    </div>
+                                </div>
+                                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">
+                                    {doctor?.profile?.specialtyId?.name || "Veterinary Surgeon"}
+                                </p>
+                                <div className="flex items-center gap-2 text-gray-400 mt-1">
+                                    <MapPin size={12} className="text-gray-300" />
+                                    <p className="text-[10px] font-semibold">
+                                        {doctor?.clinicInfo?.clinicName && `${doctor.clinicInfo.clinicName} - `}
+                                        {doctor?.clinicInfo?.address?.street}, {doctor?.clinicInfo?.address?.city}
+                                    </p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -167,8 +284,8 @@ export default function AppointmentBookingPage() {
                             </button>
                         ) : (
                             <button
-                                onClick={() => router.push(`/owner/services/${params.id}/book/success`)}
-                                className="bg-blue-600 text-white px-12 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                                onClick={() => window.dispatchEvent(new CustomEvent('trigger-booking', { detail: 'trigger-booking' }))}
+                                className="bg-blue-600 text-white px-12 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-[0.98] shadow-lg shadow-blue-600/20"
                             >
                                 Pay Now
                             </button>

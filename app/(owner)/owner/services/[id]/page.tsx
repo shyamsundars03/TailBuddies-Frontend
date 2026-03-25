@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Phone, Video, Star, MapPin, ChevronLeft, ShieldCheck, Award, MessageSquare } from "lucide-react"
 import Image from "next/image"
@@ -9,28 +9,58 @@ import { cn } from "@/lib/utils/utils"
 import { Overview } from "@/components/owner/DoctorTabs/Overview"
 import { Reviews } from "@/components/owner/DoctorTabs/Reviews"
 import { BusinessHours } from "@/components/owner/DoctorTabs/BusinessHours"
-
-const DOCTOR_DATA = {
-    id: "1",
-    name: "Dr. Michael Brown",
-    specialty: "Psychologist",
-    rating: 4.8,
-    reviewsCount: 35,
-    location: "5th Street - 1011 W 5th St, Suite 120, Austin, TX 78703",
-    image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300&h=300",
-    images: [
-        "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=150&h=100",
-        "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=150&h=100",
-        "https://images.unsplash.com/photo-1504813184591-01552a9d7d3c?auto=format&fit=crop&q=80&w=150&h=100",
-        "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=150&h=100"
-    ],
-    tags: ["Dental Fillings", "Teeth Whitening"]
-}
+import { doctorApi } from "@/lib/api/doctor/doctor.api"
+import { toast } from "sonner"
 
 export default function DoctorProfilePage() {
     const params = useParams()
     const router = useRouter()
+    const [doctor, setDoctor] = useState<any>(null)
+    const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'Overview' | 'Reviews' | 'BusinessHours'>('Overview')
+
+    useEffect(() => {
+        const fetchDoctor = async () => {
+            if (!params.id) return
+            setIsLoading(true)
+            const response = await doctorApi.getById(params.id as string)
+            if (response.success) {
+                const doc = response.data
+                if (!doc.isActive || !doc.isVerified) {
+                    toast.error("This doctor is currently unavailable")
+                    router.push('/owner/services')
+                    return
+                }
+                setDoctor(doc)
+            } else {
+                toast.error(response.error || "Failed to load doctor profile")
+            }
+            setIsLoading(false)
+        }
+        fetchDoctor()
+    }, [params.id])
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="text-blue-600 font-black animate-pulse uppercase tracking-widest text-xl">Loading Doctor Profile...</div>
+        </div>
+    }
+
+    if (!doctor) {
+        return <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-6">
+            <h1 className="text-2xl font-black text-gray-900 uppercase">Doctor Not Found</h1>
+            <button onClick={() => router.push('/owner/services')} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg">Back to Services</button>
+        </div>
+    }
+
+    const doctorName = doctor.userId?.userName || "N/A"
+    const doctorPic = doctor.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300&h=300"
+    const specialtyName = doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"
+    const location = `${doctor.clinicInfo?.clinicName || "Clinic"}, ${doctor.clinicInfo?.address?.city || "N/A"}`
+    const clinicImages = [
+        doctor.clinicInfo?.clinicPic,
+        ...(doctor.certificates?.map((c: any) => c.certificateFile) || [])
+    ].filter(Boolean).slice(0, 4)
 
     return (
         <div className="min-h-screen bg-white">
@@ -58,21 +88,21 @@ export default function DoctorProfilePage() {
                 <div className="bg-white rounded-lg border border-gray-100 shadow-md p-6 lg:p-8">
                     <div className="flex flex-col lg:flex-row gap-8">
                         <div className="w-full lg:w-48 space-y-4">
-                            <div className="w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-50 shadow-sm relative group">
+                                    <div className="w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-50 shadow-sm relative group">
                                 <Image
-                                    src={DOCTOR_DATA.image}
-                                    alt={DOCTOR_DATA.name}
+                                    src={doctorPic}
+                                    alt={doctorName}
                                     fill
                                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                                 />
                             </div>
-                            <div className="grid grid-cols-4 gap-1.5">
-                                {DOCTOR_DATA.images.map((img, i) => (
+                            {/* <div className="grid grid-cols-4 gap-1.5">
+                                {clinicImages.map((img, i) => (
                                     <div key={i} className="aspect-square rounded border border-gray-100 cursor-pointer hover:opacity-80 transition shadow-sm overflow-hidden">
                                         <Image src={img} alt="clinic" width={60} height={60} className="w-full h-full object-cover" />
                                     </div>
                                 ))}
-                            </div>
+                            </div> */}
                         </div>
 
                         <div className="flex-1 space-y-6">
@@ -80,29 +110,32 @@ export default function DoctorProfilePage() {
                                 <div className="space-y-4">
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-3">
-                                            <h2 className="text-2xl font-bold text-gray-900">{DOCTOR_DATA.name}</h2>
+                                            <h2 className="text-2xl font-bold text-gray-900">{doctorName}</h2>
                                             <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
                                                 <Star size={10} className="fill-white" />
-                                                {DOCTOR_DATA.rating.toFixed(1)}
+                                                4.8
                                             </div>
                                         </div>
-                                        <p className="text-blue-600 font-bold text-sm uppercase tracking-wider">{DOCTOR_DATA.specialty}</p>
+                                        <p className="text-blue-600 font-bold text-sm uppercase tracking-wider">{specialtyName}</p>
                                     </div>
 
                                     <div className="flex items-start gap-2 text-gray-400">
                                         <MapPin size={16} className="shrink-0 text-blue-500 mt-0.5" />
-                                        <p className="text-xs font-semibold leading-relaxed max-w-sm">{DOCTOR_DATA.location}</p>
+                                        <p className="text-xs font-semibold leading-relaxed max-w-sm">{location}</p>
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
-                                        {DOCTOR_DATA.tags.map(tag => (
-                                            <span key={tag} className="px-2 py-1 bg-gray-50 text-[10px] font-bold text-gray-400 rounded border border-gray-100 uppercase tracking-widest">
-                                                {tag}
+                                        <span className="px-2 py-1 bg-gray-50 text-[10px] font-bold text-gray-400 rounded border border-gray-100 uppercase tracking-widest">
+                                            {doctor.profile?.consultationFees ? `$${doctor.profile.consultationFees} Consultation` : "Free Consultation"}
+                                        </span>
+                                        {doctor.profile?.experienceYears && (
+                                            <span className="px-2 py-1 bg-gray-50 text-[10px] font-bold text-gray-400 rounded border border-gray-100 uppercase tracking-widest">
+                                                {doctor.profile.experienceYears}+ Years Exp
                                             </span>
-                                        ))}
+                                        )}
                                     </div>
                                 </div>
-
+                                
                                 <div className="flex items-center gap-3">
                                     <button className="w-10 h-10 rounded border border-gray-100 text-gray-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 transition shadow-sm">
                                         <Phone size={18} />
@@ -123,17 +156,17 @@ export default function DoctorProfilePage() {
                                 <InfoMetric
                                     icon={<ShieldCheck className="text-emerald-500" />}
                                     label="Verified"
-                                    value="Professional"
+                                    value={doctor.isVerified ? "Verified Professional" : "Under Review"}
                                 />
                                 <InfoMetric
                                     icon={<Award className="text-amber-500" />}
-                                    label="Top Rated"
-                                    value="In Austin"
+                                    label="Clinic"
+                                    value={doctor.clinicInfo?.clinicName || "N/A"}
                                 />
                                 <InfoMetric
                                     icon={<MessageSquare className="text-blue-500" />}
-                                    label="Response"
-                                    value="< 1 Hour"
+                                    label="Experience"
+                                    value={`${doctor.profile?.experienceYears || 0} Years`}
                                 />
                             </div>
                         </div>
@@ -161,9 +194,9 @@ export default function DoctorProfilePage() {
                     </div>
 
                     <div className="p-8">
-                        {activeTab === 'Overview' && <Overview />}
-                        {activeTab === 'Reviews' && <Reviews />}
-                        {activeTab === 'BusinessHours' && <BusinessHours />}
+                        {activeTab === 'Overview' && <Overview doctor={doctor} />}
+                        {activeTab === 'Reviews' && <Reviews doctorId={doctor._id} />}
+                        {activeTab === 'BusinessHours' && <BusinessHours doctor={doctor} />}
                     </div>
                 </div>
             </div>

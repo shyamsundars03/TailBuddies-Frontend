@@ -1,235 +1,176 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { DoctorHeader } from "../../../../components/common/layout/doctor/Header"
-import { DoctorSidebar } from "../../../../components/common/layout/doctor/SideBar"
-import { DoctorFooter } from "../../../../components/common/layout/doctor/Footer"
-import { DoctorPageContainer } from "../../../../components/common/layout/doctor/PageContainer"
-import { Search, Filter, Calendar, MapPin, ChevronDown } from "lucide-react"
+import { Search, Filter, Calendar, MapPin, ChevronDown, Loader2 } from "lucide-react"
 import { Pagination } from "../../../../components/common/ui/Pagination"
+import { appointmentApi } from "@/lib/api/appointment.api"
 
-const patients = [
-    {
-        id: "Apt0001",
-        name: "Adrian",
-        age: 42,
-        gender: "Male",
-        bloodGroup: "AB+",
-        lastBooking: "27 Feb 2025",
-        appointmentDate: "11 Nov 2025 10.45 AM",
-        location: "Alabama, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0002",
-        name: "Kelly Stevens",
-        age: 37,
-        gender: "Female",
-        bloodGroup: "O+",
-        lastBooking: "20 Mar 2025",
-        appointmentDate: "05 Nov 2025 11.50 AM",
-        location: "San Diego, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0003",
-        name: "Samuel James",
-        age: 43,
-        gender: "Male",
-        bloodGroup: "B+",
-        lastBooking: "12 Mar 2025",
-        appointmentDate: "27 Oct 2025 09.30 AM",
-        location: "Chicago, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0004",
-        name: "Catherine Gracey",
-        age: 36,
-        gender: "Female",
-        bloodGroup: "AB-",
-        lastBooking: "27 Feb 2025",
-        appointmentDate: "18 Oct 2025 12.20 PM",
-        location: "Los Angeles, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0005",
-        name: "Robert Miller",
-        age: 38,
-        gender: "Male",
-        bloodGroup: "A+",
-        lastBooking: "18 Feb 2025",
-        appointmentDate: "10 Oct 2025 11.30 AM",
-        location: "Dallas, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0006",
-        name: "Anderea Kearns",
-        age: 40,
-        gender: "Female",
-        bloodGroup: "B-",
-        lastBooking: "11 Feb 2025",
-        appointmentDate: "26 Sep 2025 10.20 AM",
-        location: "San Francisco, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0007",
-        name: "Peter Anderson",
-        age: 30,
-        gender: "Male",
-        bloodGroup: "A-",
-        lastBooking: "25 Jan 2025",
-        appointmentDate: "14 Sep 2025 08.10 AM",
-        location: "Austin, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0008",
-        name: "Emily Musick",
-        age: 32,
-        gender: "Female",
-        bloodGroup: "O-",
-        lastBooking: "13 Jan 2025",
-        appointmentDate: "03 Sep 2025 06.00 PM",
-        location: "Nashville, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    },
-    {
-        id: "Apt0009",
-        name: "Darrell Tan",
-        age: 31,
-        gender: "Male",
-        bloodGroup: "AB+",
-        lastBooking: "03 Jan 2025",
-        appointmentDate: "25 Aug 2025 10.45 AM",
-        location: "San Antonio, USA",
-        image: "/placeholder.svg?height=100&width=100"
-    }
-]
+// dummy data removed
 
 export default function PatientsPage() {
-    const [availability, setAvailability] = useState("I am Available Now")
-    const [activeTab, setActiveTab] = useState("Active")
-    const [currentPage, setCurrentPage] = useState(1)
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const pathname = usePathname()
+
+    const initialSearch = searchParams.get('search') || ""
+    const initialPage = parseInt(searchParams.get('page') || "1")
+
+    const [patients, setPatients] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState(initialSearch)
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const [currentPage, setCurrentPage] = useState(initialPage)
+    const [totalEntries, setTotalEntries] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
+    const entriesPerPage = 9
+
+    const fetchPatients = useCallback(async (page: number, search: string) => {
+        setIsLoading(true)
+        const response = await appointmentApi.getDoctorPatients(page, entriesPerPage, search)
+        if (response.success) {
+            setPatients(response.data || [])
+            setTotalEntries(response.total || 0)
+            setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
+        }
+        setIsLoading(false)
+    }, [entriesPerPage])
+
+    // Update URL when state changes
+    useEffect(() => {
+        const params = new URLSearchParams()
+        if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
+        if (currentPage > 1) params.set('page', currentPage.toString())
+        
+        const query = params.toString()
+        router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    }, [debouncedSearchTerm, currentPage, pathname, router])
+
+    // Load data
+    useEffect(() => {
+        fetchPatients(currentPage, debouncedSearchTerm)
+    }, [currentPage, debouncedSearchTerm, fetchPatients])
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm)
+            setCurrentPage(1)
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50 text-[#002B49]">
-            <DoctorHeader />
-            <DoctorPageContainer title="My Patients">
-                <DoctorSidebar
-                    userName="Dr. George Anderson"
-                    email="adsvs"
-                    qualification="BDS, MDS - Oral & Maxillofacial Surgery"
-                    specialty="Dental"
-                    totalPatients={1500}
-                    patientsToday={15}
-                    appointmentsToday={10}
-                    availability={availability}
-                    onAvailabilityChange={setAvailability}
-                    activeSection="patients"
-                />
-
-                <div className="flex-1 min-w-0">
-                    {/* Header Controls */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-bold font-inter">My Patients</h2>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                <input type="text" placeholder="Search" className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <div className="flex gap-2 p-1 bg-gray-50 rounded-xl">
-                                {["Active", "Offline"].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`px-6 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === tab ? "bg-blue-600 text-white shadow-md" : "text-gray-500 hover:text-gray-700"}`}
-                                    >
-                                        {tab} <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab ? 'bg-white/20' : 'bg-gray-200'}`}>{tab === "Active" ? 200 : 50}</span>
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium">
-                                    <Calendar size={16} className="text-blue-600" />
-                                    <span className="text-xs">09 December 25 - 09 December 25</span>
-                                </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium group">
-                                    <Filter size={16} className="text-blue-600" />
-                                    <span className="text-xs group-hover:text-blue-600 transition">Filter By</span>
-                                    <ChevronDown size={14} className="text-gray-400" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {patients.map((patient) => (
-                            <div key={patient.id} className="group bg-white rounded-3xl border border-gray-100 p-6 transition-all hover:shadow-xl hover:border-blue-100 flex flex-col">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <Link href={`/doctor/patients/${patient.id}`} className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-sm transition-transform hover:scale-105 block shrink-0">
-                                        <Image src={patient.image} alt={patient.name} width={80} height={80} className="w-full h-full object-cover" />
-                                    </Link>
-                                    <div className="space-y-1 min-w-0">
-                                        <span className="text-xs font-bold text-blue-600">#{patient.id}</span>
-                                        <Link href={`/doctor/patients/${patient.id}`} className="text-lg font-bold hover:text-blue-600 transition truncate block leading-tight">
-                                            {patient.name}
-                                        </Link>
-                                        <div className="flex items-center gap-3 text-[10px] font-bold text-gray-500">
-                                            <span>Age : {patient.age}</span>
-                                            <span>{patient.gender}</span>
-                                            <span>{patient.bloodGroup}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-blue-50/50 rounded-2xl p-4 space-y-3 mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <Calendar size={16} className="text-blue-600" />
-                                        </div>
-                                        <span className="text-xs font-bold text-gray-700">{patient.appointmentDate}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <MapPin size={16} className="text-blue-600" />
-                                        </div>
-                                        <span className="text-xs font-bold text-gray-700 truncate">{patient.location}</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 pt-2 mt-auto text-[#002B49]">
-                                    <Calendar size={16} className="text-gray-400" />
-                                    <span className="text-xs font-bold text-gray-400">Last Booking</span>
-                                    <span className="text-xs font-bold ml-auto">{patient.lastBooking}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="mt-12 bg-white rounded-2xl shadow-sm border border-gray-100">
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={20}
-                            onPageChange={setCurrentPage}
-                            totalEntries={200}
-                            entriesPerPage={9}
-                            className="py-6 px-8"
+        <div className="w-full">
+            {/* Header Controls */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-bold font-inter text-gray-900">My Patients</h2>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search patients..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 text-black" 
                         />
                     </div>
                 </div>
-            </DoctorPageContainer>
-            <DoctorFooter />
+
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-2 p-1 bg-gray-50 rounded-xl invisible">
+                        {/* Tab filtering can be added here if needed */}
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600">
+                            <Calendar size={16} className="text-blue-600" />
+                            <span className="text-xs">09 December 25 - 09 December 25</span>
+                        </div>
+                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium group text-gray-600">
+                            <Filter size={16} className="text-blue-600" />
+                            <span className="text-xs group-hover:text-blue-600 transition">Filter By</span>
+                            <ChevronDown size={14} className="text-gray-400" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+                    <p className="text-gray-500 font-medium">Loading patients...</p>
+                </div>
+            ) : patients.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {patients.map((patient) => (
+                        <div key={patient.id} className="group bg-white rounded-3xl border border-gray-100 p-6 transition-all hover:shadow-xl hover:border-blue-100 flex flex-col">
+                            <div className="flex items-center gap-4 mb-6 text-black">
+                                <Link href={`/doctor/patients/${patient.id}`} className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-sm transition-transform hover:scale-105 block shrink-0">
+                                    <Image 
+                                        src={patient.picture || "/placeholder.svg"} 
+                                        alt={patient.name} 
+                                        width={80} 
+                                        height={80} 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                </Link>
+                                <div className="space-y-1 min-w-0">
+                                    <span className="text-xs font-bold text-blue-600">ID: {patient.id?.substring(0, 8)}</span>
+                                    <Link href={`/doctor/patients/${patient.id}`} className="text-lg font-bold hover:text-blue-600 transition truncate block leading-tight">
+                                        {patient.name}
+                                    </Link>
+                                    <div className="flex flex-col gap-1 text-[10px] font-bold text-gray-500">
+                                        <span className="truncate">{patient.species} - {patient.breed}</span>
+                                        <span className="text-blue-600">{patient.ownerName}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-blue-50/50 rounded-2xl p-4 space-y-3 mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                                        <Calendar size={16} className="text-blue-600" />
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-700">
+                                        Last: {new Date(patient.lastAppointmentDate).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                                        <MapPin size={16} className="text-blue-600" />
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-700 truncate">{patient.ownerEmail}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                    <p className="text-gray-400 font-medium italic">No patients found</p>
+                </div>
+            )}
+
+            {/* Pagination */}
+            <div className="mt-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    totalEntries={totalEntries}
+                    entriesPerPage={entriesPerPage}
+                    className="py-6 px-8"
+                />
+            </div>
         </div>
     )
 }

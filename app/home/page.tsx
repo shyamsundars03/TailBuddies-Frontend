@@ -7,13 +7,16 @@ import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
 import { setUser } from "../../lib/redux/slices/authSlice"
 import { useSignin } from "../../lib/hooks/auth/useSignin"
 import Swal from "sweetalert2"
-import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search, LogOut } from "lucide-react"
+import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search, LogOut, ChevronUp } from "lucide-react"
+import { AiAssistant } from "../../components/common/AiAssistant"
 
 export default function HomePage() {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const [isLoading, setIsLoading] = useState(true)
   const { logout } = useSignin()
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false)
+  const [isAiChatMinimized, setIsAiChatMinimized] = useState(false)
 
   useEffect(() => {
     try {
@@ -81,7 +84,7 @@ export default function HomePage() {
           <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
             About
           </Link>
-          <Link href="/services" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/owner/services" className="text-gray-700 hover:text-gray-900 font-medium">
             Services
           </Link>
           <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
@@ -168,7 +171,7 @@ export default function HomePage() {
                 anywhere.
               </p>
 
-              <Link href={user ? "#" : "/signup"}>
+              <Link href={user ? "/owner/services" : "/signup"}>
                 <button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-3 rounded-full transition">
                   Get Started
                 </button>
@@ -188,30 +191,46 @@ export default function HomePage() {
           </div>
 
           {/* Feature Cards */}
+                    <div className="text-center mb-12 mt-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="text-purple-600" size={28} />
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">24/7 Support</h3>
-              <p className="text-gray-600 text-sm">Round-the-clock assistance for your pet`s needs</p>
-            </div>
+<Link href={user ? "/owner/services" : "/signup"}>
+  <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
+    <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <Calendar className="text-pink-600" size={28} />
+    </div>
+    <h3 className="font-bold text-gray-900 mb-2">Book Appointment</h3>
+    <p className="text-gray-600 text-sm">
+      Schedule vet visits quickly and easily
+    </p>
+  </div>
+</Link>
 
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center">
-              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Calendar className="text-pink-600" size={28} />
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">Easy Booking</h3>
-              <p className="text-gray-600 text-sm">Schedule appointments with just a few clicks</p>
-            </div>
+<Link href={user ? "/owner/services" : "/signup"}>
+  <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
+    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <Phone className="text-red-600" size={28} />
+    </div>
+    <h3 className="font-bold text-gray-900 mb-2">Emergency Care</h3>
+    <p className="text-gray-600 text-sm">
+      Immediate help for urgent pet situations
+    </p>
+  </div>
+</Link>
 
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center">
-              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Stethoscope className="text-teal-600" size={28} />
-              </div>
-              <h3 className="font-bold text-gray-900 mb-2">Expert Care</h3>
-              <p className="text-gray-600 text-sm">Certified veterinarians ready to help</p>
-            </div>
+<div 
+  onClick={() => setIsAiChatOpen(true)}
+  className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer"
+>
+  <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    <Stethoscope className="text-teal-600" size={28} />
+  </div>
+  <h3 className="font-bold text-gray-900 mb-2">Chat with AI</h3>
+  <p className="text-gray-600 text-sm">
+    Get instant pet care advice anytime
+  </p>
+</div>
           </div>
         </div>
       </section>
@@ -308,7 +327,7 @@ export default function HomePage() {
             <h2 className="text-4xl font-bold text-gray-900">Our Highlighted Services</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8   ">
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition text-center">
               <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Phone className="text-blue-600" size={32} />
@@ -341,14 +360,14 @@ export default function HomePage() {
               </div>
               <h3 className="font-bold text-gray-900 text-lg mb-3">Specialized Treatment</h3>
               <p className="text-gray-600 text-sm mb-4">
-                Expert care from specialists in various fields of veterinary medicine and surgery.
+                Expert care from AI in various fields of veterinary medicine and surgery.
               </p>
               <a href="#" className="text-teal-600 font-semibold text-sm hover:underline">
                 Learn More →
               </a>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition text-center">
+            {/* <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition text-center">
               <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Video className="text-purple-600" size={32} />
               </div>
@@ -359,7 +378,7 @@ export default function HomePage() {
               <a href="#" className="text-purple-600 font-semibold text-sm hover:underline">
                 Learn More →
               </a>
-            </div>
+            </div> */}
           </div>
         </div>
       </section>
@@ -562,6 +581,27 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+      {/* AI Assistant Popup */}
+      {isAiChatOpen && !isAiChatMinimized && (
+        <AiAssistant 
+          isPopup 
+          onMinimize={() => setIsAiChatMinimized(true)} 
+          onClose={() => setIsAiChatOpen(false)} 
+        />
+      )}
+
+      {/* Minimized AI Chat Bubble */}
+      {isAiChatOpen && isAiChatMinimized && (
+        <button 
+          onClick={() => setIsAiChatMinimized(false)}
+          className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 animate-bounce"
+        >
+          <MessageSquare size={28} />
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+            <ChevronUp size={12} strokeWidth={4} />
+          </div>
+        </button>
+      )}
     </div>
   )
 }

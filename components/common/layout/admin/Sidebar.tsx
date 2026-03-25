@@ -1,5 +1,6 @@
 "use client"
 
+import React, { memo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -49,12 +50,12 @@ const menuItems: SidebarMenuItem[] = [
     { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "/admin/appointmentManagement" },
     { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "/admin/transactionManagement" },
     { icon: CreditCard, label: "Payments", id: "payments", href: "#" },
-    { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "#" },
+    { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "/admin/chatAssistant" },
     { icon: Star, label: "Reviews", id: "reviews", href: "#" },
     { icon: BarChart3, label: "Report", id: "reports", href: "#" },
 ]
 
-export function AdminSidebar({ onItemClick, className, activeItem }: AdminSidebarProps) {
+export const AdminSidebar = memo(function AdminSidebar({ onItemClick, className, activeItem }: AdminSidebarProps) {
     const pathname = usePathname()
     const { logout } = useSignin()
     const { user } = useAppSelector((state) => state.auth)
@@ -83,18 +84,15 @@ export function AdminSidebar({ onItemClick, className, activeItem }: AdminSideba
                 <div className="bg-linear-to-br from-[#828282] to-[#606060] p-6 relative">
                     <div className="flex flex-col items-center">
                         <div className="w-20 h-20 rounded-full bg-white/10 border-4 border-white/20 flex items-center justify-center mb-3 overflow-hidden">
-
                             <User size={32} className="text-white/60" />
-
                         </div>
-                        <h3 className="text-white font-bold text-lg">{user?.username || "Admin User"}</h3>
+                        <h3 className="text-white font-bold text-lg">{user?.userName || "Admin User"}</h3>
                         <p className="text-white/60 text-xs font-medium tracking-wide">SYSTEM ADMINISTRATOR</p>
                     </div>
                 </div>
 
                 {/* Navigation Menus */}
                 <div className="p-4 space-y-1">
-                    {/* <h4 className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3 mt-2">Main Menu</h4> */}
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href || activeItem === item.id
 
@@ -133,4 +131,4 @@ export function AdminSidebar({ onItemClick, className, activeItem }: AdminSideba
             </div>
         </div>
     )
-}
+})

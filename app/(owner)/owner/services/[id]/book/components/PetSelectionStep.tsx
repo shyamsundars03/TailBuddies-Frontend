@@ -1,9 +1,9 @@
-"use client"
-
-import { useState } from "react"
-import { ChevronDown, Plus } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ChevronDown, Plus, Loader2, X } from "lucide-react"
 import { AddPetModal } from "@/components/owner/AddPetModal"
 import { cn } from "@/lib/utils/utils"
+import { userPetApi } from "@/lib/api/user/pet.api"
+import { toast } from "sonner"
 
 const SYMPTOMS_OPTIONS = [
     { id: "itching", label: "Itching" },
@@ -16,16 +16,87 @@ const SYMPTOMS_OPTIONS = [
 
 export function PetSelectionStep({ data, setData }: { data: any, setData: any }) {
     const [isAddPetModalOpen, setIsAddPetModalOpen] = useState(false)
-    const [pets] = useState([
-        { id: "1", name: "Bruno (Dog)" },
-        { id: "2", name: "Luna (Cat)" }
-    ])
+    const [pets, setPets] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
 
-    const toggleSymptom = (id: string) => {
-        const newSymptoms = data.symptoms.includes(id)
-            ? data.symptoms.filter((s: string) => s !== id)
-            : [...data.symptoms, id]
-        setData({ ...data, symptoms: newSymptoms })
+    const fetchPets = async () => {
+        setIsLoading(true)
+        const response = await userPetApi.getOwnerPets(1, 50)
+        if (response.success) {
+            setPets(response.data.pets || [])
+        }
+        setIsLoading(false)
+    }
+
+    useEffect(() => {
+        fetchPets()
+    }, [])
+
+    const [symptomInput, setSymptomInput] = useState("")
+
+    const addSymptom = () => {
+        const trimmed = symptomInput.trim()
+        if (!trimmed) return
+
+        // Case-insensitive duplicate check
+        const isDuplicate = data.symptoms.some(
+            (s: string) => s.toLowerCase() === trimmed.toLowerCase()
+        )
+
+        if (isDuplicate) {
+            toast.error("This symptom is already added")
+            return
+        }
+
+        setData({ ...data, symptoms: [...data.symptoms, trimmed] })
+        setSymptomInput("")
+    }
+
+    const removeSymptom = (symptomToRemove: string) => {
+        setData({
+            ...data,
+            symptoms: data.symptoms.filter((s: string) => s !== symptomToRemove)
+        })
+    }
+
+    const handleSavePet = async (petData: any, pictureFile: File | null) => {
+        try {
+            const formData = new FormData();
+            
+            // Basic fields
+            formData.append('name', petData.name);
+            formData.append('species', petData.species);
+            formData.append('breed', petData.breed);
+            formData.append('gender', petData.gender);
+            formData.append('age', petData.age);
+            formData.append('dob', petData.dob);
+            formData.append('weight', petData.weight);
+            
+            if (pictureFile) {
+                formData.append('picture', pictureFile);
+            }
+
+            if (petData.vaccinations) {
+                formData.append('vaccinations', JSON.stringify(petData.vaccinations));
+            }
+
+            const response = await userPetApi.addPet(formData);
+            
+            if (response.success) {
+                toast.success("Pet added successfully!");
+                await fetchPets(); // Refresh the list
+                // Find the new pet (usually the last one if sorted by createdAt desc)
+                // Or just assume the API returns the new pet
+                if (response.data && response.data._id) {
+                    setData({ ...data, petId: response.data._id });
+                }
+                setIsAddPetModalOpen(false);
+            } else {
+                toast.error(response.error || "Failed to add pet");
+            }
+        } catch (error) {
+            toast.error("An unexpected error occurred while saving pet");
+        }
     }
 
     return (
@@ -55,7 +126,7 @@ export function PetSelectionStep({ data, setData }: { data: any, setData: any })
                         >
                             <option value="">Select Pet</option>
                             {pets.map(pet => (
-                                <option key={pet.id} value={pet.id}>{pet.name}</option>
+                                <option key={pet._id} value={pet._id}>{pet.name}</option>
                             ))}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-blue-500 transition-colors" size={16} />
@@ -75,35 +146,45 @@ export function PetSelectionStep({ data, setData }: { data: any, setData: any })
 
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-1">Symptoms</label>
-                    <div className="flex flex-wrap gap-2">
-                        {SYMPTOMS_OPTIONS.map((symptom) => (
-                            <button
-                                key={symptom.id}
-                                onClick={() => toggleSymptom(symptom.id)}
-                                className={cn(
-                                    "px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all duration-300 flex items-center gap-2 shadow-sm",
-                                    data.symptoms.includes(symptom.id)
-                                        ? "bg-yellow-400 border-yellow-400 text-blue-950 shadow-yellow-100"
-                                        : "bg-white border-gray-100 text-gray-400 hover:border-yellow-200"
-                                )}
-                            >
-                                <div className={cn(
-                                    "w-3 h-3 rounded border flex items-center justify-center transition-all",
-                                    data.symptoms.includes(symptom.id) ? "bg-blue-950 border-blue-950" : "border-gray-300"
-                                )}>
-                                    {data.symptoms.includes(symptom.id) && <div className="w-1 h-1 bg-white rounded-full"></div>}
-                                </div>
-                                {symptom.label}
-                            </button>
-                        ))}
-                        <button className="bg-yellow-400/20 text-yellow-600 w-10 h-10 rounded-lg flex items-center justify-center hover:bg-yellow-400/30 transition-colors shadow-sm">
-                            <ChevronDown size={18} />
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={symptomInput}
+                            onChange={(e) => setSymptomInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addSymptom()}
+                            placeholder="Type a symptom..."
+                            className="flex-1 bg-white border border-gray-100 rounded-lg px-4 py-2.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                        />
+                        <button
+                            onClick={addSymptom}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-md shadow-blue-100"
+                        >
+                            Add
                         </button>
                     </div>
+                    
+                    {data.symptoms.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                            {data.symptoms.map((symptom: string) => (
+                                <span 
+                                    key={symptom}
+                                    className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 border border-blue-100 group animate-in zoom-in-95 duration-200"
+                                >
+                                    {symptom}
+                                    <button 
+                                        onClick={() => removeSymptom(symptom)}
+                                        className="hover:text-red-500 transition-colors"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSave={() => { }} />
+            <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSave={handleSavePet} />
         </div>
     )
 }

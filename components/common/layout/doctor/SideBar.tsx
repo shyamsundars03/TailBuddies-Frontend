@@ -57,10 +57,10 @@ const menuItems: DoctorSidebarMenuItem[] = [
   { icon: Users, label: "My Patients", id: "patients", href: "/doctor/patients" },
   { icon: CreditCard, label: "Subscription", id: "subscription", href: "#" },
   { icon: Star, label: "Reviews", id: "reviews", href: "#" },
-  { icon: FileText, label: "Invoices", id: "invoices", href: "#" },
+  { icon: FileText, label: "Invoices", id: "invoices", href: "/doctor/invoices" },
   { icon: Bell, label: "Notifications", id: "notifications", href: "#", badge: true },
-  { icon: MessageSquare, label: "Message", id: "message", href: "#" },
-  { icon: Bot, label: "AGMail", id: "agmail", href: "#" },
+  { icon: MessageSquare, label: "Message", id: "message", href: "/doctor/chat" },
+  { icon: Bot, label: "Wallet", id: "wallet", href: "/doctor/wallet" },
 ]
 
 export function DoctorSidebar({
@@ -190,7 +190,7 @@ export function DoctorSidebar({
         {/* Stats */}
         {showStats && (
           <>
-            <div className="grid grid-cols-2 border-b border-gray-200">
+            {/* <div className="grid grid-cols-2 border-b border-gray-200">
               <div className="p-4 text-center border-r border-gray-200">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <Users size={18} className="text-blue-600" />
@@ -205,7 +205,7 @@ export function DoctorSidebar({
                 </div>
                 <p className="text-2xl font-bold text-gray-900">{patientsToday}</p>
               </div>
-            </div>
+            </div> */}
 
             {/* Availability */}
             <div className="p-4 border-b border-gray-200">
@@ -222,13 +222,13 @@ export function DoctorSidebar({
             </div>
 
             {/* Appointments Today */}
-            <div className="p-4 border-b border-gray-200">
+            {/* <div className="p-4 border-b border-gray-200">
               <div className="flex items-center gap-2 mb-1">
                 <Calendar size={18} className="text-blue-600" />
                 <span className="text-sm text-gray-600">Appointments Today</span>
               </div>
               <p className="text-3xl font-bold text-gray-900">{appointmentsToday}</p>
-            </div>
+            </div> */}
           </>
         )}
 

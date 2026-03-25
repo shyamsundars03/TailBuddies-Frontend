@@ -6,12 +6,17 @@ interface UserState {
     id: string | null;
     email: string | null;
     role: string | null;
-    username: string | null;
+    userName: string | null;
     googleId?: string | null;
     phone?: string | null;
     gender?: string | null;
     image?: string | null;
     profilePic?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    pincode?: string | null;
 }
 
 interface AuthState {

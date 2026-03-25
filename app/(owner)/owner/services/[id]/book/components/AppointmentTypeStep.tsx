@@ -21,12 +21,15 @@ export function AppointmentTypeStep({ data, setData }: { data: any, setData: any
                 {types.map((type) => (
                     <button
                         key={type.id}
+                        disabled={type.id !== "Normal"}
                         onClick={() => setData({ ...data, type: type.id })}
                         className={cn(
                             "relative flex flex-col items-start p-6 rounded-lg border-2 text-left transition-all duration-300 group hover:shadow-md",
                             data.type === type.id
                                 ? "border-blue-500 bg-blue-50/20 shadow-blue-100"
-                                : "border-gray-100 bg-white hover:border-blue-200"
+                                : type.id !== "Normal"
+                                    ? "border-gray-50 bg-gray-50/50 cursor-not-allowed opacity-60"
+                                    : "border-gray-100 bg-white hover:border-blue-200"
                         )}
                     >
                         <div className="flex justify-between items-start w-full mb-4">

@@ -49,6 +49,30 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
         pincode: initialData?.pincode || "",
     })
 
+    const [errors, setErrors] = useState<Record<string, string>>({})
+
+    const validateField = (name: string, value: string) => {
+        let error = ""
+        if (!value.trim()) {
+            error = "Field is required"
+        } else if (name === 'pincode' && !/^\d{6}$/.test(value)) {
+            error = "Pincode must be exactly 6 digits"
+        } else if (['city', 'state', 'country'].includes(name) && !/^[A-Za-z\s]+$/.test(value)) {
+            error = "Only letters and spaces allowed"
+        } else if (name === 'address' && value.trim().length < 5) {
+            error = "Address is too short"
+        } else if (!['pincode', 'city', 'state', 'country', 'address'].includes(name) && !/^[A-Za-z0-9\s,.-]+$/.test(value)) {
+            error = "Invalid format"
+        }
+        
+        setErrors(prev => ({ ...prev, [name]: error }))
+        return !error
+    }
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        validateField(e.target.name, e.target.value)
+    }
+
     // Sync state when initialData changes (e.g., after a successful save)
     useEffect(() => {
         if (initialData) {
@@ -77,7 +101,7 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     const handleSaveDetails = async () => {
         try {
             const response = await userApi.updateProfile({
-                username: userData.userName,
+                userName: userData.userName,
                 gender: userData.gender,
                 phone: userData.phone
             })
@@ -97,6 +121,20 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     }
 
     const handleSaveAddress = async () => {
+        // Validate all fields first
+        const fieldsToValidate = ['address', 'city', 'state', 'country', 'pincode']
+        let isValid = true
+        fieldsToValidate.forEach(field => {
+            if (!validateField(field, (userData as any)[field] || "")) {
+                isValid = false
+            }
+        })
+
+        if (!isValid) {
+            toast.error("Please fix validation errors")
+            return
+        }
+
         try {
             // Reusing updateProfile for address fields as well
             const response = await userApi.updateProfile({
@@ -199,6 +237,8 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
                     name="address"
                     value={userData.address}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={errors.address}
                     disabled={isReadOnly}
                     required
                 />
@@ -211,6 +251,8 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
                     name="city"
                     value={userData.city}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={errors.city}
                     disabled={isReadOnly}
                     required
                 />
@@ -220,6 +262,8 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
                     name="state"
                     value={userData.state}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={errors.state}
                     disabled={isReadOnly}
                     required
                 />
@@ -232,6 +276,8 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
                     name="country"
                     value={userData.country}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={errors.country}
                     disabled={isReadOnly}
                     required
                 />
@@ -241,6 +287,8 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
                     name="pincode"
                     value={userData.pincode}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={errors.pincode}
                     disabled={isReadOnly}
                     required
                 />

@@ -1,11 +1,54 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-// import { MoreHorizontal, FileText, CheckCircle2 } from 'lucide-react'
+import { Loader2, ChevronLeft, Download, Star, Clock } from 'lucide-react'
+import { appointmentApi } from '@/lib/api/appointment.api'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils/utils'
+import Image from 'next/image'
 
 export function SingleAppointmentView({ id }: { id: string }) {
     const router = useRouter()
+    const [appointment, setAppointment] = useState<any>(null)
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchAppointment = async () => {
+            if (!id) return
+            setIsLoading(true)
+            const response = await appointmentApi.getAppointmentById(id)
+            if (response.success) {
+                setAppointment(response.data)
+            } else {
+                toast.error(response.error || "Failed to fetch appointment details")
+            }
+            setIsLoading(false)
+        }
+        fetchAppointment()
+    }, [id])
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-40">
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+                <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Appointment Details...</p>
+            </div>
+        )
+    }
+
+    if (!appointment) {
+        return (
+            <div className="text-center py-40 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Appointment not found</p>
+                <button onClick={() => router.back()} className="mt-4 text-blue-600 font-bold hover:underline text-sm uppercase">Go Back</button>
+            </div>
+        )
+    }
+
+    const doctorUser = appointment.doctorId?.userId;
+    const pet = appointment.petId;
+    const owner = appointment.ownerId;
 
     return (
         <div className="bg-gray-50/50 min-h-screen p-4">
@@ -19,13 +62,10 @@ export function SingleAppointmentView({ id }: { id: string }) {
                             <span>/</span>
                             <span className="cursor-pointer hover:text-blue-600" onClick={() => router.push('/admin/appointmentManagement')}>Appointments</span>
                             <span>/</span>
-                            <span className="text-gray-400 uppercase">APT-ID: {id}</span>
+                            <span className="text-gray-400 uppercase">AptID: {appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</span>
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <button className="px-8 py-2 bg-yellow-400 text-gray-900 rounded-lg text-xs font-black shadow-sm hover:bg-yellow-500 transition">
-                            Edit
-                        </button>
                         <button
                             onClick={() => router.back()}
                             className="px-8 py-2 bg-gray-500 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-gray-600 transition"
@@ -36,209 +76,203 @@ export function SingleAppointmentView({ id }: { id: string }) {
                 </div>
 
                 {/* Main Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                     {/* Status Header */}
                     <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 shadow-sm">
-                                <img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150&h=150" alt="Doctor" className="w-full h-full object-cover" />
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                                <Image 
+                                    src={doctorUser?.profilePic || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150&h=150"} 
+                                    alt="Doctor" 
+                                    width={48} 
+                                    height={48} 
+                                    className="w-full h-full object-cover" 
+                                />
                             </div>
                             <div>
-                                <p className="text-blue-600 font-bold text-[10px] uppercase tracking-wider mb-0.5">#Apt0001</p>
-                                <p className="text-gray-900 font-black text-xs">Dr. Arun</p>
+                                <p className="text-blue-600 font-bold text-[10px] uppercase tracking-wider mb-0.5">AptID: {appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
+                                <p className="text-gray-900 font-black text-sm uppercase">Dr. {doctorUser?.userName}</p>
                             </div>
-                            <div className="ml-8 flex items-center gap-2">
-                                <span className="text-blue-950 font-black text-xs">Status:</span>
-                                <span className="text-gray-400 font-bold text-xs">Completed</span>
+                            <div className="ml-8 flex items-center gap-3">
+                                <span className="text-blue-950 font-black text-xs uppercase">Status:</span>
+                                <span className={cn(
+                                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm",
+                                    appointment.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
+                                    appointment.status === 'Booked' ? "bg-blue-100 text-blue-600" :
+                                    appointment.status === 'Cancelled' ? "bg-red-100 text-red-600" :
+                                    "bg-gray-100 text-gray-600"
+                                )}>
+                                    {appointment.status}
+                                </span>
                             </div>
                         </div>
-                        <button className="px-8 py-1.5 bg-yellow-400 text-gray-900 rounded-lg text-xs font-black shadow-sm">
-                            Paid
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <span className={cn(
+                                "px-6 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm",
+                                appointment.status === 'Completed' ? "bg-emerald-500 text-white" : "bg-yellow-400 text-gray-900"
+                            )}>
+                                {appointment.status === 'Completed' ? "Paid" : "Pay on Consultation"}
+                            </span>
+                        </div>
                     </div>
 
                     {/* Content Sections */}
-                    <div className="space-y-8">
+                    <div className="space-y-12">
                         {/* Pet Info */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Pet:</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 grid grid-cols-3 p-4 gap-6">
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Pet Name</p>
-                                    <p className="text-gray-700 font-bold text-xs">Bruno</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Species</p>
-                                    <p className="text-gray-700 font-bold text-xs">Dog</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Breed</p>
-                                    <p className="text-gray-700 font-bold text-xs">Golden Retriever</p>
-                                </div>
+                        <SectionLayout title="Pet Details">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <DataField label="Pet Name" value={pet?.name} />
+                                <DataField label="Species" value={pet?.type || pet?.species} />
+                                <DataField label="Breed" value={pet?.breed} />
                             </div>
-                        </section>
+                        </SectionLayout>
+
+                        {/* Owner Info */}
+                        <SectionLayout title="Owner Details">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <DataField label="Owner Name" value={owner?.userName} />
+                                <DataField label="Email" value={owner?.email} />
+                                <DataField label="Phone" value={owner?.phone} />
+                            </div>
+                        </SectionLayout>
 
                         {/* Doctor Info */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Doctor :</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 p-6 space-y-6">
-                                <div className="grid grid-cols-3 gap-8">
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Doctor Name</p>
-                                        <p className="text-gray-700 font-bold text-xs">Dr. Arun</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Specialization</p>
-                                        <p className="text-gray-700 font-bold text-xs">Dermatology</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Experience</p>
-                                        <p className="text-gray-700 font-bold text-xs">8 years</p>
-                                    </div>
+                        <SectionLayout title="Doctor Details">
+                            <div className="space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <DataField label="Doctor Name" value={`Dr. ${doctorUser?.userName}`} />
+                                    <DataField label="Specialization" value={appointment.doctorId?.profile?.designation || "Veterinary"} />
+                                    <DataField label="Experience" value={`${appointment.doctorId?.profile?.experienceYears || 0} years`} />
                                 </div>
-                                <div className="grid grid-cols-3 gap-8">
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Consultation Fee</p>
-                                        <p className="text-gray-700 font-bold text-xs">300</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Service Type</p>
-                                        <p className="text-gray-700 font-bold text-xs">Normal</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Mode</p>
-                                        <p className="text-gray-700 font-bold text-xs">Online</p>
-                                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || 0}`} />
+                                    <DataField label="Service Type" value={appointment.serviceType} />
+                                    <DataField label="Mode" value={appointment.mode} capitalize />
                                 </div>
-                                <div className="grid grid-cols-3 gap-8">
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Date</p>
-                                        <p className="text-gray-700 font-bold text-xs">11 Nov 2025</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Time</p>
-                                        <p className="text-gray-700 font-bold text-xs">10:45 AM</p>
-                                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <DataField label="Date" value={new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                                    <DataField label="Time" value={`${appointment.appointmentStartTime} - ${appointment.appointmentEndTime}`} />
                                 </div>
                             </div>
-                        </section>
+                        </SectionLayout>
 
                         {/* Problem & Symptoms */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Problem & symptoms</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 p-4 space-y-4">
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Problem Description</p>
-                                    <p className="text-gray-700 font-medium text-xs leading-relaxed">My dog is scratching a lot and has red patches on skin.</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Symptoms Selected</p>
-                                    <p className="text-gray-700 font-bold text-xs">Itching, Redness, Hairloss</p>
-                                </div>
+                        <SectionLayout title="Problem & Symptoms">
+                            <div className="space-y-6">
+                                <DataField label="Problem Description" value={appointment.problemDescription} fullWidth />
+                                <DataField label="Symptoms Selected" value={appointment.symptoms?.join(", ")} />
                             </div>
-                        </section>
+                        </SectionLayout>
 
                         {/* Timeline */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Appointment TimeLine</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 p-4 grid grid-cols-3 gap-x-8 gap-y-6">
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Booked At</p>
-                                    <p className="text-gray-700 font-bold text-xs">10 Nov 2024 - 8:30 PM</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Owner Check-In</p>
-                                    <p className="text-gray-700 font-bold text-xs">10:30 AM - 11:00 AM</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Vet Check-In</p>
-                                    <p className="text-gray-700 font-bold text-xs">10:33 AM - 11:00 AM</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Delay Status</p>
-                                    <p className="text-gray-700 font-bold text-xs">Slight Delay (3 mins)</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Consultation Ended</p>
-                                    <p className="text-gray-700 font-bold text-xs">11:00 AM</p>
-                                </div>
+                        <SectionLayout title="Appointment Timeline">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-8">
+                                <DataField label="Booked At" value={new Date(appointment.createdAt).toLocaleString()} />
+                                <DataField label="Status" value={appointment.status} />
+                                <DataField label="Delay Status" value={appointment.delayStatus || "None"} />
+                                {appointment.checkIn?.vetCheckInTime && <DataField label="Check-In" value={new Date(appointment.checkIn.vetCheckInTime).toLocaleTimeString()} />}
+                                {appointment.checkOut?.vetCheckOutTime && <DataField label="Check-Out" value={new Date(appointment.checkOut.vetCheckOutTime).toLocaleTimeString()} />}
                             </div>
-                        </section>
+                        </SectionLayout>
 
-                        {/* Report Section */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Report</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 p-6 grid grid-cols-2 gap-8">
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Clinical Findings:</p>
-                                    <p className="text-gray-700 font-medium text-xs">Fungal infection observed around neck and belly.</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Diagnosis:</p>
-                                    <p className="text-gray-700 font-medium text-xs">Dermatitis due to fungal infection.</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Vet Notes:</p>
-                                    <p className="text-gray-700 font-medium text-xs">Apply antifungal ointment twice daily. Avoid wet areas.</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Recommended Tests:</p>
-                                    <p className="text-gray-700 font-black text-xs">None</p>
-                                </div>
-                            </div>
-                        </section>
+                        {/* Report & Prescription (Optional) */}
+                        {appointment.status === 'Completed' && (
+                            <>
+                                <SectionLayout title="Clinical Report">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8">
+                                        <DataField label="Clinical Findings" value={appointment.clinicalFindings || "Not provided"} />
+                                        <DataField label="Diagnosis" value={appointment.diagnosis || "Not provided"} />
+                                        <DataField label="Vet Notes" value={appointment.notes || "Not provided"} />
+                                    </div>
+                                </SectionLayout>
 
-                        {/* Prescription Section */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Prescription</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 overflow-hidden">
-                                <div className="grid grid-cols-4 p-4 border-b border-gray-100 bg-gray-50/50">
-                                    <span className="text-blue-900/60 font-bold text-[10px] uppercase">Medicine</span>
-                                    <span className="text-blue-900/60 font-bold text-[10px] uppercase">Dosage</span>
-                                    <span className="text-blue-900/60 font-bold text-[10px] uppercase">Frequency</span>
-                                    <span className="text-blue-900/60 font-bold text-[10px] uppercase">Duration</span>
-                                </div>
-                                <div className="divide-y divide-gray-50">
-                                    {[
-                                        { m: 'Keto Shampoo', d: 'External use', f: '2 times/week', t: '3 weeks' },
-                                        { m: 'Antifungal Tab', d: '1 tablet', f: 'Once daily', t: '5 days' }
-                                    ].map((p, idx) => (
-                                        <div key={idx} className="grid grid-cols-4 p-4 items-center">
-                                            <span className="text-gray-700 font-bold text-xs">{p.m}</span>
-                                            <span className="text-gray-500 font-medium text-xs">{p.d}</span>
-                                            <span className="text-gray-500 font-medium text-xs">{p.f}</span>
-                                            <span className="text-gray-700 font-bold text-xs">{p.t}</span>
+                                {appointment.prescription && appointment.prescription.length > 0 && (
+                                    <SectionLayout title="Prescription">
+                                        <div className="overflow-hidden bg-white">
+                                            <div className="grid grid-cols-4 py-2 border-b border-gray-50 mb-4 px-2">
+                                                <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Medicine</span>
+                                                <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Dosage</span>
+                                                <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Frequency</span>
+                                                <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Duration</span>
+                                            </div>
+                                            <div className="space-y-4">
+                                                {appointment.prescription.map((item: any, idx: number) => (
+                                                    <div key={idx} className="grid grid-cols-4 px-2">
+                                                        <span className="text-gray-900 font-black text-xs">{item.medicine}</span>
+                                                        <span className="text-gray-500 font-medium text-xs">{item.dosage}</span>
+                                                        <span className="text-gray-500 font-medium text-xs">{item.frequency}</span>
+                                                        <span className="text-gray-900 font-black text-xs">{item.duration}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
+                                    </SectionLayout>
+                                )}
+                            </>
+                        )}
+                        
+                        {/* Cancellation Reason */}
+                        {appointment.status === 'Cancelled' && appointment.cancellation?.cancelReason && (
+                            <SectionLayout title="Cancellation Information">
+                                <DataField label="Reason for rejection" value={appointment.cancellation.cancelReason} fullWidth />
+                            </SectionLayout>
+                        )}
 
-                        {/* Payment Section */}
-                        <section>
-                            <h3 className="text-sm font-black text-blue-950 mb-4">Payment</h3>
-                            <div className="bg-gray-50/30 rounded-xl border border-gray-100 p-6 grid grid-cols-4 gap-6">
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Consultation Fee</p>
-                                    <p className="text-gray-900 font-black text-xs">₹300</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Payment Method</p>
-                                    <p className="text-gray-700 font-bold text-xs">UPI (Razorpay)</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Payment Status</p>
-                                    <p className="text-green-600 font-black text-xs">Successful</p>
-                                </div>
-                                <div>
-                                    <p className="text-blue-900/60 font-bold text-[10px] uppercase mb-1">Transaction ID</p>
-                                    <p className="text-gray-700 font-bold text-xs italic">TXN-RP-882341</p>
-                                </div>
+                        {/* Payment */}
+                        <SectionLayout title="Payment Information">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                                <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || 0}`} />
+                                <DataField label="Payment Method" value="Cash on Consultation" />
+                                <DataField label="Payment Status" value={appointment.status === 'Completed' ? 'Successful' : 'Pending'} isStatus statusType={appointment.status === 'Completed' ? "success" : "error"} />
+                                <DataField label="Transaction ID" value="N/A" italic />
                             </div>
-                        </section>
+                        </SectionLayout>
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function SectionLayout({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <section className="space-y-4">
+            <h3 className="text-xs font-black text-blue-950 uppercase tracking-widest border-l-4 border-blue-500 pl-4">{title}</h3>
+            <div className="bg-gray-50/20 border border-gray-100/50 rounded-2xl p-6 lg:p-8">
+                {children}
+            </div>
+        </section>
+    )
+}
+
+function DataField({
+    label,
+    value,
+    fullWidth,
+    isStatus,
+    statusType,
+    italic,
+    capitalize
+}: {
+    label: string;
+    value: string;
+    fullWidth?: boolean;
+    isStatus?: boolean;
+    statusType?: "success" | "error";
+    italic?: boolean;
+    capitalize?: boolean;
+}) {
+    return (
+        <div className={cn(fullWidth ? "col-span-full" : "")}>
+            <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-2">{label}</p>
+            <p className={cn(
+                "text-xs font-black",
+                isStatus ? (statusType === "success" ? "text-emerald-500" : "text-rose-500") : "text-gray-700",
+                italic && "italic",
+                capitalize && "capitalize"
+            )}>
+                {value || "N/A"}
+            </p>
         </div>
     )
 }

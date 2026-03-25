@@ -4,7 +4,7 @@ import { Star, MessageSquare } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils/utils"
 
-export function Reviews() {
+export function Reviews({ doctorId }: { doctorId: string }) {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center gap-10 bg-blue-50/30 rounded-3xl p-8 border border-blue-100/50">

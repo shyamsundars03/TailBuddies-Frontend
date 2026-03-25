@@ -1,227 +1,251 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { DoctorHeader } from "../../../../components/common/layout/doctor/Header"
-import { DoctorSidebar } from "../../../../components/common/layout/doctor/SideBar"
-import { DoctorFooter } from "../../../../components/common/layout/doctor/Footer"
-import { DoctorPageContainer } from "../../../../components/common/layout/doctor/PageContainer"
-import { Clock, Search, Filter, Calendar as CalendarIcon, Eye, Trash2, LayoutGrid, List } from "lucide-react"
-
-const appointments = [
-    {
-        id: "Apt0001",
-        patientName: "Adrian",
-        date: "11 Nov 2025",
-        time: "10.45 AM",
-        type: "General Visit",
-        method: "Video Call",
-        email: "adrian@example.com",
-        phone: "+1 504 368 6874",
-        status: "Upcoming",
-        image: "/placeholder.svg?height=48&width=48"
-    },
-    {
-        id: "Apt0002",
-        patientName: "Kelly",
-        date: "05 Nov 2025",
-        time: "11.50 AM",
-        type: "General Visit",
-        method: "Audio Call",
-        email: "kelly@example.com",
-        phone: "+1 832 891 8403",
-        status: "Upcoming",
-        isNew: true,
-        image: "/placeholder.svg?height=48&width=48"
-    },
-    {
-        id: "Apt0003",
-        patientName: "Samuel",
-        date: "27 Oct 2025",
-        time: "09.30 AM",
-        type: "General Visit",
-        method: "Video Call",
-        email: "samuel@example.com",
-        phone: "+1 749 104 6291",
-        status: "Upcoming",
-        image: "/placeholder.svg?height=48&width=48"
-    },
-    {
-        id: "Apt0004",
-        patientName: "Catherine",
-        date: "18 Oct 2025",
-        time: "12.20 PM",
-        type: "General Visit",
-        method: "Direct Visit",
-        email: "catherine@example.com",
-        phone: "+1 584 920 7183",
-        status: "Upcoming",
-        image: "/placeholder.svg?height=48&width=48"
-    },
-    {
-        id: "Apt0005",
-        patientName: "Robert",
-        date: "10 Oct 2025",
-        time: "11.30 AM",
-        type: "General Visit",
-        method: "Chat",
-        email: "robert@example.com",
-        phone: "+1 059 327 6729",
-        status: "Upcoming",
-        image: "/placeholder.svg?height=48&width=48"
-    }
-]
+import { Clock, Search, Filter, Calendar as CalendarIcon, Eye, Trash2, LayoutGrid, List, ChevronDown, Loader2, MessageSquare } from "lucide-react"
+import { appointmentApi } from "@/lib/api/appointment.api"
+import { Pagination } from "../../../../components/common/ui/Pagination"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils/utils"
 
 export default function AppointmentsPage() {
-    const [availability, setAvailability] = useState("I am Available Now")
-    const [activeTab, setActiveTab] = useState("Upcoming")
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const pathname = usePathname()
+
+    const initialTab = searchParams.get('tab') || "Upcoming"
+    const initialSearch = searchParams.get('search') || ""
+    const initialPage = parseInt(searchParams.get('page') || "1")
+
+    const [activeTab, setActiveTab] = useState(initialTab)
+    const [appointments, setAppointments] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [stats, setStats] = useState({ upcoming: 0, cancelled: 0, completed: 0 })
+    const [searchTerm, setSearchTerm] = useState(initialSearch)
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const [currentPage, setCurrentPage] = useState(initialPage)
+    const [totalEntries, setTotalEntries] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
+    const entriesPerPage = 10
+
+    const fetchAppointmentsData = useCallback(async (page: number, search: string, tab: string) => {
+        setIsLoading(true)
+        let status = ""
+        if (tab === "Upcoming") status = "Confirmed"
+        else if (tab === "Cancelled") status = "Cancelled"
+        else if (tab === "Completed") status = "Completed"
+
+        const response = await appointmentApi.getDoctorAppointments(status, page, entriesPerPage, search)
+        if (response.success) {
+            setAppointments(response.data || [])
+            setTotalEntries(response.total || 0)
+            setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
+            
+            if (tab === "Upcoming") setStats(s => ({ ...s, upcoming: response.total || 0 }))
+            else if (tab === "Cancelled") setStats(s => ({ ...s, cancelled: response.total || 0 }))
+            else if (tab === "Completed") setStats(s => ({ ...s, completed: response.total || 0 }))
+        } else {
+            // toast.error(response.error || "Failed to fetch appointments")
+        }
+        setIsLoading(false)
+    }, [entriesPerPage])
+
+    // Update URL when state changes
+    useEffect(() => {
+        const params = new URLSearchParams()
+        if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
+        if (currentPage > 1) params.set('page', currentPage.toString())
+        if (activeTab && activeTab !== "Upcoming") params.set('tab', activeTab)
+        
+        const query = params.toString()
+        router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    }, [debouncedSearchTerm, currentPage, activeTab, pathname, router])
+
+    // Load data when state changes
+    useEffect(() => {
+        fetchAppointmentsData(currentPage, debouncedSearchTerm, activeTab)
+    }, [currentPage, debouncedSearchTerm, activeTab, fetchAppointmentsData])
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm)
+            setCurrentPage(1)
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab)
+        setCurrentPage(1)
+    }
+
+    const handleStartNow = async (id: string) => {
+        router.push(`/doctor/appointments/${id}`)
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50 text-[#002B49]">
-            <DoctorHeader />
-            <DoctorPageContainer title="Appointments">
-                <DoctorSidebar
-                    userName="Dr. George Anderson"
-                    email="sdv"
-                    qualification="BDS, MDS - Oral & Maxillofacial Surgery"
-                    specialty="Dental"
-                    totalPatients={1500}
-                    patientsToday={15}
-                    appointmentsToday={10}
-                    availability={availability}
-                    onAvailabilityChange={setAvailability}
-                    activeSection="appointments"
-                />
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 overflow-hidden">
+            {/* Header Section */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+                <h2 className="text-2xl font-bold font-inter text-[#002B49]">Appointments</h2>
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="relative flex-1 sm:flex-none">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64 text-black" 
+                        />
+                    </div>
+                    <div className="flex border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                        <button className="p-2 bg-blue-600 text-white"><LayoutGrid size={18} /></button>
+                        <button className="p-2 bg-white text-gray-400 hover:bg-gray-50"><List size={18} /></button>
+                    </div>
+                </div>
+            </div>
 
-                <div className="flex-1">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        {/* Header Section */}
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-bold font-inter">Appointments</h2>
-                            <div className="flex items-center gap-4">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                    <input type="text" placeholder="Search" className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
-                                </div>
-                                <div className="flex border border-gray-200 rounded-lg overflow-hidden">
-                                    <button className="p-2 bg-blue-600 text-white"><LayoutGrid size={18} /></button>
-                                    <button className="p-2 bg-white text-gray-400 hover:bg-gray-50"><List size={18} /></button>
-                                </div>
-                                <button className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50"><Filter size={18} /></button>
-                            </div>
-                        </div>
+            {/* Tabs & Date Range */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
+                <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50 rounded-xl w-fit">
+                    {["Upcoming", "Cancelled", "Completed"].map((tab) => {
+                        const count = tab === "Upcoming" ? stats.upcoming : tab === "Cancelled" ? stats.cancelled : stats.completed
+                        return (
+                            <button
+                                key={tab}
+                                onClick={() => handleTabChange(tab)}
+                                className={cn(
+                                    "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                    activeTab === tab 
+                                        ? "bg-blue-600 text-white shadow-md shadow-blue-100" 
+                                        : "text-gray-400 hover:text-gray-600"
+                                )}
+                            >
+                                {tab} 
+                                <span className={cn(
+                                    "ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold",
+                                    activeTab === tab ? 'bg-white/20' : 'bg-gray-200'
+                                )}>
+                                    {count}
+                                </span>
+                            </button>
+                        )
+                    })}
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500">
+                        <CalendarIcon size={14} className="text-blue-600" />
+                        <span>Today: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                    </div>
+                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition">
+                        <Filter size={14} className="text-blue-600" />
+                        Filter By <ChevronDown size={12} />
+                    </button>
+                </div>
+            </div>
 
-                        {/* Tabs & Date Range */}
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex gap-4 p-1 bg-gray-50 rounded-xl">
-                                {["Upcoming", "Cancelled", "Completed"].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`px-6 py-2 rounded-lg text-sm font-bold transition ${activeTab === tab ? "bg-blue-600 text-white shadow-md" : "text-gray-500 hover:text-gray-700"}`}
-                                    >
-                                        {tab} <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab ? 'bg-white/20' : 'bg-gray-200'}`}>{tab === "Upcoming" ? 21 : tab === "Cancelled" ? 18 : 214}</span>
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium">
-                                    <CalendarIcon size={16} className="text-blue-600" />
-                                    <span>08/04/2020 - 08/11/2020</span>
-                                </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium">
-                                    <Filter size={16} className="text-blue-600" />
-                                    Filter By <ChevronDown size={14} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Appointment Rows */}
-                        <div className="space-y-4">
-                            {appointments.map((apt) => (
-                                <div key={apt.id} className="group relative bg-white border border-gray-100 rounded-2xl p-4 transition-all hover:shadow-md hover:border-blue-100">
-                                    <div className="flex items-center gap-8">
-                                        {/* Patient Avatar & Name */}
-                                        <div className="flex items-center gap-4 min-w-[200px]">
-                                            <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                                                <Image src={apt.image} alt={apt.patientName} width={56} height={56} className="w-full h-full object-cover" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1 text-xs font-bold text-blue-600">
-                                                    #{apt.id}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-lg font-bold">{apt.patientName}</span>
-                                                    {apt.isNew && <span className="px-2 py-0.5 bg-blue-600 text-[10px] text-white font-bold rounded-full">New</span>}
-                                                </div>
-                                            </div>
+            {/* Appointment List */}
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Fetching Appointments...</p>
+                </div>
+            ) : appointments.length > 0 ? (
+                <div className="space-y-4">
+                    {appointments.map((apt) => (
+                        <div key={apt._id} className="group relative bg-white border border-gray-100 rounded-2xl p-4 transition-all hover:shadow-md hover:border-blue-100">
+                            <div className="flex flex-wrap lg:flex-nowrap lg:items-center gap-4 lg:gap-8">
+                                {/* Patient Avatar & Name */}
+                                <div className="flex items-center gap-4 min-w-[200px] flex-1 lg:flex-none">
+                                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                                        <Image src={apt.petId?.picture || apt.petId?.image || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=100&h=100"} alt={apt.petId?.name} width={56} height={56} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold text-blue-600 uppercase">AptID: {apt.appointmentId || apt._id.slice(-8).toUpperCase()}</span>
+                                            {apt.status === 'Confirmed' && <span className="px-2 py-0.5 bg-emerald-500 text-[8px] text-white font-black rounded-full uppercase tracking-tighter">Confirmed</span>}
                                         </div>
+                                        <span className="text-base font-bold text-gray-900 truncate block leading-tight">{apt.petId?.name || "Unknown Pet"}</span>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase truncate">Owner: {apt.ownerId?.userName || "N/A"}</p>
+                                    </div>
+                                </div>
 
-                                        {/* Date & Type */}
-                                        <div className="min-w-[180px]">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Clock size={16} className="text-blue-600" />
-                                                <span className="text-sm font-medium text-gray-900">{apt.date} {apt.time}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                <span className="font-bold text-gray-700">{apt.type}</span>
-                                                <span className="w-px h-3 bg-gray-300 mx-1" />
-                                                <span className="font-bold text-gray-700">{apt.method}</span>
-                                            </div>
+                                {/* Info Grid */}
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1 text-gray-400">
+                                            <Clock size={14} className="text-blue-600 shrink-0" />
+                                            <span className="text-[11px] font-bold uppercase tracking-wider truncate">
+                                                {new Date(apt.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </span>
                                         </div>
-
-                                        {/* Contact Info */}
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1 group-hover:text-blue-600 transition">
-                                                <span className="text-gray-400">📧</span>
-                                                <span className="text-sm font-medium text-gray-600">{apt.email}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-gray-400">📞</span>
-                                                <span className="text-sm font-medium text-gray-600">{apt.phone}</span>
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-[11px] font-black text-blue-950 uppercase tracking-widest leading-none">{apt.appointmentStartTime} - {apt.appointmentEndTime}</p>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-200" />
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{apt.serviceType}</p>
                                         </div>
+                                    </div>
 
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-4">
-                                            <Link href={`/doctor/appointments/${apt.id}`} className="p-2.5 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 hover:text-blue-600 transition shadow-sm">
-                                                <Eye size={18} />
-                                            </Link>
-                                            <button className="p-2.5 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 hover:text-blue-600 transition shadow-sm">
-                                                <span className="text-lg">💬</span>
-                                            </button>
-                                            <button className="p-2.5 bg-gray-100 text-gray-600 rounded-full hover:bg-red-100 hover:text-red-600 transition shadow-sm">
-                                                <Trash2 size={18} />
-                                            </button>
-                                            <button className="ml-4 px-6 py-2.5 bg-white border border-blue-600 text-blue-600 text-sm font-bold rounded-xl hover:bg-blue-600 hover:text-white transition shadow-sm">
-                                                Start Now
-                                            </button>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1 truncate text-gray-400">
+                                            <span className="text-[10px]">📧</span>
+                                            <span className="text-[11px] font-medium text-gray-600 truncate">{apt.ownerId?.email || "N/A"}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-gray-400">
+                                            <span className="text-[10px]">📞</span>
+                                            <span className="text-[11px] font-medium text-gray-600">{apt.ownerId?.phone || "N/A"}</span>
                                         </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
 
-                        {/* Pagination */}
-                        <div className="mt-8 pt-8 border-t border-gray-100 flex items-center justify-between">
-                            <span className="text-sm text-gray-500">Showing 1 to 8 of 12 entries</span>
-                            <div className="flex items-center gap-1">
-                                <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 font-bold hover:bg-gray-50 transition">Previous</button>
-                                <button className="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold border border-gray-200 hover:bg-gray-50 transition">1</button>
-                                <button className="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold bg-yellow-500 text-white shadow-md">2</button>
-                                <button className="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold border border-gray-200 hover:bg-gray-50 transition">3</button>
-                                <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 font-bold hover:bg-gray-50 transition">Next</button>
+                                {/* Actions */}
+                                <div className="flex items-center gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-50 flex-wrap sm:flex-nowrap w-full lg:w-auto lg:pl-4">
+                                    <Link href={`/doctor/appointments/${apt._id}`} className="flex-1 sm:flex-none flex items-center justify-center p-2.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition border border-gray-100 shadow-sm" title="View Details">
+                                        <Eye size={18} />
+                                    </Link>
+                                    <button className="flex-1 sm:flex-none flex items-center justify-center p-2.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition border border-gray-100 shadow-sm" title="Message Owner">
+                                        <MessageSquare size={18} />
+                                    </button>
+                                    {activeTab === "Upcoming" && (
+                                        <button 
+                                            onClick={() => handleStartNow(apt._id)}
+                                            className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-blue-700 transition shadow-lg shadow-blue-100 active:scale-95"
+                                        >
+                                            Start Now
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    ))}
                 </div>
-            </DoctorPageContainer>
-            <DoctorFooter />
+            ) : (
+                <div className="text-center py-20 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-gray-100">
+                        <CalendarIcon size={24} className="text-gray-200" />
+                    </div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest italic">No {activeTab.toLowerCase()} appointments</p>
+                </div>
+            )}
+
+            {/* Pagination Section */}
+            <div className="mt-8 pt-8 border-t border-gray-100">
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    totalEntries={totalEntries}
+                    entriesPerPage={entriesPerPage}
+                />
+            </div>
         </div>
     )
-}
-
-function ChevronDown({ size }: { size: number }) {
-    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
 }

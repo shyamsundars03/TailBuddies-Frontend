@@ -27,9 +27,7 @@ export function DoctorVerifications() {
     const [currentPage, setCurrentPage] = useState(1)
     const router = useRouter()
 
-    useEffect(() => {
-        fetchDoctors()
-    }, [currentPage, searchTerm, statusFilter])
+
 
     const fetchDoctors = async () => {
         setLoading(true)
@@ -56,7 +54,10 @@ export function DoctorVerifications() {
         }
         setLoading(false)
     }
-
+    useEffect(() => {
+        fetchDoctors()
+    }, [currentPage, searchTerm, statusFilter])
+    
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'verified': return 'text-green-600 bg-green-50 border-green-200';

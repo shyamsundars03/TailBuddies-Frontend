@@ -45,7 +45,7 @@ export function DoctorHeader() {
                     <div className="bg-white bg-opacity-20 hover:bg-opacity-30 text-black px-4 py-1.5 rounded-full flex items-center gap-2 transition cursor-default">
                         <User size={14} />
                         <span className="text-xs font-bold whitespace-nowrap">
-                            {user.username || user.email}
+                            {user.userName || user.email}
                         </span>
                     </div>
                 )}

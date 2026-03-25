@@ -1,156 +1,152 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { DataTable, Column } from '../common/ui/DataTable'
 import { SearchInput } from '../common/ui/SearchInput'
+import { Pagination } from '../common/ui/Pagination'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils/utils'
-
-interface Appointment {
-    id: string
-    doctorName: string
-    doctorImage: string
-    speciality: string
-    patientName: string
-    patientImage: string
-    appointmentDate: string
-    appointmentTime: string
-    status: 'active' | 'inactive'
-    amount: string
-}
-
-const DUMMY_APPOINTMENTS: Appointment[] = [
-    {
-        id: '1',
-        doctorName: 'Dr. Darren Elder',
-        doctorImage: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b1f8?auto=format&fit=crop&q=80&w=150&h=150',
-        speciality: 'Dental',
-        patientName: 'Travis Trimble',
-        patientImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150&h=150',
-        appointmentDate: '5 Nov 2019',
-        appointmentTime: '11:00 AM - 11:35 AM',
-        status: 'active',
-        amount: '$300.00'
-    },
-    {
-        id: '2',
-        doctorName: 'Dr. Deborah Angel',
-        doctorImage: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=150&h=150',
-        speciality: 'Cardiology',
-        patientName: 'Carl Kelly',
-        patientImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150&h=150',
-        appointmentDate: '11 Nov 2019',
-        appointmentTime: '12:00 PM - 12:15 PM',
-        status: 'active',
-        amount: '$150.00'
-    },
-    {
-        id: '3',
-        doctorName: 'Dr. John Gibbs',
-        doctorImage: 'https://images.unsplash.com/photo-1537368910025-72675b3963d5?auto=format&fit=crop&q=80&w=150&h=150',
-        speciality: 'Dental',
-        patientName: 'Walter Roberson',
-        patientImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150&h=150',
-        appointmentDate: '21 Nov 2019',
-        appointmentTime: '12:10 PM - 12:25 PM',
-        status: 'active',
-        amount: '$300.00'
-    }
-]
+import { appointmentApi } from '@/lib/api/appointment.api'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 export function AppointmentManagement() {
     const [searchTerm, setSearchTerm] = useState('')
+    const [appointments, setAppointments] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [totalEntries, setTotalEntries] = useState(0)
+    const limit = 10
     const router = useRouter()
 
-    const columns: Column<Appointment>[] = [
+    const fetchAll = async (page: number, search: string) => {
+        setIsLoading(true)
+        const response = await appointmentApi.getAll(page, limit, search)
+        if (response.success) {
+            setAppointments(response.data || [])
+            setTotalEntries(response.total || 0)
+            setTotalPages(Math.ceil((response.total || 0) / limit) || 1)
+        } else {
+            toast.error(response.error || "Failed to fetch all appointments")
+        }
+        setIsLoading(false)
+    }
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchAll(currentPage, searchTerm)
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [currentPage, searchTerm])
+
+    const columns: Column<any>[] = [
         {
             header: "Doctor Name",
             accessor: (apt) => (
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-100">
-                        <img src={apt.doctorImage} alt={apt.doctorName} className="w-full h-full object-cover" />
+                        <img 
+                            src={apt.doctorId?.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b1f8?auto=format&fit=crop&q=80&w=150&h=150"} 
+                            alt="Doctor" 
+                            className="w-full h-full object-cover" 
+                        />
                     </div>
-                    <span className="text-blue-600 font-semibold text-xs hover:underline cursor-pointer">
-                        {apt.doctorName}
-                    </span>
+                    <div className="flex flex-col">
+                        <span className="text-blue-600 font-semibold text-xs hover:underline cursor-pointer truncate max-w-[120px]">
+                            Dr. {apt.doctorId?.userId?.userName || "Unknown"}
+                        </span>
+                        <span className="text-blue-500 font-bold text-[9px] uppercase tracking-tighter">AptID: {apt.appointmentId || apt._id.slice(-8).toUpperCase()}</span>
+                    </div>
                 </div>
             )
         },
-        { header: "Speciality", accessor: "speciality", className: "text-xs" },
+        { 
+            header: "Speciality", 
+            accessor: (apt) => apt.doctorId?.profile?.designation || "Veterinary",
+            className: "text-xs" 
+        },
         {
             header: "Patient Name",
             accessor: (apt) => (
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-100">
-                        <img src={apt.patientImage} alt={apt.patientName} className="w-full h-full object-cover" />
-                    </div>
-                    <span className="text-blue-600 font-semibold text-xs hover:underline cursor-pointer">
-                        {apt.patientName}
+                    <span className="text-blue-600 font-semibold text-xs hover:underline cursor-pointer truncate max-w-[120px]">
+                        {apt.petId?.name || "Unknown"}
                     </span>
                 </div>
             )
         },
         {
-            header: "Apointment Time",
+            header: "Appointment Time",
             accessor: (apt) => (
                 <div className="flex flex-col">
-                    <span className="text-gray-700 font-bold text-xs">{apt.appointmentDate}</span>
-                    <span className="text-blue-500 text-[10px] font-bold">{apt.appointmentTime}</span>
+                    <span className="text-gray-700 font-bold text-xs">
+                        {new Date(apt.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span className="text-blue-500 text-[10px] font-bold">{apt.appointmentStartTime} - {apt.appointmentEndTime}</span>
                 </div>
             )
         },
         {
             header: "Status",
             accessor: (apt) => (
-                <button
-                    className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 outline-none",
-                        apt.status === 'active' ? "bg-red-500" : "bg-gray-200"
-                    )}
-                >
-                    <span
-                        className={cn(
-                            "inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 shadow-sm",
-                            apt.status === 'active' ? "translate-x-5" : "translate-x-0.5"
-                        )}
-                    />
-                </button>
+                <span className={cn(
+                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm",
+                    apt.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
+                    apt.status === 'Booked' ? "bg-blue-100 text-blue-600" :
+                    apt.status === 'Cancelled' ? "bg-red-100 text-red-600" :
+                    "bg-gray-100 text-gray-600"
+                )}>
+                    {apt.status}
+                </span>
             )
         },
-        { header: "Amount", accessor: "amount", className: "text-xs font-bold text-gray-700" }
+        { 
+            header: "Amount", 
+            accessor: (apt) => `₹${apt.doctorId?.profile?.consultationFees || 0}`, 
+            className: "text-xs font-bold text-gray-700" 
+        }
     ]
+
+    if (isLoading && appointments.length === 0) {
+        return (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-20 flex flex-col items-center justify-center">
+                <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Appointments...</p>
+            </div>
+        )
+    }
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 border-b border-gray-100 flex justify-end">
                 <SearchInput
-                    placeholder="Search"
+                    placeholder="Search Admin Appointments"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    containerClassName="w-48"
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value)
+                        setCurrentPage(1)
+                    }}
+                    containerClassName="w-64"
                 />
             </div>
 
             <DataTable
                 columns={columns}
-                data={DUMMY_APPOINTMENTS.filter(a =>
-                    a.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    a.patientName.toLowerCase().includes(searchTerm.toLowerCase())
-                )}
-                keyExtractor={(apt) => apt.id}
-                onRowClick={(apt) => router.push(`/admin/appointmentManagement/${apt.id}`)}
+                data={appointments}
+                keyExtractor={(apt) => apt._id}
+                onRowClick={(apt) => router.push(`/admin/appointmentManagement/${apt._id}`)}
                 className="border-0 shadow-none rounded-none"
             />
 
-            <div className="p-4 flex items-center justify-between border-t border-gray-100 bg-gray-50/30">
-                <span className="text-[11px] text-gray-500 font-medium">Showing 1 to 10 of 12 entries</span>
-                <div className="flex gap-1.5">
-                    <button className="px-3 py-1.5 border border-gray-200 rounded text-[11px] font-bold text-gray-400 disabled:opacity-50" disabled>Previous</button>
-                    <button className="px-3 py-1.5 bg-yellow-400 text-gray-900 rounded text-[11px] font-black">1</button>
-                    <button className="px-3 py-1.5 border border-gray-200 rounded text-[11px] font-bold text-gray-600 hover:bg-white transition">2</button>
-                    <button className="px-3 py-1.5 border border-gray-200 rounded text-[11px] font-bold text-gray-600 hover:bg-white transition">3</button>
-                    <button className="px-3 py-1.5 border border-gray-200 rounded text-[11px] font-bold text-gray-600 hover:bg-white transition">Next</button>
-                </div>
+            <div className="px-6 py-4 bg-gray-50/30">
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalEntries={totalEntries}
+                    entriesPerPage={limit}
+                />
             </div>
         </div>
     )

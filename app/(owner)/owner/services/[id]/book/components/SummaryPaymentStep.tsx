@@ -1,13 +1,102 @@
-"use client"
-
-import { useState } from "react"
-import { Check, Wallet, CreditCard, Banknote } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Check, Wallet, CreditCard, Banknote, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 import { useRouter } from "next/navigation"
+import { doctorApi } from "@/lib/api/doctor/doctor.api"
+import { userPetApi } from "@/lib/api/user/pet.api"
+import { appointmentApi } from "@/lib/api/appointment.api"
+import { toast } from "sonner"
 
 export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: string }) {
     const router = useRouter()
-    const [paymentMethod, setPaymentMethod] = useState("Razerpay")
+    const [doctor, setDoctor] = useState<any>(null)
+    const [pet, setPet] = useState<any>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isBooking, setIsBooking] = useState(false)
+
+    useEffect(() => {
+        const fetchDetails = async () => {
+            setIsLoading(true)
+            const [docRes, petRes] = await Promise.all([
+                doctorApi.getById(doctorId),
+                data.petId ? userPetApi.getPetById(data.petId) : Promise.resolve({ success: false })
+            ])
+            
+            if (docRes.success) setDoctor(docRes.data)
+            if (petRes.success) setPet(petRes.data)
+            setIsLoading(false)
+        }
+        fetchDetails()
+    }, [doctorId, data.petId])
+
+    const handleBooking = async () => {
+        if (!data.slotId || !data.petId) {
+            toast.error("Required booking information is missing")
+            return
+        }
+
+        setIsBooking(true)
+        const bookingPayload = {
+            doctorId,
+            petId: data.petId,
+            slotId: data.slotId,
+            serviceType: data.type,
+            problemDescription: data.problemDescription,
+            symptoms: data.symptoms,
+            appointmentDate: data.rawDate,
+            appointmentStartTime: data.time.split(' - ')[0],
+            appointmentEndTime: data.time.split(' - ')[1],
+            mode: 'offline',
+            totalAmount: doctor?.profile?.consultationFees || 400,
+            paymentStatus: 'PENDING'
+        }
+
+        try {
+            const response = await appointmentApi.create(bookingPayload)
+            if (response.success) {
+                toast.success("Appointment booked successfully!")
+                // Store summary for success page
+                const summaryData = {
+                    date: data.date,
+                    timeSlot: data.time,
+                    petName: pet?.name || 'Your Pet',
+                    appointmentType: data.type
+                }
+                sessionStorage.setItem("bookingData", JSON.stringify(summaryData))
+                sessionStorage.setItem(`booking_completed_${doctorId}`, 'true')
+                
+                sessionStorage.removeItem(`booking_${doctorId}`)
+                sessionStorage.removeItem(`booking_step_${doctorId}`)
+                router.push(`/owner/services/${doctorId}/book/success?id=${response.data._id}&appId=${response.data.appointmentId}`)
+            } else {
+                toast.error(response.message || response.error || "Failed to book appointment. Please try again.")
+            }
+        } catch (error: any) {
+            toast.error("An unexpected error occurred. Please try again.")
+        } finally {
+            setIsBooking(false)
+        }
+    }
+
+    // Expose booking function to parent if needed, or handle here
+    // For now, parent "Pay Now" button should trigger this logic.
+    // I'll add a small note or effect to handle "Pay Now" from parent.
+    useEffect(() => {
+        const handleBookingTrigger = (e: any) => {
+            if (e.detail === 'trigger-booking') handleBooking()
+        }
+        window.addEventListener('trigger-booking', handleBookingTrigger)
+        return () => window.removeEventListener('trigger-booking', handleBookingTrigger)
+    }, [data, doctorId])
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <Loader2 className="animate-spin text-blue-600" size={32} />
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Preparing Summary...</p>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -16,15 +105,37 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                     <div className="p-8 bg-gray-50/50 rounded-lg border border-gray-100 shadow-sm space-y-4">
                         <h3 className="text-sm font-bold text-blue-950 uppercase tracking-widest border-b border-gray-100 pb-4">Summary</h3>
                         <div className="space-y-2 text-xs font-semibold text-gray-500">
-                            <div className="flex justify-between"><span className="uppercase text-[10px]">Vet:</span> <span className="text-blue-900 font-bold">Dr. Michael Brown</span></div>
-                            <div className="flex justify-between"><span className="uppercase text-[10px]">Pet:</span> <span className="text-blue-900 font-bold">Bruno</span></div>
-                            <div className="flex justify-between"><span className="uppercase text-[10px]">Date:</span> <span className="text-blue-900 font-bold">{data.date}</span></div>
-                            <div className="flex justify-between"><span className="uppercase text-[10px]">Time:</span> <span className="text-blue-900 font-bold">{data.time}</span></div>
-                            <div className="flex justify-between"><span className="uppercase text-[10px]">Mode:</span> <span className="text-blue-900 font-bold">Offline</span></div>
-                            <div className="flex justify-between"><span className="uppercase text-[10px]">Service:</span> <span className="text-blue-900 font-bold">{data.type}</span></div>
+                            <div className="flex justify-between">
+                                <span className="uppercase text-[10px]">Vet:</span> 
+                                <span className="text-blue-900 font-bold">{doctor?.userId?.userName || "N/A"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="uppercase text-[10px]">Pet:</span> 
+                                <span className="text-blue-900 font-bold">{pet?.name || "N/A"} ({pet?.species || "Species N/A"})</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="uppercase text-[10px]">Date:</span> 
+                                <span className="text-blue-900 font-bold">{data.date}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="uppercase text-[10px]">Time:</span> 
+                                <span className="text-blue-900 font-bold">{data.time}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="uppercase text-[10px]">Mode:</span> 
+                                <span className="text-blue-900 font-bold">Offline</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="uppercase text-[10px]">Service:</span> 
+                                <span className="text-blue-900 font-bold">{data.type}</span>
+                            </div>
                             <div className="flex justify-between items-start gap-4">
                                 <span className="uppercase text-[10px] shrink-0">Location:</span>
-                                <span className="text-blue-900 font-bold text-right">5th Street - 1011 W 5th St, Suite 120, Austin, TX 78703</span>
+                                <span className="text-blue-900 font-bold text-right">
+                                    {doctor?.clinicInfo?.clinicName}<br/>
+                                    {doctor?.clinicInfo?.address?.doorNo} {doctor?.clinicInfo?.address?.street},<br/>
+                                    {doctor?.clinicInfo?.address?.city}, {doctor?.clinicInfo?.address?.state} - {doctor?.clinicInfo?.address?.pincode}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -36,11 +147,11 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Consultation Fee</span>
-                                <span className="text-lg font-bold text-blue-900">₹400</span>
+                                <span className="text-lg font-bold text-blue-900">₹{doctor?.profile?.consultationFees || 400}</span>
                             </div>
                             <div className="pt-4 border-t-2 border-dashed border-gray-100 flex justify-between items-center">
                                 <span className="text-sm font-black text-blue-950 uppercase tracking-[0.2em]">Total</span>
-                                <span className="text-2xl font-black text-blue-600">₹400</span>
+                                <span className="text-2xl font-black text-blue-600">₹{doctor?.profile?.consultationFees || 400}</span>
                             </div>
                         </div>
                     </div>
@@ -49,48 +160,61 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
 
             {/* Payment Methods */}
             <div className="bg-white rounded-lg border border-gray-100 shadow-lg p-8 space-y-8">
+                <h3 className="text-center text-[10px] font-black text-blue-950 uppercase tracking-[0.2em]">Select Payment Method</h3>
                 <div className="space-y-6">
                     <PaymentOption
                         id="Razerpay"
-                        icon={<CreditCard className="text-blue-500" size={20} />}
-                        label="Pay with Razerpay"
-                        selected={paymentMethod === "Razerpay"}
-                        onClick={() => setPaymentMethod("Razerpay")}
+                        disabled
+                        icon={<CreditCard className="text-gray-300" size={20} />}
+                        label="Pay with Razorpay"
+                        subLabel="Currently Unavailable"
+                        selected={false}
+                        onClick={() => {}}
                     />
                     <PaymentOption
                         id="Wallet"
-                        icon={<Wallet className="text-amber-500" size={20} />}
+                        disabled
+                        icon={<Wallet className="text-gray-300" size={20} />}
                         label="Wallet"
-                        subLabel="Wallet amount Aplicable"
-                        selected={paymentMethod === "Wallet"}
-                        onClick={() => setPaymentMethod("Wallet")}
+                        subLabel="Currently Unavailable"
+                        selected={false}
+                        onClick={() => {}}
                     />
                     <PaymentOption
                         id="COD"
                         icon={<Banknote className="text-emerald-500" size={20} />}
-                        label="Cash on Delivery"
-                        subLabel="Not for Online"
-                        selected={paymentMethod === "COD"}
-                        onClick={() => setPaymentMethod("COD")}
+                        label="Cash on Consultation"
+                        subLabel="Proceed with booking and pay at clinic"
+                        selected={data.paymentMethod === "COD" || true} // Default to COD
+                        onClick={() => {}}
                     />
                 </div>
             </div>
+            {isBooking && (
+                <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+                    <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
+                    <p className="text-xs font-black text-blue-950 uppercase tracking-[0.3em] animate-pulse">Processing Your Booking...</p>
+                </div>
+            )}
         </div>
     )
 }
 
-function PaymentOption({ id, icon, label, subLabel, selected, onClick }: any) {
+function PaymentOption({ id, icon, label, subLabel, selected, onClick , disabled}: any) {
     return (
         <button
             onClick={onClick}
+            disabled={disabled}
             className={cn(
                 "w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-300",
                 selected
                     ? "border-blue-500 bg-blue-50/10 shadow-sm"
-                    : "border-gray-50 bg-white hover:border-blue-100"
+                    : disabled 
+                        ? "border-gray-50 bg-gray-50/50 cursor-not-allowed opacity-60"
+                        : "border-gray-50 bg-white hover:border-blue-100"
             )}
         >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-left">
                 <div className={cn(
                     "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
                     selected ? "bg-blue-600 border-blue-600" : "border-gray-200"
@@ -114,3 +238,4 @@ function PaymentOption({ id, icon, label, subLabel, selected, onClick }: any) {
         </button>
     )
 }
+

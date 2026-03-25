@@ -43,7 +43,7 @@ export function SignUpForm() {
     const { handleSubmit: submitHookForm, isLoading: hookLoading, errors: hookErrors, setErrors: setHookErrors } = useSignup()
     const { googleLogin } = useSignin()
     const [formData, setFormData] = useState({
-        username: "",
+        userName: "",
         email: "",
         gender: "Male" as "Male" | "Female" | "Other",
         role: "owner" as "owner" | "doctor",
@@ -118,7 +118,7 @@ export function SignUpForm() {
             })
             setErrors(fieldErrors)
             setTouched({
-                username: true,
+                userName: true,
                 email: true,
                 phone: true,
                 password: true,
@@ -174,13 +174,13 @@ export function SignUpForm() {
 
                 <Input
                     type="text"
-                    name="username"
+                    name="userName"
                     placeholder="Full Name"
-                    value={formData.username}
+                    value={formData.userName}
                     onChange={handleChange}
-                    onBlur={() => handleBlur("username")}
-                    error={errors.username}
-                    touched={touched.username}
+                    onBlur={() => handleBlur("userName")}
+                    error={errors.userName}
+                    touched={touched.userName}
                 />
 
                 <Input

@@ -16,7 +16,7 @@ export default function ChangePasswordPage() {
             <OwnerHeader />
             <div className="flex max-w-7xl mx-auto px-6 py-8 gap-8">
                 <OwnerSidebar
-                    userName={user?.username || ""}
+                    userName={user?.userName || ""}
                     email={user?.email || ""}
                     activeSection={activeSection}
                     onSectionChange={setActiveSection}
