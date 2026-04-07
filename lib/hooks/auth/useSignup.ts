@@ -68,8 +68,6 @@ export const useSignup = () => {
     setIsLoading(true);
 
     try {
-
-
       const response = await signupService.register(data);
 
       if (response.success) {

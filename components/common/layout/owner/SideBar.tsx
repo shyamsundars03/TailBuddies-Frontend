@@ -34,7 +34,7 @@ export interface SidebarMenuItem {
 }
 
 export interface OwnerSidebarProps {
-    userName: string
+    username: string
     email: string
     activeSection: string
     onSectionChange: (sectionId: string) => void
@@ -59,7 +59,7 @@ const defaultMenuItems: SidebarMenuItem[] = [
 ]
 
 export function OwnerSidebar({
-    userName,
+    username,
     email,
     activeSection,
     onSectionChange,
@@ -169,7 +169,7 @@ export function OwnerSidebar({
                             </>
                         )}
 
-                        <h3 className="text-white font-semibold text-lg">{userName}</h3>
+                        <h3 className="text-white font-semibold text-lg">{username}</h3>
                         <p className="text-blue-200 text-sm">{email}</p>
                     </div>
                 </div>

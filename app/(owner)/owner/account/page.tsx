@@ -8,7 +8,7 @@ export default function OwnerAccountPage() {
     const { user } = useAppSelector((state) => state.auth)
 
     const userData = {
-        userName: user?.userName || "",
+        username: user?.username || "",
         email: user?.email || "",
         gender: user?.gender || "Female",
         phone: user?.phone || "",

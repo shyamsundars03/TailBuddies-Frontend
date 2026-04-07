@@ -3,7 +3,7 @@ export const clientCookies = {
 
 
 
-    set: (name: string, value: string, maxAgeSeconds: number = 300) => {
+    set: (name: string, value: string, maxAgeSeconds: number = 7 * 24 * 60 * 60) => {
         if (typeof window === 'undefined') return;
         const secure = window.location.protocol === 'https:' ? '; Secure' : '';
         document.cookie = `${name}=${value}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=Lax${secure}`;

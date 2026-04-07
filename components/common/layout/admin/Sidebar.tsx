@@ -86,7 +86,7 @@ export const AdminSidebar = memo(function AdminSidebar({ onItemClick, className,
                         <div className="w-20 h-20 rounded-full bg-white/10 border-4 border-white/20 flex items-center justify-center mb-3 overflow-hidden">
                             <User size={32} className="text-white/60" />
                         </div>
-                        <h3 className="text-white font-bold text-lg">{user?.userName || "Admin User"}</h3>
+                        <h3 className="text-white font-bold text-lg">{user?.username || "Admin User"}</h3>
                         <p className="text-white/60 text-xs font-medium tracking-wide">SYSTEM ADMINISTRATOR</p>
                     </div>
                 </div>

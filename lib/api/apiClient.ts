@@ -113,6 +113,7 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                logger.info('Attempting to refresh token...');
                 const response = await axios.post(
                     `${apiClient.defaults.baseURL}/auth/refresh-token`,
                     {},
@@ -120,15 +121,23 @@ apiClient.interceptors.response.use(
                 );
 
                 const { accessToken } = response.data.data;
-                clientCookies.set('token', accessToken, 24 * 60 * 60); // 1 day
+                logger.info('Token refreshed successfully');
+                
+                // Save new token to cookie
+                clientCookies.set('token', accessToken, 7 * 24 * 60 * 60); // 7 days
 
                 processQueue(null, accessToken);
+                
+                // Update original request header and retry
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return apiClient(originalRequest);
             } catch (err) {
+                logger.error('Token refresh failed', err);
                 processQueue(err, null);
                 clientCookies.delete('token');
                 localStorage.removeItem('user');
-                if (window.location.pathname !== '/signin') {
+                
+                if (typeof window !== 'undefined' && window.location.pathname !== '/signin') {
                     window.location.href = '/signin?error=session_expired';
                 }
                 return Promise.reject(err);

@@ -230,7 +230,7 @@ export default function DoctorServicesPage() {
                                 <DoctorCard 
                                     key={doctor._id} 
                                     id={doctor._id}
-                                    name={doctor.userId?.userName || "N/A"}
+                                    name={doctor.userId?.username || "N/A"}
                                     specialty={doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"}
                                     rating={4.8} // Placeholder for now
                                     reviewsCount={doctor.totalAppointments || 0}

@@ -187,7 +187,7 @@ export default function RequestDetailPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 <div>
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">Name</span>
-                                    <p className="text-xs font-black text-gray-800">{owner?.userName}</p>
+                                    <p className="text-xs font-black text-gray-800">{owner?.username}</p>
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">Email</span>

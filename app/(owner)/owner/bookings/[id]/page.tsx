@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2 } from "lucide-react"
+import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2, CreditCard } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
@@ -63,9 +63,9 @@ export default function SingleBookingViewPage() {
                     </nav>
                 </div>
                 <div className="flex gap-4">
-                    <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-2 rounded-xl text-xs transition active:scale-95 shadow-md flex items-center gap-2">
+                    {/* <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-2 rounded-xl text-xs transition active:scale-95 shadow-md flex items-center gap-2">
                         Call
-                    </button>
+                    </button> */}
                     <button
                         onClick={() => router.back()}
                         className="bg-gray-500 hover:bg-gray-600 text-white font-bold px-8 py-2 rounded-xl text-xs transition active:scale-95 shadow-md"
@@ -90,7 +90,7 @@ export default function SingleBookingViewPage() {
                         </div>
                         <div>
                             <p className="text-blue-500 font-bold text-[10px] uppercase tracking-wider">AptID: {appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
-                            <h2 className="text-gray-900 font-black text-sm">Dr. {doctorUser?.userName}</h2>
+                            <h2 className="text-gray-900 font-black text-sm">Dr. {doctorUser?.username}</h2>
                         </div>
                         <div className="ml-8 flex items-center gap-3">
                             <span className="text-blue-950 font-black text-xs">Status:</span>
@@ -98,7 +98,10 @@ export default function SingleBookingViewPage() {
                                 "font-bold text-xs uppercase px-3 py-1 rounded-full",
                                 appointment.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
                                 appointment.status === 'Booked' ? "bg-blue-100 text-blue-600" :
-                                appointment.status === 'Cancelled' ? "bg-red-100 text-red-600" :
+                                appointment.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
+                                appointment.status === 'Booked' ? "bg-blue-100 text-blue-600" :
+                                appointment.status === 'Cancelled' || appointment.status === 'cancelled' ? "bg-red-100 text-red-600" :
+                                appointment.status === 'payment pending' ? "bg-amber-100 text-amber-600" :
                                 "bg-gray-100 text-gray-600"
                             )}>
                                 {appointment.status}
@@ -117,10 +120,10 @@ export default function SingleBookingViewPage() {
                                 Write a Review
                             </button>
                         )}
-                        <button className="px-6 py-2 bg-yellow-400 text-black font-black rounded-lg text-xs shadow-sm hover:bg-yellow-500 transition active:scale-95 flex items-center gap-2">
+                        {/* <button className="px-6 py-2 bg-yellow-400 text-black font-black rounded-lg text-xs shadow-sm hover:bg-yellow-500 transition active:scale-95 flex items-center gap-2">
                             <Download size={14} />
                             Download Summary
-                        </button>
+                        </button> */}
                     </div>
                 </div>
 
@@ -138,7 +141,7 @@ export default function SingleBookingViewPage() {
                     <SectionLayout title="Doctor Details">
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <DataField label="Doctor Name" value={`Dr. ${doctorUser?.userName}`} />
+                                <DataField label="Doctor Name" value={`Dr. ${doctorUser?.username}`} />
                                 <DataField label="Specialization" value={appointment.doctorId?.profile?.designation || "Veterinary"} />
                                 <DataField label="Experience" value={`${appointment.doctorId?.profile?.experienceYears || 0} years`} />
                             </div>
@@ -207,14 +210,39 @@ export default function SingleBookingViewPage() {
                         </>
                     )}
 
-                    {/* Payment */}
                     <SectionLayout title="Payment Information">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                            <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || 0}`} />
-                            <DataField label="Payment Method" value="Cash on Consultation" />
-                            <DataField label="Payment Status" value={appointment.status === 'Completed' ? 'Successful' : 'Pending'} isStatus statusType={appointment.status === 'Completed' ? "success" : "error"} />
-                            <DataField label="Transaction ID" value="N/A" italic />
+                            <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || appointment.totalAmount || 0}`} />
+                            <DataField 
+                                label="Payment Method" 
+                                value={
+                                    appointment.paymentMethod === 'razorpay' ? 'Razorpay Online' : 
+                                    appointment.paymentMethod === 'wallet' ? 'Wallet Payment' : 
+                                    appointment.paymentMethod === 'cash' || appointment.paymentMethod === 'cod' ? 'Cash on Consultation' : 
+                                    appointment.paymentMethod || 'N/A'
+                                } 
+                                capitalize 
+                            />
+                            <DataField 
+                                label="Payment Status" 
+                                value={appointment.paymentStatus || (appointment.status === 'Completed' ? 'PAID' : 'PENDING')} 
+                                isStatus 
+                                statusType={appointment.paymentStatus === 'PAID' || appointment.status === 'Completed' ? "success" : "error"} 
+                            />
+                            <DataField label="Transaction ID" value={appointment.transactionID || "N/A"} italic />
                         </div>
+                        
+                        {appointment.status === 'payment pending' && (
+                            <div className="mt-8 flex justify-end">
+                                <button 
+                                    onClick={() => router.push(`/owner/payment/failure?id=${appointment._id}`)}
+                                    className="bg-[#002B49] hover:bg-[#001B39] text-white font-black px-10 py-3 rounded-2xl text-xs transition active:scale-95 shadow-lg flex items-center gap-3"
+                                >
+                                    <CreditCard size={18} />
+                                    Retry Payment
+                                </button>
+                            </div>
+                        )}
                     </SectionLayout>
 
                     {/* Reviews */}

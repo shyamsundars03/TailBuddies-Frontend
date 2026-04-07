@@ -138,7 +138,7 @@ export function PetsManagement() {
                                                     👤
                                                 </div>
                                                 <span className="text-sm text-blue-600 font-bold hover:underline cursor-pointer">
-                                                    {pet.ownerId?.userName || "N/A"}
+                                                    {pet.ownerId?.username || "N/A"}
                                                 </span>
                                             </div>
                                         </td>

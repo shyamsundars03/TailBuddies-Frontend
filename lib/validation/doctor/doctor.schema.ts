@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const basicDetailsSchema = z.object({
-    userName: z.string().min(3, "Username must be at least 3 characters"),
+    username: z.string().min(3, "Username must be at least 3 characters"),
     gender: z.enum(["female", "male", "other"]),
     phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
 });

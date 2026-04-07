@@ -10,7 +10,13 @@ interface DoctorProfileData {
     qualification: string;
     specialty: string;
     isActive: boolean;
-    verificationStatus: string;
+    verificationStatus: {
+        clinic: boolean;
+        education: boolean;
+        experience: boolean;
+        certificates: boolean;
+        businessHours: boolean;
+    };
     appointmentDuration: number;
 }
 

@@ -18,7 +18,7 @@ interface BasicDetailsProps {
 export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: BasicDetailsProps) => {
     // PERSONAL INFO STATE
     const [personalData, setPersonalData] = useState({
-        userName: doctor?.userId?.userName || user?.userName || "",
+        username: doctor?.userId?.username || user?.username || "",
         gender: doctor?.userId?.gender || user?.gender || "male",
         phone: doctor?.userId?.phone || user?.phone || "",
     })
@@ -78,7 +78,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
     useEffect(() => {
         if (doctor) {
             setPersonalData({
-                userName: doctor.userId?.userName || user?.userName || "",
+                username: doctor.userId?.username || user?.username || "",
                 gender: doctor.userId?.gender || user?.gender || "male",
                 phone: doctor.userId?.phone || user?.phone || "",
             })
@@ -162,7 +162,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
                 newErrors[err.path[0] as string] = err.message;
             });
             setErrors(newErrors);
-            setTouched({ userName: true, gender: true, phone: true });
+            setTouched({ username: true, gender: true, phone: true });
             toast.error("Please fix validation errors")
             return
         }
@@ -245,18 +245,18 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">Full Name</label>
                         <input
                             type="text"
-                            name="userName"
-                            value={personalData.userName}
+                            name="username"
+                            value={personalData.username}
                             onChange={handlePersonalChange}
-                            onBlur={() => handleBlur('userName')}
+                            onBlur={() => handleBlur('username')}
                             className={cn(
                                 "w-full px-5 py-3.5 bg-gray-50 border rounded-2xl text-sm outline-none transition-all font-bold",
-                                touched.userName && errors.userName ? "border-red-300 bg-red-50 text-red-900" : "border-gray-100 focus:border-blue-500 text-black"
+                                touched.username && errors.username ? "border-red-300 bg-red-50 text-red-900" : "border-gray-100 focus:border-blue-500 text-black"
                             )}
                         />
-                        {touched.userName && errors.userName && (
+                        {touched.username && errors.username && (
                             <p className="text-[10px] text-red-500 font-black flex items-center gap-1">
-                                <AlertCircle size={10} /> {errors.userName}
+                                <AlertCircle size={10} /> {errors.username}
                             </p>
                         )}
                     </div>

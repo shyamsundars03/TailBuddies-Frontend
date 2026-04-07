@@ -16,19 +16,28 @@ export default function MyBookingsPage() {
     const router = useRouter()
     const pathname = usePathname()
 
-    const initialStatus = searchParams.get('status') || "Booked"
+    const initialStatus = searchParams.get('status') || "booked"
     const initialSearch = searchParams.get('search') || ""
     const initialPage = parseInt(searchParams.get('page') || "1")
 
     const [activeTab, setActiveTab] = useState(initialStatus)
+    const [allStats, setAllStats] = useState<any>(null)
     const [searchTerm, setSearchTerm] = useState(initialSearch)
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
     const [appointments, setAppointments] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [isRetrying, setIsRetrying] = useState(false)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [totalEntries, setTotalEntries] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
     const entriesPerPage = 10
+
+    const fetchStats = useCallback(async () => {
+        const response = await appointmentApi.getOwnerStats()
+        if (response.success) {
+            setAllStats(response.stats)
+        }
+    }, [])
 
     const fetchAppointmentsData = useCallback(async (page: number, search: string, status: string) => {
         setIsLoading(true)
@@ -37,18 +46,17 @@ export default function MyBookingsPage() {
             setAppointments(response.data || [])
             setTotalEntries(response.total || 0)
             setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
-        } else {
-            // toast.error(response.error || "Failed to fetch bookings")
         }
         setIsLoading(false)
-    }, [entriesPerPage])
+        fetchStats()
+    }, [entriesPerPage, fetchStats])
 
     // Update URL when state changes
     useEffect(() => {
         const params = new URLSearchParams()
         if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
         if (currentPage > 1) params.set('page', currentPage.toString())
-        if (activeTab && activeTab !== "Booked") params.set('status', activeTab)
+        if (activeTab && activeTab !== "booked") params.set('status', activeTab)
         
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
@@ -58,6 +66,19 @@ export default function MyBookingsPage() {
     useEffect(() => {
         fetchAppointmentsData(currentPage, debouncedSearchTerm, activeTab)
     }, [currentPage, debouncedSearchTerm, activeTab, fetchAppointmentsData])
+
+    // Load Razorpay Script
+    useEffect(() => {
+        const script = document.createElement("script")
+        script.src = "https://checkout.razorpay.com/v1/checkout.js"
+        script.async = true
+        document.body.appendChild(script)
+        return () => {
+            if (document.body.contains(script)) {
+                document.body.removeChild(script)
+            }
+        }
+    }, [])
 
     // Debounce search
     useEffect(() => {
@@ -111,31 +132,37 @@ export default function MyBookingsPage() {
                     
                 </div>
 
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
-                    <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 overflow-x-auto no-scrollbar">
+                    <div className="flex gap-2 min-w-max pb-2">
                         <TabButton 
                             label="Booked" 
-                            count={appointments.filter(a => a.status === 'Booked').length} 
-                            active={activeTab === "Booked"} 
-                            onClick={() => handleTabChange("Booked")} 
+                            count={allStats?.booked || 0} 
+                            active={activeTab === "booked"} 
+                            onClick={() => handleTabChange("booked")} 
                         />
                         <TabButton 
                             label="Confirmed" 
-                            count={appointments.filter(a => a.status === 'Confirmed').length} 
-                            active={activeTab === "Confirmed"} 
-                            onClick={() => handleTabChange("Confirmed")} 
+                            count={allStats?.confirmed || 0} 
+                            active={activeTab === "confirmed"} 
+                            onClick={() => handleTabChange("confirmed")} 
+                        />
+                         <TabButton 
+                            label="Pending Payment" 
+                            count={allStats?.pending || 0} 
+                            active={activeTab === "payment pending"} 
+                            onClick={() => handleTabChange("payment pending")} 
                         />
                         <TabButton 
                             label="Cancelled" 
-                            count={appointments.filter(a => a.status === 'Cancelled').length} 
-                            active={activeTab === "Cancelled"} 
-                            onClick={() => handleTabChange("Cancelled")} 
+                            count={allStats?.cancelled || 0} 
+                            active={activeTab === "cancelled"} 
+                            onClick={() => handleTabChange("cancelled")} 
                         />
                         <TabButton 
                             label="Completed" 
-                            count={appointments.filter(a => a.status === 'Completed').length} 
-                            active={activeTab === "Completed"} 
-                            onClick={() => handleTabChange("Completed")} 
+                            count={allStats?.completed || 0} 
+                            active={activeTab === "completed"} 
+                            onClick={() => handleTabChange("completed")} 
                         />
                     </div>
                 </div>
@@ -167,15 +194,18 @@ export default function MyBookingsPage() {
                                                     
                                                     <span className={cn(
                                                         "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                                                        booking.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
-                                                        booking.status === 'Booked' ? "bg-blue-100 text-blue-600" :
-                                                        booking.status === 'Cancelled' ? "bg-red-100 text-red-600" :
+                                                        booking.status === 'confirmed' ? "bg-emerald-100 text-emerald-600" :
+                                                        booking.status === 'booked' ? "bg-blue-100 text-blue-600" :
+                                                        booking.status === 'cancelled' ? "bg-red-100 text-red-600" :
+                                                        booking.status === 'payment pending' ? "bg-amber-100 text-amber-600" :
+                                                        booking.status === 'cancel request' ? "bg-orange-100 text-orange-600" :
+                                                        booking.status === 'refund request' ? "bg-purple-100 text-purple-600" :
                                                         "bg-gray-100 text-gray-600"
                                                     )}>
                                                         {booking.status}
                                                     </span>
                                                 </div>
-                                                <h3 className="font-bold text-gray-800 text-lg">Dr. {booking.doctorId?.userId?.userName}</h3>
+                                                <h3 className="font-bold text-gray-800 text-lg">Dr. {booking.doctorId?.userId?.username}</h3>
                                             </div>
                                         </div>
 
@@ -200,10 +230,18 @@ export default function MyBookingsPage() {
                                             <p className="font-bold text-gray-800">{booking.petId?.name}</p>
                                         </div>
 
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3 min-w-max">
+                                            {booking.status === 'payment pending' && (
+                                                <button
+                                                    onClick={() => router.push(`/owner/payment/failure?id=${booking._id}`)}
+                                                    className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition shadow-sm"
+                                                >
+                                                    Pay Now
+                                                </button>
+                                            )}
                                             <Link
                                                 href={`/owner/bookings/${booking._id}`}
-                                                className="px-6 py-2 bg-blue-50 border border-blue-100 text-blue-800 rounded-xl text-sm font-bold hover:bg-blue-100 transition flex items-center gap-2"
+                                                className="px-4 py-2 bg-blue-50 border border-blue-100 text-blue-800 rounded-xl text-sm font-bold hover:bg-blue-100 transition flex items-center gap-2"
                                             >
                                                 <Eye size={16} />
                                                 View

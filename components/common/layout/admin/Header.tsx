@@ -45,7 +45,7 @@ export function AdminHeader() {
                     <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full flex items-center gap-2 transition cursor-default shadow-sm">
                         <User size={14} />
                         <span className="text-xs font-bold whitespace-nowrap">
-                            {user.userName || user.email}
+                            {user?.username || "Admin"}
                         </span>
                     </div>
                 )}

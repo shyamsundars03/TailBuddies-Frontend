@@ -29,13 +29,20 @@ function DoctorProfileInner() {
 
     useEffect(() => {
         if (user) {
-            if (user.role?.toLowerCase() !== "doctor") {
+            const userRole = user.role?.toLowerCase()
+            
+            if (userRole && userRole !== "doctor") {
+                console.log(`[DoctorProfile] Role mismatch: ${userRole}. Redirecting to signin.`, user);
                 router.replace("/signin")
                 return
             }
-            fetchDoctorProfile()
+            
+            // If user exists but role is temporarily missing (during sync), don't redirect yet
+            if (userRole === "doctor") {
+                fetchDoctorProfile()
+            }
         }
-    }, [user, router])
+    }, [user?.id, user?.role, router])
 
     const fetchDoctorProfile = async () => {
         setLoading(true)

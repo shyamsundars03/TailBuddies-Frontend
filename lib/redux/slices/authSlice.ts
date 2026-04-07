@@ -6,7 +6,7 @@ interface UserState {
     id: string | null;
     email: string | null;
     role: string | null;
-    userName: string | null;
+    username: string | null;
     googleId?: string | null;
     phone?: string | null;
     gender?: string | null;
@@ -34,8 +34,16 @@ export const authSlice = createSlice({
     initialState,
     reducers: {
         setUser: (state, action: PayloadAction<UserState | null>) => {
-            state.user = action.payload;
-            state.isAuthenticated = !!action.payload;
+            if (action.payload) {
+                state.user = action.payload;
+                state.isAuthenticated = true;
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('user', JSON.stringify(action.payload));
+                }
+            } else {
+                state.user = null;
+                state.isAuthenticated = false;
+            }
         },
         logout: (state) => {
             state.user = null;

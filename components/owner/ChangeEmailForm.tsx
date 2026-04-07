@@ -88,7 +88,7 @@ export function ChangeEmailForm() {
                     id: apiUser.id || apiUser._id,
                     email: apiUser.email,
                     role: apiUser.role,
-                    username: apiUser.userName || apiUser.username,
+                    username: apiUser.username,
                     phone: apiUser.phone,
                     gender: apiUser.gender,
                     profilePic: apiUser.profilePic

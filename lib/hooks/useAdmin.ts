@@ -101,7 +101,7 @@ export const useAdmin = () => {
             if (data.success) {
                 const fetchedUsers = data.data.users.map((u: { _id: string;[key: string]: unknown }) => ({
                     id: u._id,
-                    username: u.userName,
+                    username: u.username,
                     email: u.email,
                     phone: u.phone,
                     role: u.role,

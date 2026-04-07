@@ -100,12 +100,6 @@ export default function AppointmentBookingPage() {
 
     // Sync step from session storage on mount
     useEffect(() => {
-        const completed = sessionStorage.getItem(`booking_completed_${params.id}`)
-        if (completed) {
-            router.replace('/owner/bookings')
-            return
-        }
-
         const savedStep = sessionStorage.getItem(`booking_step_${params.id}`)
         if (savedStep) {
             const stepNum = parseInt(savedStep)
@@ -117,7 +111,7 @@ export default function AppointmentBookingPage() {
             }
             setCurrentStep(validStep)
         }
-    }, [])
+    }, [params.id])
 
     // Save data whenever it changes
     useEffect(() => {
@@ -227,7 +221,7 @@ export default function AppointmentBookingPage() {
                             <>
                                 <div className="flex items-center gap-3">
                                     <h3 className="font-bold text-blue-950">
-                                        {doctor?.userId?.userName ? `Dr. ${doctor.userId.userName}` : 'Doctor Details'}
+                                        {doctor?.userId?.username ? `Dr. ${doctor.userId.username}` : 'Doctor Details'}
                                     </h3>
                                     <div className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
                                         <Star size={10} className="fill-white" />
@@ -254,7 +248,7 @@ export default function AppointmentBookingPage() {
                     <div className="flex-1 p-8 lg:p-10">
                         {currentStep === 1 && <AppointmentTypeStep data={bookingData} setData={setBookingData} />}
                         {currentStep === 2 && <PetSelectionStep data={bookingData} setData={setBookingData} />}
-                        {currentStep === 3 && <DateTimeStep data={bookingData} setData={setBookingData} />}
+                        {currentStep === 3 && <DateTimeStep data={bookingData} setData={setBookingData} doctor={doctor} />}
                         {currentStep === 4 && <SummaryPaymentStep data={bookingData} doctorId={params.id as string} />}
                     </div>
 

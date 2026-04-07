@@ -54,7 +54,7 @@ export function AppointmentManagement() {
                     </div>
                     <div className="flex flex-col">
                         <span className="text-blue-600 font-semibold text-xs hover:underline cursor-pointer truncate max-w-[120px]">
-                            Dr. {apt.doctorId?.userId?.userName || "Unknown"}
+                            Dr. {apt.doctorId?.userId?.username || "Unknown"}
                         </span>
                         <span className="text-blue-500 font-bold text-[9px] uppercase tracking-tighter">AptID: {apt.appointmentId || apt._id.slice(-8).toUpperCase()}</span>
                     </div>

@@ -24,7 +24,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     }
 
     const userData = {
-        userName: user?.userName || user?.email || "—",
+        username: user?.username || user?.email || "—",
         email: user?.email || "—",
     }
 
@@ -41,7 +41,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             )}>
                 {!isServicesPage && !isVideoCall && (
                     <OwnerSidebar
-                        userName={userData.userName}
+                        username={user?.username || "Owner"}
                         email={userData.email}
                         activeSection={getActiveSection()}
                         onSectionChange={() => { }}

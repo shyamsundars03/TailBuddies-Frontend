@@ -62,7 +62,7 @@ export const useSignin = () => {
                     id: apiUser.id,
                     email: apiUser.email,
                     role: apiUser.role,
-                    userName: apiUser.userName,
+                    username: apiUser.username,
                     googleId: apiUser.googleId,
                     profilePic: apiUser.profilePic,
                     phone: apiUser.phone,
@@ -75,7 +75,7 @@ export const useSignin = () => {
                     clientCookies.set('token', token, 7 * 24 * 60 * 60); // 7 days
                     localStorage.setItem('user', JSON.stringify(userToStore));
                 }
-                toast.success(`Welcome back, ${userToStore.userName || 'User'}!`);
+                toast.success(`Welcome back, ${userToStore.username || 'User'}!`);
 
                 const role = apiUser.role?.toLowerCase();
 
@@ -117,7 +117,7 @@ export const useSignin = () => {
                     id: apiUser.id,
                     email: apiUser.email,
                     role: apiUser.role,
-                    userName: apiUser.userName,
+                    username: apiUser.username,
                     googleId: apiUser.googleId,
                     profilePic: apiUser.profilePic,
                     phone: apiUser.phone,

@@ -26,7 +26,7 @@ import {
 
 
 interface DoctorSidebarProps {
-  userName: string
+  username: string
   email: string
   qualification: string
   specialty?: string
@@ -64,7 +64,7 @@ const menuItems: DoctorSidebarMenuItem[] = [
 ]
 
 export function DoctorSidebar({
-  userName,
+  username,
   email: _email,
   qualification,
   specialty,
@@ -176,7 +176,7 @@ export function DoctorSidebar({
             </>
           )}
 
-          <h3 className="text-white font-bold text-lg mb-1">{userName}</h3>
+          <h3 className="text-white font-bold text-lg mb-1">{username}</h3>
           <p className="text-blue-100 text-sm">{qualification}</p>
         </div>
 

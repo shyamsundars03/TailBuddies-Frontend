@@ -115,7 +115,7 @@ export function SingleDoctorView({ id }: { id: string }) {
     if (loading) return <div className="p-20 text-center text-gray-500">Loading doctor details...</div>
     if (!doctor) return <div className="p-20 text-center text-gray-500">Doctor not found.</div>
 
-    const doctorName = doctor.userId?.userName || "ID: " + id
+    const doctorName = doctor.userId?.username || "ID: " + id
 
     return (
         <div className="bg-gray-50/50 min-h-screen p-6">
@@ -172,7 +172,7 @@ export function SingleDoctorView({ id }: { id: string }) {
                                     )}
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-xl font-black text-gray-900 leading-tight">{doctor.userId?.userName || "Not Provided"}</h3>
+                                    <h3 className="text-xl font-black text-gray-900 leading-tight">{doctor.userId?.username || "Not Provided"}</h3>
                                     <p className="text-blue-600 font-bold text-xs mt-1 uppercase tracking-wider">{doctor.profile?.designation || "Physician"}</p>
                                 </div>
                             </div>

@@ -53,7 +53,7 @@ export default function DoctorProfilePage() {
         </div>
     }
 
-    const doctorName = doctor.userId?.userName || "N/A"
+    const doctorName = doctor.userId?.username || "N/A"
     const doctorPic = doctor.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300&h=300"
     const specialtyName = doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"
     const location = `${doctor.clinicInfo?.clinicName || "Clinic"}, ${doctor.clinicInfo?.address?.city || "N/A"}`

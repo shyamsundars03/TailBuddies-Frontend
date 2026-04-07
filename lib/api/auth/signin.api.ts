@@ -26,7 +26,7 @@ export const signinApi = {
                             id: apiUser.id,
                             email: apiUser.email,
                             role: apiUser.role,
-                            userName: apiUser.userName,
+                            username: apiUser.username,
                         },
                         accessToken: accessToken,
                     }

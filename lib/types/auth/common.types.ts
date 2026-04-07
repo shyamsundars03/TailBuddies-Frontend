@@ -4,7 +4,7 @@ export interface AuthUserData {
     id: string;
     email: string;
     role: string;
-    userName: string;
+    username: string;
     googleId?: string;
     profilePic?: string;
     phone?: string;

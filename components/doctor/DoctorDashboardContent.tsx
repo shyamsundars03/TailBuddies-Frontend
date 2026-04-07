@@ -178,7 +178,7 @@ const DoctorDashboardContent = () => {
                                     </div>
                                     <div>
                                         <p className="font-bold text-lg">{upcomingAppointment.petId?.name} ({upcomingAppointment.petId?.breed})</p>
-                                        <p className="text-blue-200 text-sm">Owner: {upcomingAppointment.ownerId?.userName}</p>
+                                        <p className="text-blue-200 text-sm">Owner: {upcomingAppointment.ownerId?.username}</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-4">

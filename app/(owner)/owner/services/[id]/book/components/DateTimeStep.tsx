@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils/utils"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { useParams } from "next/navigation"
 
-export function DateTimeStep({ data, setData }: { data: any, setData: any }) {
+export function DateTimeStep({ data, setData, doctor }: { data: any, setData: any, doctor: any }) {
     const params = useParams()
     const [days, setDays] = useState<any[]>([])
     const [slots, setSlots] = useState<any[]>([])
@@ -17,8 +17,11 @@ export function DateTimeStep({ data, setData }: { data: any, setData: any }) {
             if (!data.rawDate || !params.id) return
             setIsLoading(true)
             const response = await appointmentApi.getAvailableSlots(params.id as string, data.rawDate)
+            console.log("frontend :", response)
             if (response.success) {
-                setSlots(response.data || [])
+                const slotsData = response.data || []
+                console.log(`[DateTimeStep] Received ${slotsData.length} slots from API. Selection: ${data.slotId}`)
+                setSlots(slotsData)
             } else {
                 setSlots([])
             }
@@ -30,28 +33,75 @@ export function DateTimeStep({ data, setData }: { data: any, setData: any }) {
     
     useEffect(() => {
         const generateDays = () => {
+            if (!doctor) return
             const result: any[] = []
             const now = new Date()
             now.setHours(0, 0, 0, 0)
             
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(now)
-                date.setDate(now.getDate() + i)
-                result.push({
-                    id: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
-                    label: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
-                    fullDate: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-                    rawDate: date.toISOString().split('T')[0]
-                })
+            // Get boundaries from doctor profile
+            const schedule = doctor.recurringSchedules?.[0]
+            
+            // Parse dtstart local-safely if it's a string from API
+            let dtstart = now
+            if (schedule?.dtstart) {
+                const sDate = new Date(schedule.dtstart)
+                // If it's UTC, we need to treat it as local or adjust
+                // For now, let's just use the date parts
+                dtstart = new Date(sDate.getFullYear(), sDate.getMonth(), sDate.getDate(), 0, 0, 0, 0)
             }
+            
+            let dtend = null
+            if (schedule?.dtend) {
+                const eDate = new Date(schedule.dtend)
+                dtend = new Date(eDate.getFullYear(), eDate.getMonth(), eDate.getDate(), 23, 59, 59, 999)
+            }
+
+            // Start from either 'now' or 'dtstart', whichever is later
+            const startDate = now > dtstart ? now : dtstart
+            
+            let daysGenerated = 0
+            let offset = 0
+            
+            // Attempt to find up to 14 working days within a 60-day window
+            while (daysGenerated < 14 && offset < 60) {
+                const date = new Date(startDate)
+                date.setDate(startDate.getDate() + offset)
+                offset++
+
+                // 1. Respect End Date (Local compare)
+                if (dtend && date > dtend) break
+
+                // 2. Respect Working Days
+                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
+                const businessDay = doctor.businessHours?.find((bh: any) => bh.day === dayOfWeek)
+                
+                if (businessDay?.isWorking) {
+                    const y = date.getFullYear()
+                    const m = String(date.getMonth() + 1).padStart(2, '0')
+                    const d = String(date.getDate()).padStart(2, '0')
+                    const localRawDate = `${y}-${m}-${d}`
+
+                    result.push({
+                        id: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+                        label: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+                        fullDate: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                        rawDate: localRawDate
+                    })
+                    daysGenerated++
+                }
+            }
+            
             setDays(result)
-            // Default select today if not set
-            if (!data.date && result.length > 0) {
-                setData((prev: any) => ({ ...prev, date: result[0].fullDate, rawDate: result[0].rawDate }))
+            // Default select first available if not set or if current selection is now invalid
+            if (result.length > 0) {
+                const isCurrentValid = result.find(d => d.rawDate === data.rawDate)
+                if (!data.date || !isCurrentValid) {
+                    setData((prev: any) => ({ ...prev, date: result[0].fullDate, rawDate: result[0].rawDate, time: "", slotId: "" }))
+                }
             }
         }
         generateDays()
-    }, [])
+    }, [doctor])
 
 
 
@@ -74,13 +124,13 @@ export function DateTimeStep({ data, setData }: { data: any, setData: any }) {
 
             {/* Schedule Grid */}
             <div className="bg-white border border-gray-100 rounded-lg overflow-hidden shadow-sm">
-                <div className="grid grid-cols-7 border-b border-gray-50 bg-gray-50/30">
+                <div className="flex overflow-x-auto p-1 bg-gray-50/30 border-b border-gray-50 no-scrollbar">
                     {days.map((day) => (
                         <button
                             key={day.rawDate}
                             onClick={() => handleDateSelect(day)}
                             className={cn(
-                                "p-4 text-center space-y-1 border-r border-gray-50 last:border-r-0 transition-all",
+                                "flex-shrink-0 w-24 p-4 text-center space-y-1 transition-all",
                                 data.rawDate === day.rawDate ? "bg-blue-50/50" : "hover:bg-gray-100/50"
                             )}
                         >

@@ -3,7 +3,7 @@
 import { Badge } from "../common/ui/Badge"
 
 export interface ProfileData {
-    userName: string
+    username: string
     gender: string
     email: string
     phone: string
@@ -38,7 +38,7 @@ export function ProfileView({ data }: ProfileViewProps) {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">User Name</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">{data.userName}</p>
+                        <p className="text-sm text-gray-700">{data.username}</p>
                     </div>
                 </div>
                 <div>

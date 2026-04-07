@@ -222,17 +222,50 @@ export const appointmentApi = {
             }
             return { success: false, error: 'An unknown error occurred' };
         }
+    },
+
+    getDoctorStats: async () => {
+        try {
+            const response = await apiClient.get('/appointments/doctor/stats');
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, error: error.response?.data?.message || 'Failed to fetch statistics' };
+            }
+            return { success: false, error: 'An unknown error occurred' };
+        }
+    },
+    getOwnerStats: async () => {
+        try {
+            const response = await apiClient.get('/appointments/owner/stats');
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, error: error.response?.data?.message || 'Failed to fetch statistics' };
+            }
+            return { success: false, error: 'An unknown error occurred' };
+        }
+    },
+    cancelPendingAppointment: async (id: string) => {
+        try {
+            const response = await apiClient.post(`/appointments/${id}/cancel-pending`);
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, error: error.response?.data?.message || 'Failed to cancel appointment' };
+            }
+            return { success: false, error: 'An unknown error occurred' };
+        }
+    },
+    checkSlotAvailability: async (id: string) => {
+        try {
+            const response = await apiClient.get(`/appointments/${id}/check-slot`);
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, error: error.response?.data?.message || 'Failed to check slot availability' };
+            }
+            return { success: false, error: 'An unknown error occurred' };
+        }
     }
-
-
-
-
-
-
-
-
-
-
-
-    
 };

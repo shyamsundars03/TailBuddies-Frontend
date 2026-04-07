@@ -52,7 +52,7 @@ const [isLoading, setIsLoading] = useState(false)
 
                 const userToStore = {
                     ...user,
-                    userName: user.userName || 'Admin'
+                    username: user.username || 'Admin'
                 };
 
                 dispatch(setUser(userToStore));

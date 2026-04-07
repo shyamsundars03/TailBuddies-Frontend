@@ -3,7 +3,7 @@
 export type UserRole = 'owner' | 'doctor';
 
 export interface SignupFormData {
-  userName: string;
+  username: string;
   email: string;
   phone: string;
   password: string;
@@ -13,7 +13,7 @@ export interface SignupFormData {
 }
 
 export interface SignupApiRequest {
-  userName: string;
+  username: string;
   email: string;
   phone: string;
   password: string; 
@@ -32,7 +32,7 @@ export interface SignupApiResponse {
 }
 
 export interface SignupFormErrors {
-  userName?: string;
+  username?: string;
   email?: string;
   phone?: string;
   password?: string;

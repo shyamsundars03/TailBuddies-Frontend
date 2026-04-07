@@ -37,7 +37,7 @@ export function DoctorVerifications() {
                 const date = new Date(doc.createdAt);
                 return {
                     id: doc._id,
-                    name: doc.userId?.userName || 'Unknown',
+                    name: doc.userId?.username || 'Unknown',
                     speciality: doc.profile?.designation || 'General',
                     memberSince: new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date),
                     memberSinceTime: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(date),

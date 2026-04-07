@@ -147,7 +147,7 @@ export const useOtp = () => {
                             id: apiUserData.id,
                             email: apiUserData.email,
                             role: apiUserData.role,
-                            username: apiUserData.userName || null,
+                            username: apiUserData.username || null,
                         };
                         dispatch(setUser(user));
                         localStorage.setItem('user', JSON.stringify(user));

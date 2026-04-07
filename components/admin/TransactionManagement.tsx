@@ -79,7 +79,7 @@ export function TransactionManagement() {
 
                 {/* Filter Controls */}
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                    <div className="flex bg-gray-50/50 p-1.5 rounded-2xl w-fit overflow-x-auto scrollbar-hide">
+                    <div className="flex bg-gray-50/50 p-2.5 rounded-2xl w-fit gap-4 ">
                         {[
                             { label: 'Paid', count: 21 },
                             { label: 'Subscription', count: 16 },
@@ -89,10 +89,10 @@ export function TransactionManagement() {
                                 key={tab.label}
                                 onClick={() => setActiveTab(tab.label)}
                                 className={cn(
-                                    "px-8 py-2.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap",
+                                    "px-8 py-2.5   rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap",
                                     activeTab === tab.label 
                                         ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30" 
-                                        : "text-gray-400 hover:text-gray-600"
+                                        : "text-gray-400 hover:text-gray-600 border border-gray-300 px-6 "
                                 )}
                             >
                                 {tab.label}

@@ -21,7 +21,7 @@ export default function AppointmentsPage() {
     const [activeTab, setActiveTab] = useState(initialTab)
     const [appointments, setAppointments] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [stats, setStats] = useState({ upcoming: 0, cancelled: 0, completed: 0 })
+    const [allStats, setAllStats] = useState<any>(null)
     const [searchTerm, setSearchTerm] = useState(initialSearch)
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
     const [currentPage, setCurrentPage] = useState(initialPage)
@@ -29,27 +29,30 @@ export default function AppointmentsPage() {
     const [totalPages, setTotalPages] = useState(1)
     const entriesPerPage = 10
 
+    const fetchStats = useCallback(async () => {
+        const response = await appointmentApi.getDoctorStats()
+        if (response.success) {
+            setAllStats(response.stats)
+        }
+    }, [])
+
     const fetchAppointmentsData = useCallback(async (page: number, search: string, tab: string) => {
         setIsLoading(true)
         let status = ""
-        if (tab === "Upcoming") status = "Confirmed"
-        else if (tab === "Cancelled") status = "Cancelled"
-        else if (tab === "Completed") status = "Completed"
+        if (tab === "Upcoming") status = "booked" // Use booked status for upcoming
+        else if (tab === "Cancelled") status = "cancelled"
+        else if (tab === "Completed") status = "completed"
+        else if (tab === "Requests") status = "cancel request"
 
         const response = await appointmentApi.getDoctorAppointments(status, page, entriesPerPage, search)
         if (response.success) {
             setAppointments(response.data || [])
             setTotalEntries(response.total || 0)
             setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
-            
-            if (tab === "Upcoming") setStats(s => ({ ...s, upcoming: response.total || 0 }))
-            else if (tab === "Cancelled") setStats(s => ({ ...s, cancelled: response.total || 0 }))
-            else if (tab === "Completed") setStats(s => ({ ...s, completed: response.total || 0 }))
-        } else {
-            // toast.error(response.error || "Failed to fetch appointments")
         }
         setIsLoading(false)
-    }, [entriesPerPage])
+        fetchStats() 
+    }, [entriesPerPage, fetchStats])
 
     // Update URL when state changes
     useEffect(() => {
@@ -116,26 +119,35 @@ export default function AppointmentsPage() {
             {/* Tabs & Date Range */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
                 <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50 rounded-xl w-fit">
-                    {["Upcoming", "Cancelled", "Completed"].map((tab) => {
-                        const count = tab === "Upcoming" ? stats.upcoming : tab === "Cancelled" ? stats.cancelled : stats.completed
+                    {["Upcoming", "Requests", "Cancelled", "Completed"].map((tab) => {
+                        let count = 0;
+                        if (allStats) {
+                            if (tab === "Upcoming") count = allStats.upcoming;
+                            else if (tab === "Requests") count = allStats.requests;
+                            else if (tab === "Cancelled") count = allStats.cancelled;
+                            else if (tab === "Completed") count = allStats.completed;
+                        }
+                        
                         return (
                             <button
                                 key={tab}
                                 onClick={() => handleTabChange(tab)}
                                 className={cn(
-                                    "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                    "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                                     activeTab === tab 
                                         ? "bg-blue-600 text-white shadow-md shadow-blue-100" 
                                         : "text-gray-400 hover:text-gray-600"
                                 )}
                             >
-                                {tab} 
-                                <span className={cn(
-                                    "ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold",
-                                    activeTab === tab ? 'bg-white/20' : 'bg-gray-200'
-                                )}>
-                                    {count}
-                                </span>
+                                <span>{tab}</span>
+                                {count > 0 && (
+                                    <span className={cn(
+                                        "w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-black",
+                                        activeTab === tab ? "bg-white/20 text-white" : "bg-gray-200 text-gray-500"
+                                    )}>
+                                        {count}
+                                    </span>
+                                )}
                             </button>
                         )
                     })}
@@ -171,10 +183,20 @@ export default function AppointmentsPage() {
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-[10px] font-bold text-blue-600 uppercase">AptID: {apt.appointmentId || apt._id.slice(-8).toUpperCase()}</span>
-                                            {apt.status === 'Confirmed' && <span className="px-2 py-0.5 bg-emerald-500 text-[8px] text-white font-black rounded-full uppercase tracking-tighter">Confirmed</span>}
+                                            <span className={cn(
+                                                "px-2 py-0.5 text-[8px] text-white font-black rounded-full uppercase tracking-tighter",
+                                                apt.status === 'confirmed' ? "bg-emerald-500" :
+                                                apt.status === 'booked' ? "bg-blue-500" :
+                                                apt.status === 'cancel request' ? "bg-orange-500 animate-pulse" :
+                                                apt.status === 'refund request' ? "bg-purple-500" :
+                                                apt.status === 'cancelled' ? "bg-red-500" :
+                                                "bg-gray-400"
+                                            )}>
+                                                {apt.status}
+                                            </span>
                                         </div>
                                         <span className="text-base font-bold text-gray-900 truncate block leading-tight">{apt.petId?.name || "Unknown Pet"}</span>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase truncate">Owner: {apt.ownerId?.userName || "N/A"}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase truncate">Owner: {apt.ownerId?.username || "N/A"}</p>
                                     </div>
                                 </div>
 

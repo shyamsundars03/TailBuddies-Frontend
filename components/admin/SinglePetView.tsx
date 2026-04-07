@@ -84,7 +84,7 @@ export function SinglePetView({ id }: { id: string }) {
                         </div>
                         <div>
                             <p className="text-blue-500 text-[10px] font-bold uppercase">Owner Name</p>
-                            <h3 className="text-gray-900 font-black text-sm">{pet.ownerId?.userName || "N/A"}</h3>
+                            <h3 className="text-gray-900 font-black text-sm">{pet.ownerId?.username || "N/A"}</h3>
                             <p className="text-gray-500 text-xs">{pet.ownerId?.email || "N/A"}</p>
                         </div>
                     </div>

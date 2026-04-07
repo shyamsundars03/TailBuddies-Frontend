@@ -148,7 +148,7 @@ export default function RequestsPage() {
                                         <Link href={`/doctor/requests/${request._id}`} className="text-base font-bold text-gray-900 hover:text-blue-600 transition truncate block leading-tight">
                                             {request.petId?.name || "Unknown Pet"}
                                         </Link>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase truncate">Owner: {request.ownerId?.userName || "N/A"}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase truncate">Owner: {request.ownerId?.username || "N/A"}</p>
                                     </div>
                                 </div>
 

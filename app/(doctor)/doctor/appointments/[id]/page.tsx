@@ -207,7 +207,7 @@ export default function AppointmentDetailPage() {
                                 </div>
                                 <div className="flex-1 min-w-[200px]">
                                     <span className="text-[9px] font-black text-blue-600 uppercase mb-1 block">Owner Contact</span>
-                                    <h4 className="text-sm font-bold text-gray-900 mb-1">{appointment.ownerId?.userName}</h4>
+                                    <h4 className="text-sm font-bold text-gray-900 mb-1">{appointment.ownerId?.username}</h4>
                                     <div className="space-y-1">
                                         <p className="text-xs text-gray-500 flex items-center gap-2"><Mail size={12}/> {appointment.ownerId?.email}</p>
                                         <p className="text-xs text-gray-500 flex items-center gap-2"><Phone size={12}/> {appointment.ownerId?.phone || "No phone provided"}</p>

@@ -10,7 +10,7 @@ import { setUser } from "../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
 
 export interface AccountData {
-    userName: string
+    username: string
     gender: string
     email: string
     phone: string
@@ -38,7 +38,7 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     const isGoogleUser = !!user?.googleId
 
     const [userData, setUserData] = useState<AccountData>({
-        userName: initialData?.userName || "",
+        username: initialData?.username || "",
         gender: initialData?.gender?.toLowerCase() || "female",
         email: initialData?.email || "",
         phone: initialData?.phone || "",
@@ -92,7 +92,7 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     useEffect(() => {
         if (initialData) {
             setUserData({
-                userName: initialData.userName || "",
+                username: initialData.username || "",
                 gender: initialData.gender?.toLowerCase() || "female",
                 email: initialData.email || "",
                 phone: initialData.phone || "",
@@ -116,7 +116,7 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     const handleSaveDetails = async () => {
         try {
             const response = await userApi.updateProfile({
-                userName: userData.userName,
+                username: userData.username,
                 gender: userData.gender,
                 phone: userData.phone
             })
@@ -189,8 +189,8 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
                 <Input
                     label="User Name"
                     type="text"
-                    name="userName"
-                    value={userData.userName}
+                    name="username"
+                    value={userData?.username}
                     onChange={handleChange}
                     className="bg-gray-50"
                     disabled={isReadOnly}

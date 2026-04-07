@@ -91,7 +91,7 @@ export function SingleAppointmentView({ id }: { id: string }) {
                             </div>
                             <div>
                                 <p className="text-blue-600 font-bold text-[10px] uppercase tracking-wider mb-0.5">AptID: {appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
-                                <p className="text-gray-900 font-black text-sm uppercase">Dr. {doctorUser?.userName}</p>
+                                <p className="text-gray-900 font-black text-sm uppercase">Dr. {doctorUser?.username}</p>
                             </div>
                             <div className="ml-8 flex items-center gap-3">
                                 <span className="text-blue-950 font-black text-xs uppercase">Status:</span>
@@ -130,7 +130,7 @@ export function SingleAppointmentView({ id }: { id: string }) {
                         {/* Owner Info */}
                         <SectionLayout title="Owner Details">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <DataField label="Owner Name" value={owner?.userName} />
+                                <DataField label="Owner Name" value={owner?.username} />
                                 <DataField label="Email" value={owner?.email} />
                                 <DataField label="Phone" value={owner?.phone} />
                             </div>
@@ -140,7 +140,7 @@ export function SingleAppointmentView({ id }: { id: string }) {
                         <SectionLayout title="Doctor Details">
                             <div className="space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <DataField label="Doctor Name" value={`Dr. ${doctorUser?.userName}`} />
+                                    <DataField label="Doctor Name" value={`Dr. ${doctorUser?.username}`} />
                                     <DataField label="Specialization" value={appointment.doctorId?.profile?.designation || "Veterinary"} />
                                     <DataField label="Experience" value={`${appointment.doctorId?.profile?.experienceYears || 0} years`} />
                                 </div>

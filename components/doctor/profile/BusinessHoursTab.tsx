@@ -40,17 +40,31 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
         endTime: "17:00",
         duration: "30",
     })
+    
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date()
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const dd = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${dd}`
+    })
+    const [endDate, setEndDate] = useState("")
 
     useEffect(() => {
         if (doctor?.businessHours && doctor.businessHours.length > 0) {
             const merged = DAYS.map(day => {
                 const existing = doctor.businessHours.find((bh: any) => bh.day === day)
-                return existing ? {
-                    ...existing,
-                    startTime: existing.startTime || "09:00",
-                    endTime: existing.endTime || "17:00",
-                    duration: existing.duration || "30"
-                } : { 
+                if (existing) {
+                    return {
+                        ...existing,
+                        startTime: existing.startTime,
+                        endTime: existing.endTime,
+                        duration: existing.duration,
+                        isWorking: existing.isWorking,
+                        slots: existing.slots || []
+                    }
+                }
+                return { 
                     day, 
                     isWorking: false, 
                     slots: [],
@@ -61,6 +75,16 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
             })
             setBusinessHours(merged)
             
+            // Sync genConfig with first working day if available
+            const firstWorking = merged.find(d => d.isWorking)
+            if (firstWorking) {
+                setGenConfig({
+                    startTime: firstWorking.startTime,
+                    endTime: firstWorking.endTime,
+                    duration: firstWorking.duration
+                })
+            }
+
             // Infer mode if possible
             const workingDays = merged.filter(d => d.isWorking)
             if (workingDays.length === 5 && workingDays.every(d => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].includes(d.day))) {
@@ -71,6 +95,24 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                 setActiveMode("custom")
             }
         }
+
+        if (doctor?.recurringSchedules && doctor.recurringSchedules.length > 0) {
+            const first = doctor.recurringSchedules[0]
+            if (first.dtstart) {
+                const d = new Date(first.dtstart)
+                const y = d.getFullYear()
+                const m = String(d.getMonth() + 1).padStart(2, '0')
+                const dd = String(d.getDate()).padStart(2, '0')
+                setStartDate(`${y}-${m}-${dd}`)
+            }
+            if (first.dtend) {
+                const d = new Date(first.dtend)
+                const y = d.getFullYear()
+                const m = String(d.getMonth() + 1).padStart(2, '0')
+                const dd = String(d.getDate()).padStart(2, '0')
+                setEndDate(`${y}-${m}-${dd}`)
+            }
+        }
     }, [doctor])
 
     const generateSlotsForDay = (start: string, end: string, durationMin: number) => {
@@ -79,9 +121,10 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
             let current = new Date(`2000-01-01T${start}:00`)
             const endDay = new Date(`2000-01-01T${end}:00`)
             if (current >= endDay) return []
+            const PLATFORM_BUFFER = 10;
             while (current <= endDay) {
                 slots.push(current.toTimeString().slice(0, 5))
-                current = new Date(current.getTime() + durationMin * 60000)
+                current = new Date(current.getTime() + (durationMin + PLATFORM_BUFFER) * 60000)
             }
         } catch (e) { return [] }
         return slots
@@ -118,23 +161,108 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
 
     const handleSave = async () => {
         setIsSubmitting(true)
-        const response = await doctorApi.updateProfile({ businessHours })
-        if (response.success) {
-            toast.success("Business hours saved successfully")
-            if (onUpdate) onUpdate(response.data)
-        } else {
-            toast.error(response.error || "Failed to save business hours")
+        try {
+            // Dynamically generate RRule BYDAY string based on working days
+            const dayMap: { [key: string]: string } = {
+                "Monday": "MO", "Tuesday": "TU", "Wednesday": "WE", 
+                "Thursday": "TH", "Friday": "FR", "Saturday": "SA", "Sunday": "SU"
+            }
+            const activeDays = businessHours
+                .filter(bh => bh.isWorking)
+                .map(bh => dayMap[bh.day])
+                .join(',')
+
+            const rruleString = `FREQ=WEEKLY;BYDAY=${activeDays || "MO,TU,WE,TH,FR"}`
+
+            // Prepare the save payload
+            const payload: any = { 
+                businessHours: businessHours.map(bh => ({
+                    day: bh.day,
+                    isWorking: bh.isWorking,
+                    startTime: bh.startTime || "09:00",
+                    endTime: bh.endTime || "17:00",
+                    duration: bh.duration || "30",
+                    slots: bh.slots
+                })),
+                recurringSchedules: [{
+                    id: "default",
+                    rrule: rruleString,
+                    dtstart: new Date(startDate),
+                    dtend: endDate ? new Date(endDate) : undefined,
+                    isWorking: true,
+                    startTime: genConfig.startTime || "09:00",
+                    endTime: genConfig.endTime || "17:00"
+                }]
+            }
+
+            // Also sync appointmentDuration with the global duration if applicable
+            if (genConfig.duration) {
+                payload.appointmentDuration = parseInt(genConfig.duration)
+            }
+
+            const response = await doctorApi.updateProfile(payload)
+            if (response.success) {
+                toast.success("Business hours saved successfully")
+                if (onUpdate) onUpdate(response.data)
+                
+                // Immediately sync local state with response to avoid defaults overwrite
+                if (response.data?.businessHours) {
+                    const merged = DAYS.map(day => {
+                        const existing = response.data.businessHours.find((bh: any) => bh.day === day)
+                        if (existing) {
+                            return {
+                                ...existing,
+                                startTime: existing.startTime,
+                                endTime: existing.endTime,
+                                duration: existing.duration,
+                                isWorking: existing.isWorking,
+                                slots: existing.slots || []
+                            }
+                        }
+                        return { day, isWorking: false, slots: [], startTime: "09:00", endTime: "17:00", duration: "30" }
+                    })
+                    setBusinessHours(merged)
+                }
+            } else {
+                toast.error(response.error || "Failed to save business hours")
+            }
+        } catch (error) {
+            toast.error("An error occurred while saving")
+        } finally {
+            setIsSubmitting(false)
         }
-        setIsSubmitting(false)
     }
 
     const currentDay = businessHours[activeTab]
 
     return (
         <div className="space-y-4 max-w-4xl mx-auto pb-4">
-            <div className="border-b border-gray-100 pb-2">
-                <h2 className="text-lg font-black text-gray-900 tracking-tight uppercase">Availability</h2>
-                <p className="text-[9px] text-gray-400 font-bold mt-0.5 tracking-wide">SET CLINIC TIMINGS</p>
+            <div className="border-b border-gray-100 pb-2 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h2 className="text-lg font-black text-gray-900 tracking-tight uppercase">Availability</h2>
+                    <p className="text-[9px] text-gray-400 font-bold mt-0.5 tracking-wide">SET CLINIC TIMINGS</p>
+                </div>
+                
+                <div className="flex gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Start Date</label>
+                        <input
+                            type="date"
+                            value={startDate || ""}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="block w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">End Date (Optional)</label>
+                        <input
+                            type="date"
+                            value={endDate || ""}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="block w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Global Configuration Section */}
@@ -150,7 +278,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Open</label>
                             <input
                                 type="time"
-                                value={genConfig.startTime}
+                                value={genConfig.startTime || ""}
                                 onChange={(e) => setGenConfig({...genConfig, startTime: e.target.value})}
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                             />
@@ -159,7 +287,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Close</label>
                             <input
                                 type="time"
-                                value={genConfig.endTime}
+                                value={genConfig.endTime || ""}
                                 onChange={(e) => setGenConfig({...genConfig, endTime: e.target.value})}
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                             />
@@ -167,17 +295,19 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                         <div className="space-y-1">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Slot Duration</label>
                             <select
-                                value={genConfig.duration}
+                                value={genConfig.duration || "30"}
                                 onChange={(e) => setGenConfig({...genConfig, duration: e.target.value})}
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
                             >
-                                <option value="15">15 Min</option>
-                                <option value="30">30 Min</option>
-                                <option value="45">45 Min</option>
-                                <option value="60">1 Hour</option>
+                                <option value="30">30 Min (+ 10m break)</option>
+                                <option value="45">45 Min (+ 10m break)</option>
+                                <option value="60">1 Hour (+ 10m break)</option>
                             </select>
                         </div>
                     </div>
+                    <p className="text-[8px] text-blue-600 font-bold tracking-tight">
+                         * A platform-standard 10-minute buffer is automatically added between slots.
+                    </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50">
@@ -270,53 +400,50 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
 
                     {currentDay.isWorking && (
                         <div className="space-y-4">
-                            {activeMode === "custom" && (
-                                <div className="grid grid-cols-3 gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Start</label>
-                                        <input
-                                            type="time"
-                                            value={currentDay.startTime}
-                                            onChange={(e) => {
-                                                const updated = [...businessHours]
-                                                updated[activeTab].startTime = e.target.value
-                                                setBusinessHours(updated)
-                                            }}
-                                            className="w-full px-2 py-1 bg-white border border-gray-100 rounded text-[9px] font-black outline-none focus:ring-1 focus:ring-blue-100"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">End</label>
-                                        <input
-                                            type="time"
-                                            value={currentDay.endTime}
-                                            onChange={(e) => {
-                                                const updated = [...businessHours]
-                                                updated[activeTab].endTime = e.target.value
-                                                setBusinessHours(updated)
-                                            }}
-                                            className="w-full px-2 py-1 bg-white border border-gray-100 rounded text-[9px] font-black outline-none focus:ring-1 focus:ring-blue-100"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Dur (m)</label>
-                                        <select
-                                            value={currentDay.duration}
-                                            onChange={(e) => {
-                                                const updated = [...businessHours]
-                                                updated[activeTab].duration = e.target.value
-                                                setBusinessHours(updated)
-                                            }}
-                                            className="w-full px-2 py-1 bg-white border border-gray-100 rounded text-[9px] font-black outline-none focus:ring-1 focus:ring-blue-100"
-                                        >
-                                            <option value="15">15</option>
-                                            <option value="30">30</option>
-                                            <option value="45">45</option>
-                                            <option value="60">60</option>
-                                        </select>
-                                    </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Open</label>
+                                    <input
+                                        type="time"
+                                        value={currentDay.startTime || ""}
+                                        onChange={(e) => {
+                                            const updated = [...businessHours]
+                                            updated[activeTab].startTime = e.target.value
+                                            setBusinessHours(updated)
+                                        }}
+                                        className="w-full px-3 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
                                 </div>
-                            )}
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Close</label>
+                                    <input
+                                        type="time"
+                                        value={currentDay.endTime || ""}
+                                        onChange={(e) => {
+                                            const updated = [...businessHours]
+                                            updated[activeTab].endTime = e.target.value
+                                            setBusinessHours(updated)
+                                        }}
+                                        className="w-full px-3 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Duration</label>
+                                    <select
+                                        value={currentDay.duration || "30"}
+                                        onChange={(e) => {
+                                            const updated = [...businessHours]
+                                            updated[activeTab].duration = e.target.value
+                                            setBusinessHours(updated)
+                                        }}
+                                        className="w-full px-3 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] font-black text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                    >
+                                        <option value="30">30 Min</option>
+                                        <option value="45">45 Min</option>
+                                        <option value="60">1 Hour</option>
+                                    </select>
+                                </div>
+                            </div>
 
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">

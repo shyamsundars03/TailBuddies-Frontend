@@ -8,7 +8,9 @@ import { setDoctorProfile, setDoctorStats, setDoctorLoading, updateDoctorAvailab
 import { DoctorHeader } from "../../../components/common/layout/doctor/Header"
 import { DoctorSidebar } from "../../../components/common/layout/doctor/SideBar"
 import { DoctorFooter } from "../../../components/common/layout/doctor/Footer"
+import { setUser } from "../../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
+import logger from "../../../lib/logger"
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
     const dispatch = useAppDispatch()
@@ -30,13 +32,39 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
 
             if (profileRes.success) {
                 const doc = profileRes.data
-                dispatch(setDoctorProfile({
-                    qualification: doc.profile?.designation || "MBBS, MD",
-                    specialty: doc.profile?.specialtyId?.name || "General Physician",
-                    isActive: doc.isActive,
-                    verificationStatus: doc.verificationStatus,
-                    appointmentDuration: doc.appointmentDuration || 30
-                }))
+                if (doc) {
+                    // Refresh auth state with fresh user data from profile
+                    if (doc.userId) {
+                        const apiUser = doc.userId as any;
+                        dispatch(setUser({
+                            id: apiUser._id,
+                            username: apiUser.username,
+                            email: apiUser.email,
+                            role: apiUser.role,
+                            gender: apiUser.gender,
+                            phone: apiUser.phone,
+                            profilePic: apiUser.profilePic
+                        }));
+                    }
+
+                    dispatch(setDoctorProfile({
+                        qualification: doc.profile?.designation || "MBBS, MD",
+                        specialty: doc.profile?.specialtyId?.name || "General Physician",
+                        isActive: doc.isActive,
+                        verificationStatus: doc.verificationStatus,
+                        appointmentDuration: doc.appointmentDuration || 30
+                    }))
+                } else {
+                    logger.warn('Doctor profile data is null despite success response');
+                    // Set default profile for incomplete registration
+                    dispatch(setDoctorProfile({
+                        qualification: "MBBS, MD",
+                        specialty: "General Physician",
+                        isActive: true,
+                        verificationStatus: { clinic: false, education: false, experience: false, certificates: false, businessHours: false },
+                        appointmentDuration: 30
+                    }))
+                }
             } else {
                 toast.error(profileRes.error || "Failed to load doctor profile")
             }
@@ -44,7 +72,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
             if (statsRes.success) {
                 dispatch(setDoctorStats(statsRes.data))
             }
-            
+
             dispatch(setDoctorLoading(false))
             setIsInitialLoad(false)
         }
@@ -52,7 +80,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         if (user && user.role === 'doctor') {
             fetchDoctorData()
         }
-    }, [dispatch, user])
+    }, [dispatch, user?.id, user?.role])
 
     const handleAvailabilityChange = async (value: string) => {
         const isNowAvailable = value === "I am Available Now"
@@ -81,12 +109,15 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         )
     }
 
+
+    console.log("data in the ")
+
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             <DoctorHeader />
             <div className="flex max-w-7xl mx-auto px-6 py-8 gap-12 w-full">
                 <DoctorSidebar
-                    userName={user?.userName || "Doctor"}
+                    username={user?.username || "Doctor"}
                     email={user?.email || ""}
                     qualification={profile?.qualification || "MBBS, MD"}
                     specialty={profile?.specialty}
@@ -99,7 +130,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                     onSectionChange={(id) => router.push(`/doctor/${id}`)}
                 />
                 <main className="flex-1 min-w-0">
-                    
+
                     {children}
                 </main>
             </div>

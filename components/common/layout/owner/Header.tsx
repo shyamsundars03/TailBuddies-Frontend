@@ -60,7 +60,7 @@ export function OwnerHeader({ className }: OwnerHeaderProps) {
                     <Link href="/owner/profile" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-full flex items-center gap-2 transition cursor-pointer shadow-sm mr-4">
                         <User size={14} />
                         <span className="text-xs font-bold whitespace-nowrap">
-                            {user.userName || user.email}
+                            {user?.username || "Owner"}
                         </span>
                     </Link>
                 )}
