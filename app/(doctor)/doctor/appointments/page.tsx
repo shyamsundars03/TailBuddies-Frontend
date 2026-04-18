@@ -39,7 +39,7 @@ export default function AppointmentsPage() {
     const fetchAppointmentsData = useCallback(async (page: number, search: string, tab: string) => {
         setIsLoading(true)
         let status = ""
-        if (tab === "Upcoming") status = "booked" // Use booked status for upcoming
+        if (tab === "Upcoming") status = "confirmed" // Use confirmed status for upcoming
         else if (tab === "Cancelled") status = "cancelled"
         else if (tab === "Completed") status = "completed"
         else if (tab === "Requests") status = "cancel request"

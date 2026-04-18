@@ -2,33 +2,79 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2, CreditCard } from "lucide-react"
+import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2, CreditCard, Activity } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
 import { appointmentApi } from "@/lib/api/appointment.api"
+import { prescriptionApi } from "@/lib/api/prescription.api"
 import { toast } from "sonner"
+import { useAppSelector } from "@/lib/redux/hooks"
+import { useConsultation } from "@/lib/hooks/useConsultation"
+import { ConsultationChat } from "@/components/consultation/ConsultationChat"
+import { PrescriptionView } from "@/components/consultation/PrescriptionView"
 
 export default function SingleBookingViewPage() {
     const params = useParams()
     const router = useRouter()
+    const { user } = useAppSelector((state) => state.auth)
     const [appointment, setAppointment] = useState<any>(null)
+    const [prescription, setPrescription] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [isActionLoading, setIsActionLoading] = useState(false)
+    const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
+
+    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(params?.id as string, user?.id || '', 'owner')
 
     useEffect(() => {
-        const fetchAppointment = async () => {
-            if (!params?.id) return
-            setIsLoading(true)
-            const response = await appointmentApi.getAppointmentById(params.id as string)
-            if (response.success) {
-                setAppointment(response.data)
-            } else {
-                toast.error(response.error || "Failed to fetch appointment details")
-            }
-            setIsLoading(false)
+        if (chatError) {
+            toast.error(chatError)
+            setChatError(null)
         }
+    }, [chatError])
+
+    const fetchAppointment = async () => {
+        if (!params?.id) return
+        setIsLoading(true)
+        const response = await appointmentApi.getAppointmentById(params.id as string)
+        if (response.success) {
+            setAppointment(response.data)
+            if (response.data.status === 'completed') {
+                const presResponse = await prescriptionApi.getByAppointmentId(params.id as string)
+                if (presResponse.success) {
+                    setPrescription(presResponse.data)
+                }
+            }
+        } else {
+            toast.error(response.message || "Failed to fetch appointment details")
+        }
+        setIsLoading(false)
+    }
+
+    useEffect(() => {
         fetchAppointment()
     }, [params?.id])
+
+    const handleCheckIn = async () => {
+        setIsActionLoading(true)
+        const response = await appointmentApi.checkIn(params?.id as string, 'owner')
+        if (response.success) {
+            toast.success("Checked-in successfully. Live Chat is now active.")
+            fetchAppointment()
+            setActiveTab('chat')
+        } else {
+            toast.error(response.message || "Check-in failed")
+        }
+        setIsActionLoading(false)
+    }
+
+    const handlePrescriptionDownload = async () => {
+        if (!prescription?._id) return
+        const response = await prescriptionApi.downloadPdf(prescription._id)
+        if (!response.success) {
+            toast.error(response.message || "Failed to download PDF")
+        }
+    }
 
     if (isLoading) {
         return (
@@ -39,17 +85,11 @@ export default function SingleBookingViewPage() {
         )
     }
 
-    if (!appointment) {
-        return (
-            <div className="text-center py-40">
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Appointment not found</p>
-                <button onClick={() => router.back()} className="mt-4 text-blue-600 font-bold hover:underline">Go Back</button>
-            </div>
-        )
-    }
+    if (!appointment) return null
 
     const doctorUser = appointment.doctorId?.userId;
     const pet = appointment.petId;
+    const isConsultationActive = !!appointment.checkIn?.ownerCheckInTime && appointment.status !== 'completed' && appointment.status !== 'cancelled'
 
     return (
         <div className="space-y-6">
@@ -63,9 +103,6 @@ export default function SingleBookingViewPage() {
                     </nav>
                 </div>
                 <div className="flex gap-4">
-                    {/* <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-black px-8 py-2 rounded-xl text-xs transition active:scale-95 shadow-md flex items-center gap-2">
-                        Call
-                    </button> */}
                     <button
                         onClick={() => router.back()}
                         className="bg-gray-500 hover:bg-gray-600 text-white font-bold px-8 py-2 rounded-xl text-xs transition active:scale-95 shadow-md"
@@ -75,202 +112,120 @@ export default function SingleBookingViewPage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden p-8 px-10">
-                {/* Header with doctor and actions */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 pb-8 border-b border-gray-50">
+            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                {/* Header Section */}
+                <div className="p-8 px-10 pb-0 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-gray-100">
-                            <Image 
-                                src={doctorUser?.profilePic || "https://images.unsplash.com/photo-1559839734-2b71f1536783?auto=format&fit=crop&q=80&w=150&h=150"} 
-                                alt="Doctor" 
-                                width={48} 
-                                height={48} 
-                                className="w-full h-full object-cover" 
+                            <Image
+                                src={doctorUser?.profilePic || "https://images.unsplash.com/photo-1559839734-2b71f1536783?auto=format&fit=crop&q=80&w=150&h=150"}
+                                alt="Doctor" width={48} height={48} className="w-full h-full object-cover"
                             />
                         </div>
                         <div>
-                            <p className="text-blue-500 font-bold text-[10px] uppercase tracking-wider">AptID: {appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
+                            <p className="text-blue-500 font-bold text-[10px] uppercase tracking-wider">AptID: TB-{appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
                             <h2 className="text-gray-900 font-black text-sm">Dr. {doctorUser?.username}</h2>
-                        </div>
-                        <div className="ml-8 flex items-center gap-3">
-                            <span className="text-blue-950 font-black text-xs">Status:</span>
-                            <span className={cn(
-                                "font-bold text-xs uppercase px-3 py-1 rounded-full",
-                                appointment.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
-                                appointment.status === 'Booked' ? "bg-blue-100 text-blue-600" :
-                                appointment.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
-                                appointment.status === 'Booked' ? "bg-blue-100 text-blue-600" :
-                                appointment.status === 'Cancelled' || appointment.status === 'cancelled' ? "bg-red-100 text-red-600" :
-                                appointment.status === 'payment pending' ? "bg-amber-100 text-amber-600" :
-                                "bg-gray-100 text-gray-600"
-                            )}>
-                                {appointment.status}
-                            </span>
                         </div>
                     </div>
 
-                    <div className="flex gap-3">
-                        {appointment.status === 'Booked' && (
-                            <button className="px-6 py-2 bg-yellow-400 text-black font-black rounded-lg text-xs shadow-sm hover:bg-yellow-500 transition active:scale-95">
-                                Reschedule
+                    <div className="flex items-center gap-6">
+                        <div className={cn(
+                            "font-black text-[10px] uppercase px-4 py-1.5 rounded-full tracking-widest shadow-sm",
+                            appointment.status === 'confirmed' ? "bg-emerald-500 text-white" :
+                                appointment.status === 'cancelled' ? "bg-red-500 text-white" :
+                                    appointment.status === 'completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
+                        )}>
+                            {appointment.status}
+                        </div>
+
+                        {appointment.status === 'confirmed' && !appointment.checkIn?.ownerCheckInTime && (
+                            <button
+                                onClick={handleCheckIn}
+                                disabled={isActionLoading}
+                                className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition shadow-lg shadow-emerald-100 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                                Check-In Now
                             </button>
                         )}
-                        {appointment.status === 'Completed' && (
-                            <button className="px-6 py-2 bg-yellow-400 text-black font-black rounded-lg text-xs shadow-sm hover:bg-yellow-500 transition active:scale-95">
-                                Write a Review
-                            </button>
-                        )}
-                        {/* <button className="px-6 py-2 bg-yellow-400 text-black font-black rounded-lg text-xs shadow-sm hover:bg-yellow-500 transition active:scale-95 flex items-center gap-2">
-                            <Download size={14} />
-                            Download Summary
-                        </button> */}
                     </div>
                 </div>
 
-                <div className="space-y-10">
-                    {/* Pet Section */}
-                    <SectionLayout title="Pet Details">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <DataField label="Pet Name" value={pet?.name} />
-                            <DataField label="Species" value={pet?.type || pet?.species} />
-                            <DataField label="Breed" value={pet?.breed} />
-                        </div>
-                    </SectionLayout>
+                {/* Tab Navigation */}
+                <div className="px-10 mt-8 flex gap-8 border-b border-gray-50">
+                    <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Calendar size={14} />} label="Overview" />
+                    {isConsultationActive && (
+                        <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14} />} label="Live Chat" />
+                    )}
+                    {appointment.status === 'completed' && prescription && (
+                        <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14} />} label="Medical Record" />
+                    )}
+                </div>
 
-                    {/* Doctor Section */}
-                    <SectionLayout title="Doctor Details">
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <DataField label="Doctor Name" value={`Dr. ${doctorUser?.username}`} />
-                                <DataField label="Specialization" value={appointment.doctorId?.profile?.designation || "Veterinary"} />
-                                <DataField label="Experience" value={`${appointment.doctorId?.profile?.experienceYears || 0} years`} />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || 0}`} />
-                                <DataField label="Service Type" value={appointment.serviceType} />
-                                <DataField label="Mode" value={appointment.mode} capitalize />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <DataField label="Date" value={new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
-                                <DataField label="Time" value={`${appointment.appointmentStartTime} - ${appointment.appointmentEndTime}`} />
-                            </div>
-                        </div>
-                    </SectionLayout>
-
-                    {/* Problem & Symptoms */}
-                    <SectionLayout title="Problem & Symptoms">
-                        <div className="space-y-6">
-                            <DataField label="Problem Description" value={appointment.problemDescription} fullWidth />
-                            <DataField label="Symptoms Selected" value={appointment.symptoms?.join(", ")} />
-                        </div>
-                    </SectionLayout>
-
-                    {/* Timeline */}
-                    {/* <SectionLayout title="Appointment Timeline">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-8">
-                            <DataField label="Booked At" value={new Date(appointment.createdAt).toLocaleString()} />
-                            <DataField label="Status" value={appointment.status} />
-                            <DataField label="Delay Status" value={appointment.delayStatus || "None"} />
-                        </div>
-                    </SectionLayout> */}
-
-                    {/* Report & Prescription (Optional) */}
-                    {appointment.status === 'Completed' && (
-                        <>
-                            <SectionLayout title="Clinical Report">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8">
-                                    <DataField label="Clinical Findings" value={appointment.clinicalFindings || "Not provided"} />
-                                    <DataField label="Diagnosis" value={appointment.diagnosis || "Not provided"} />
-                                    <DataField label="Vet Notes" value={appointment.notes || "Not provided"} />
+                <div className="p-10">
+                    {activeTab === 'details' && (
+                        <div className="space-y-10 animate-in fade-in duration-300">
+                            {/* Pet Section */}
+                            <SectionLayout title="Pet Information">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <DataField label="Pet Name" value={pet?.name} />
+                                    <DataField label="Species" value={pet?.species} />
+                                    <DataField label="Breed" value={pet?.breed} />
                                 </div>
                             </SectionLayout>
 
-                            {appointment.prescription && appointment.prescription.length > 0 && (
-                                <SectionLayout title="Prescription">
-                                    <div className="overflow-hidden bg-white">
-                                        <div className="grid grid-cols-4 py-2 border-b border-gray-50 mb-4 px-2">
-                                            <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Medicine</span>
-                                            <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Dosage</span>
-                                            <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Frequency</span>
-                                            <span className="text-blue-900/60 font-bold text-[10px] uppercase tracking-wider">Duration</span>
-                                        </div>
-                                        <div className="space-y-4">
-                                            {appointment.prescription.map((item: any, idx: number) => (
-                                                <div key={idx} className="grid grid-cols-4 px-2">
-                                                    <span className="text-gray-900 font-black text-xs">{item.medicine}</span>
-                                                    <span className="text-gray-500 font-medium text-xs">{item.dosage}</span>
-                                                    <span className="text-gray-500 font-medium text-xs">{item.frequency}</span>
-                                                    <span className="text-gray-900 font-black text-xs">{item.duration}</span>
-                                                </div>
-                                            ))}
-                                        </div>
+                            {/* Booking Details */}
+                            <SectionLayout title="Booking Details">
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <DataField label="Service" value={appointment.serviceType} />
+                                        <DataField label="Visit Mode" value={appointment.mode} capitalize />
+                                        <DataField label="Consultation Fee" value={`₹${appointment.consultationFees}`} />
                                     </div>
-                                </SectionLayout>
-                            )}
-                        </>
-                    )}
-
-                    <SectionLayout title="Payment Information">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                            <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || appointment.totalAmount || 0}`} />
-                            <DataField 
-                                label="Payment Method" 
-                                value={
-                                    appointment.paymentMethod === 'razorpay' ? 'Razorpay Online' : 
-                                    appointment.paymentMethod === 'wallet' ? 'Wallet Payment' : 
-                                    appointment.paymentMethod === 'cash' || appointment.paymentMethod === 'cod' ? 'Cash on Consultation' : 
-                                    appointment.paymentMethod || 'N/A'
-                                } 
-                                capitalize 
-                            />
-                            <DataField 
-                                label="Payment Status" 
-                                value={appointment.paymentStatus || (appointment.status === 'Completed' ? 'PAID' : 'PENDING')} 
-                                isStatus 
-                                statusType={appointment.paymentStatus === 'PAID' || appointment.status === 'Completed' ? "success" : "error"} 
-                            />
-                            <DataField label="Transaction ID" value={appointment.transactionID || "N/A"} italic />
-                        </div>
-                        
-                        {appointment.status === 'payment pending' && (
-                            <div className="mt-8 flex justify-end">
-                                <button 
-                                    onClick={() => router.push(`/owner/payment/failure?id=${appointment._id}`)}
-                                    className="bg-[#002B49] hover:bg-[#001B39] text-white font-black px-10 py-3 rounded-2xl text-xs transition active:scale-95 shadow-lg flex items-center gap-3"
-                                >
-                                    <CreditCard size={18} />
-                                    Retry Payment
-                                </button>
-                            </div>
-                        )}
-                    </SectionLayout>
-
-                    {/* Reviews */}
-                    {appointment.review && (
-                        <SectionLayout title="Reviews">
-                            <div className="space-y-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="space-y-1">
-                                        <h4 className="font-black text-gray-900 text-sm">{appointment.review.user}</h4>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(appointment.review.date).toLocaleDateString()}</p>
-                                    </div>
-                                    <div className="flex gap-0.5">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star
-                                                key={i}
-                                                size={14}
-                                                className={cn(
-                                                    i < appointment.review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"
-                                                )}
-                                            />
-                                        ))}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <DataField label="Scheduled Date" value={new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                                        <DataField label="Time Window" value={`${appointment.appointmentStartTime} - ${appointment.appointmentEndTime}`} />
+                                        <DataField label="Payment Status" value={appointment.paymentStatus} isStatus statusType={appointment.paymentStatus === 'PAID' ? 'success' : 'error'} />
                                     </div>
                                 </div>
-                                <p className="text-gray-500 text-xs leading-relaxed font-medium">
-                                    {appointment.review.comment}
+                            </SectionLayout>
+
+                            {/* Problem */}
+                            <SectionLayout title="Problem Description">
+                                <p className="text-xs font-medium text-gray-500 leading-relaxed italic border-l-4 border-blue-100 pl-4">
+                                    {appointment.problemDescription || "No description provided"}
                                 </p>
-                            </div>
-                        </SectionLayout>
+                            </SectionLayout>
+
+                            {/* Transaction */}
+                            <SectionLayout title="Transaction Info">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <DataField label="Method" value={appointment.paymentMethod} capitalize />
+                                    <DataField label="Transaction Reference" value={appointment.transactionID || "N/A"} italic />
+                                </div>
+                            </SectionLayout>
+                        </div>
+                    )}
+
+                    {activeTab === 'chat' && isConsultationActive && (
+                        <div className="animate-in slide-in-from-right-4 duration-500">
+                            <ConsultationChat
+                                messages={messages}
+                                onSendMessage={sendMessage}
+                                currentUserId={user?.id || ''}
+                                isReadOnly={false}
+                            />
+                        </div>
+                    )}
+
+                    {activeTab === 'prescription' && prescription && (
+                        <div className="animate-in slide-in-from-bottom-4 duration-500">
+                            <PrescriptionView
+                                prescription={prescription}
+                                appointment={appointment}
+                                onDownload={handlePrescriptionDownload}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
@@ -281,42 +236,43 @@ export default function SingleBookingViewPage() {
 function SectionLayout({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section className="space-y-4">
-            <h3 className="text-sm font-black text-blue-950 uppercase tracking-tight">{title}</h3>
-            <div className="bg-gray-50/20 border border-gray-100/50 rounded-2xl p-6 lg:p-8">
+            <h3 className="text-[10px] font-black text-blue-900 uppercase tracking-widest ml-1">{title}</h3>
+            <div className="bg-gray-50/30 border border-gray-100/50 rounded-3xl p-8">
                 {children}
             </div>
         </section>
     )
 }
 
-function DataField({
-    label,
-    value,
-    fullWidth,
-    isStatus,
-    statusType,
-    italic,
-    capitalize
-}: {
-    label: string;
-    value: string;
-    fullWidth?: boolean;
-    isStatus?: boolean;
-    statusType?: "success" | "error";
-    italic?: boolean;
-    capitalize?: boolean;
-}) {
+function DataField({ label, value, isStatus, statusType, italic, capitalize }: any) {
     return (
-        <div className={cn(fullWidth ? "col-span-full" : "")}>
-            <p className="text-blue-900/40 font-black text-[10px] uppercase tracking-wider mb-2">{label}</p>
+        <div>
+            <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-1.5">{label}</p>
             <p className={cn(
-                "text-xs font-black",
-                isStatus ? (statusType === "success" ? "text-emerald-500" : "text-rose-500") : "text-gray-700",
+                "text-xs font-black uppercase",
+                isStatus ? (statusType === "success" ? "text-emerald-500" : "text-rose-500") : "text-gray-900",
                 italic && "italic",
                 capitalize && "capitalize"
             )}>
                 {value || "N/A"}
             </p>
         </div>
+    )
+}
+
+function TabButton({ active, onClick, icon, label }: any) {
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "py-6 px-4 text-[10px] font-black uppercase tracking-[0.2em] relative transition-all flex items-center gap-2",
+                active ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            )}
+        >
+            {icon} {label}
+            {active && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />
+            )}
+        </button>
     )
 }

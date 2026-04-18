@@ -1,15 +1,43 @@
 "use client"
 
 import { useEffect, useState, useCallback, Suspense } from "react"
-import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, History, Loader2, CreditCard, Search } from "lucide-react"
+import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, History, Loader2, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 import { paymentApi } from "@/lib/api/payment.api"
 import { toast } from "sonner"
 import { Pagination } from "../../../../components/common/ui/Pagination"
 
+interface WalletData {
+    balance: number
+}
+
+interface Transaction {
+    transactionID?: string
+    _id?: string
+    humanReadableId?: string
+    source: string
+    type: 'credit' | 'debit'
+    createdAt: string
+    amount: number
+    appointmentID?: string
+    message?: string
+}
+
+interface RazorpayResponse {
+    razorpay_order_id: string
+    razorpay_payment_id: string
+    razorpay_signature: string
+}
+
+interface RazorpayWindow extends Window {
+    Razorpay: new (options: Record<string, unknown>) => {
+        open: () => void
+    }
+}
+
 function WalletPageContent() {
-    const [wallet, setWallet] = useState<any>(null)
-    const [transactions, setTransactions] = useState<any[]>([])
+    const [wallet, setWallet] = useState<WalletData | null>(null)
+    const [transactions, setTransactions] = useState<Transaction[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isTopUpLoading, setIsTopUpLoading] = useState(false)
     const [topUpAmount, setTopUpAmount] = useState<string>("")
@@ -91,7 +119,7 @@ function WalletPageContent() {
                 name: "TailBuddies Wallet",
                 description: "Wallet Top-up",
                 order_id: orderRes.order.id,
-                handler: async (response: any) => {
+                handler: async (response: RazorpayResponse) => {
                     try {
                         const verifyRes = await paymentApi.verifyRazorpayPayment({
                             razorpay_order_id: response.razorpay_order_id,
@@ -110,7 +138,7 @@ function WalletPageContent() {
                         } else {
                             toast.error(verifyRes.message || "Verification failed. Please contact support.")
                         }
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                         console.error("Verification error:", err)
                         toast.error("An error occurred during verification")
                     } finally {
@@ -127,9 +155,9 @@ function WalletPageContent() {
                 }
             }
 
-            const rzp = new (window as any).Razorpay(options)
+            const rzp = new (window as unknown as RazorpayWindow).Razorpay(options)
             rzp.open()
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Top-up error:", error)
             toast.error("An error occurred during top-up")
             setIsTopUpLoading(false)
@@ -164,7 +192,7 @@ console.log(transactions)
 
             {/* Wallet Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 bg-gradient-to-br from-blue-600 to-blue-800 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden group">
+                <div className="md:col-span-2 bg-linear-to-br from-blue-600 to-blue-800 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform duration-700">
                         <Wallet size={180} />
                     </div>
@@ -243,7 +271,7 @@ console.log(transactions)
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Type</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Date</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Amount</th>
-                                {/* <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</th> */}
+                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -260,8 +288,12 @@ console.log(transactions)
                                     <tr key={t.transactionID || t._id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-8 py-6">
                                             <div className="flex flex-col">
-                                                {/* <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter mb-1">#{t.transactionID}</span> */}
-                                                <span className="text-sm font-bold text-gray-800">{t.source}</span>
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter mb-1">
+                                                    {t.humanReadableId ? `#${t.humanReadableId}` : `#${t.transactionID?.slice(-8) || ''}`}
+                                                </span>
+                                                <span className="text-sm font-bold text-gray-800 capitalize">
+                                                    {t.source.replace(/-/g, ' ')}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-8 py-6">
@@ -285,14 +317,21 @@ console.log(transactions)
                                                 {t.type === 'credit' ? "+" : "-"} ₹{t.amount.toLocaleString()}
                                             </span>
                                         </td>
-                                        {/* <td className="px-8 py-6">
-                                             <span className={cn(
-                                                "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                                                t.status === 'completed' ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
-                                            )}>
-                                                {t.status}
-                                            </span>
-                                        </td> */}
+                                        <td className="px-8 py-6">
+                                            {(() => {
+                                                const effectiveAppId = t.appointmentID || (t.message?.includes('appointment') ? t.message.split(' ').pop() : null);
+                                                return effectiveAppId ? (
+                                                    <button
+                                                        onClick={() => window.location.href = `/owner/bookings/${effectiveAppId}`}
+                                                        className="px-4 py-2 bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-transparent hover:border-blue-100"
+                                                    >
+                                                        View
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">N/A</span>
+                                                );
+                                            })()}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (

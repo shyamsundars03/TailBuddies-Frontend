@@ -10,6 +10,7 @@ import { Overview } from "@/components/owner/DoctorTabs/Overview"
 import { Reviews } from "@/components/owner/DoctorTabs/Reviews"
 import { BusinessHours } from "@/components/owner/DoctorTabs/BusinessHours"
 import { doctorApi } from "@/lib/api/doctor/doctor.api"
+import { appointmentApi } from "@/lib/api/appointment.api"
 import { toast } from "sonner"
 
 export default function DoctorProfilePage() {
@@ -18,6 +19,8 @@ export default function DoctorProfilePage() {
     const [doctor, setDoctor] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'Overview' | 'Reviews' | 'BusinessHours'>('Overview')
+    const [isCheckingAvailability, setIsCheckingAvailability] = useState(true)
+    const [hasAvailability, setHasAvailability] = useState(false)
 
     useEffect(() => {
         const fetchDoctor = async () => {
@@ -39,6 +42,62 @@ export default function DoctorProfilePage() {
         }
         fetchDoctor()
     }, [params.id])
+
+    useEffect(() => {
+        const checkAvailability = async () => {
+            if (!doctor || !params.id) return
+            
+            setIsCheckingAvailability(true)
+            try {
+                // Check next 7 days
+                const now = new Date()
+                let foundAny = false
+
+                // We try checking current day and next 6 days
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(now)
+                    date.setDate(now.getDate() + i)
+                    
+                    // Optimization: Only check if it's a working day
+                    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
+                    const businessDay = doctor.businessHours?.find((bh: any) => bh.day === dayOfWeek)
+                    
+                    if (businessDay?.isWorking) {
+                        const y = date.getFullYear()
+                        const m = String(date.getMonth() + 1).padStart(2, '0')
+                        const d = String(date.getDate()).padStart(2, '0')
+                        const rawDate = `${y}-${m}-${d}`
+                        
+                        const response = await appointmentApi.getAvailableSlots(params.id as string, rawDate)
+                        if (response.success && response.data && response.data.length > 0) {
+                            // Also verify if at least one slot is NOT in the past if it's today
+                            if (i === 0) {
+                                const currentHour = now.getHours()
+                                const currentMin = now.getMinutes()
+                                const hasFutureSlot = response.data.some((slot: any) => {
+                                    const [sh, sm] = slot.startTime.split(':').map(Number)
+                                    return sh > currentHour || (sh === currentHour && sm > currentMin)
+                                })
+                                if (hasFutureSlot) {
+                                    foundAny = true
+                                    break
+                                }
+                            } else {
+                                foundAny = true
+                                break
+                            }
+                        }
+                    }
+                }
+                setHasAvailability(foundAny)
+            } catch (err) {
+                console.error("Failed to check availability:", err)
+                setHasAvailability(true) // Fallback to allow attempt if check fails
+            }
+            setIsCheckingAvailability(false)
+        }
+        checkAvailability()
+    }, [doctor, params.id])
 
     if (isLoading) {
         return <div className="min-h-screen bg-white flex items-center justify-center">
@@ -143,12 +202,29 @@ export default function DoctorProfilePage() {
                                     <button className="w-10 h-10 rounded border border-gray-100 text-gray-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-500 hover:border-blue-100 transition shadow-sm">
                                         <Video size={18} />
                                     </button>
-                                    <Link
-                                        href={`/owner/services/${params.id}/book`}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded text-xs font-bold uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-600/20"
-                                    >
-                                        Book Appointment
-                                    </Link>
+                                    
+                                    {isCheckingAvailability ? (
+                                        <button disabled className="bg-gray-100 text-gray-400 px-6 py-2.5 rounded text-xs font-bold uppercase tracking-widest cursor-wait">
+                                            Checking availability...
+                                        </button>
+                                    ) : !hasAvailability ? (
+                                        <div className="flex flex-col items-end gap-1">
+                                             <button
+                                                disabled
+                                                className="bg-gray-100 text-gray-400 px-6 py-2.5 rounded text-xs font-bold uppercase tracking-widest cursor-not-allowed border border-gray-200"
+                                            >
+                                                No Slots Available
+                                            </button>
+                                            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tighter">Unavailable for next 7 days</span>
+                                        </div>
+                                    ) : (
+                                        <Link
+                                            href={`/owner/services/${params.id}/book`}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded text-xs font-bold uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                                        >
+                                            Book Appointment
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
 

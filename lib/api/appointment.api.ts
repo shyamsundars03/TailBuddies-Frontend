@@ -14,9 +14,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to book appointment' };
+                return { success: false, message: error.response?.data?.message || 'Failed to book appointment' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -36,29 +36,29 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch appointments' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch appointments' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
- 
 
 
 
 
 
-    getAll: async (page = 1, limit = 10, search = "") => {
+
+    getAll: async (page = 1, limit = 10, search = "", status = "") => {
         try {
-            const response = await apiClient.get(`/appointments/all?page=${page}&limit=${limit}&search=${search}`);
+            const response = await apiClient.get(`/appointments/all?page=${page}&limit=${limit}&search=${search}&status=${status}`);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch all appointments' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch all appointments' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
- 
+
 
 
 
@@ -78,9 +78,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch appointments' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch appointments' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -90,9 +90,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch patients' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch patients' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -111,9 +111,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch appointment' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch appointment' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -132,9 +132,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to update status' };
+                return { success: false, message: error.response?.data?.message || 'Failed to update status' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -152,9 +152,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to cancel appointment' };
+                return { success: false, message: error.response?.data?.message || 'Failed to cancel appointment' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -175,9 +175,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch slots' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch slots' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -197,9 +197,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Check-in failed' };
+                return { success: false, message: error.response?.data?.message || 'Check-in failed' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -218,9 +218,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Check-out failed' };
+                return { success: false, message: error.response?.data?.message || 'Check-out failed' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
 
@@ -230,9 +230,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch statistics' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch statistics' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
     getOwnerStats: async () => {
@@ -241,9 +241,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch statistics' };
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch statistics' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
     cancelPendingAppointment: async (id: string) => {
@@ -252,9 +252,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to cancel appointment' };
+                return { success: false, message: error.response?.data?.message || 'Failed to cancel appointment' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     },
     checkSlotAvailability: async (id: string) => {
@@ -263,9 +263,9 @@ export const appointmentApi = {
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to check slot availability' };
+                return { success: false, message: error.response?.data?.message || 'Failed to check slot availability' };
             }
-            return { success: false, error: 'An unknown error occurred' };
+            return { success: false, message: 'An unknown error occurred' };
         }
     }
 };

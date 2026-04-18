@@ -174,7 +174,7 @@ export const doctorApi = {
 
 
     
-    getAllDoctors: async (page = 1, limit = 9, search?: string, isVerified?: boolean, status?: string, filters?: any) => {
+    getAllDoctors: async (page = 1, limit = 3, search?: string, isVerified?: boolean, status?: string, filters?: any) => {
         try {
             const params = new URLSearchParams();
             params.append('page', page.toString());

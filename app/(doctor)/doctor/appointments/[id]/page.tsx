@@ -3,38 +3,47 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import { Clock, Phone, Mail, ChevronLeft, Loader2, Save, XCircle, CheckCircle2 } from "lucide-react"
+import { Clock, Phone, Mail, ChevronLeft, Loader2, Save, XCircle, CheckCircle2, MessageSquare, FileText, Activity } from "lucide-react"
 import { appointmentApi } from "@/lib/api/appointment.api"
+import { prescriptionApi } from "@/lib/api/prescription.api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils/utils"
+import { useAppSelector } from "@/lib/redux/hooks"
+import { useConsultation } from "@/lib/hooks/useConsultation"
+import { ConsultationChat } from "@/components/consultation/ConsultationChat"
+import { PrescriptionForm } from "@/components/consultation/PrescriptionForm"
+import { PrescriptionView } from "@/components/consultation/PrescriptionView"
 
 export default function AppointmentDetailPage() {
     const router = useRouter()
     const { id } = useParams()
+    const { user } = useAppSelector((state) => state.auth)
     const [appointment, setAppointment] = useState<any>(null)
+    const [prescription, setPrescription] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
-    
-    // Form States
-    const [vitals, setVitals] = useState({
-        temperature: "",
-        pulse: "",
-        respiratoryRate: "",
-        weight: ""
-    })
-    const [notes, setNotes] = useState({
-        clinical: "",
-        doctor: ""
-    })
+    const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
+
+    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(id as string, user?.id || '', 'doctor')
+
+    useEffect(() => {
+        if (chatError) {
+            toast.error(chatError)
+            setChatError(null)
+        }
+    }, [chatError])
 
     const fetchDetails = async () => {
         setIsLoading(true)
         const response = await appointmentApi.getAppointmentById(id as string)
         if (response.success) {
             setAppointment(response.data)
-            // Pre-fill vitals and notes if they exist (assuming future extension)
+            if (response.data.status === 'completed') {
+                const prescRes = await prescriptionApi.getByAppointmentId(id as string)
+                if (prescRes.success) setPrescription(prescRes.data)
+            }
         } else {
-            toast.error(response.error || "Failed to load appointment details")
+            toast.error(response.message || "Failed to load appointment details")
             router.push("/doctor/appointments")
         }
         setIsLoading(false)
@@ -50,22 +59,46 @@ export default function AppointmentDetailPage() {
         if (response.success) {
             toast.success("Checked-in successfully")
             fetchDetails()
+            setActiveTab('chat')
         } else {
-            toast.error(response.error || "Check-in failed")
+            toast.error(response.message || "Check-in failed")
+            fetchDetails()
         }
         setIsActionLoading(false)
     }
 
-    const handleCheckOut = async () => {
+    const handlePrescriptionSubmit = async (data: any) => {
         setIsActionLoading(true)
-        const response = await appointmentApi.checkOut(id as string, 'doctor')
+        const response = await prescriptionApi.create({
+            appointmentId: id,
+            petId: appointment.petId?._id,
+            ownerId: appointment.ownerId?._id,
+            ...data
+        })
+
         if (response.success) {
-            toast.success("Checked-out successfully")
-            router.push("/doctor/appointments")
+            toast.success("Prescription saved successfully! Finalizing checkout...")
+            // Automatic checkout after prescription
+            const checkoutRes = await appointmentApi.checkOut(id as string, 'doctor')
+            if (checkoutRes.success) {
+                toast.success("Consultation completed.")
+                router.push("/doctor/appointments")
+            } else {
+                toast.error(checkoutRes.message || "Checkout failed after prescription")
+                fetchDetails()
+            }
         } else {
-            toast.error(response.error || "Check-out failed")
+            toast.error(response.message || "Failed to save prescription")
         }
         setIsActionLoading(false)
+    }
+
+    const handlePrescriptionDownload = async () => {
+        if (!prescription?._id) return
+        const response = await prescriptionApi.downloadPdf(prescription._id)
+        if (!response.success) {
+            toast.error(response.message || "Failed to download PDF")
+        }
     }
 
     const handleCancel = async () => {
@@ -76,19 +109,14 @@ export default function AppointmentDetailPage() {
         }
 
         setIsActionLoading(true)
-        const response = await appointmentApi.updateStatus(id as string, 'Cancelled', reason)
+        const response = await appointmentApi.updateStatus(id as string, 'cancelled', reason)
         if (response.success) {
             toast.success("Appointment cancelled successfully")
             fetchDetails()
         } else {
-            toast.error(response.error || "Failed to cancel appointment")
+            toast.error(response.message || "Failed to cancel appointment")
         }
         setIsActionLoading(false)
-    }
-
-    const handleSave = async () => {
-        toast.info("Saving clinical details...")
-        // Here we would call an API to update vitals/notes or clinicalFindings
     }
 
     if (isLoading) {
@@ -102,213 +130,223 @@ export default function AppointmentDetailPage() {
 
     if (!appointment) return null
 
+    const isConsultationActive = !!appointment.checkIn?.vetCheckInTime && appointment.status !== 'completed' && appointment.status !== 'cancelled'
+
     return (
         <div className="w-full space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Top Header */}
+                <div className="p-8 pb-0 flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-bold font-inter text-[#002B49]">Appointment Details</h2>
-                        <p className="text-xs font-bold text-blue-600 uppercase mt-1">AptID: {appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
+                        <h2 className="text-2xl font-black text-[#002B49] uppercase tracking-tight">Appointment Review</h2>
+                        <p className="text-xs font-bold text-blue-600 uppercase mt-1">Ref: TB-{appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
                     </div>
                     <button
                         onClick={() => router.back()}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 transition border border-gray-200"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 transition border border-gray-200 active:scale-95"
                     >
-                        <ChevronLeft size={16} /> Back
+                        <ChevronLeft size={16} /> Close View
                     </button>
                 </div>
 
-                {/* Status Bar */}
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-8 flex flex-wrap items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className={cn(
-                            "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm",
-                            appointment.status === 'Confirmed' ? "bg-emerald-500 text-white" :
-                            appointment.status === 'Cancelled' ? "bg-red-500 text-white" :
-                            appointment.status === 'Completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
-                        )}>
-                            {appointment.status}
-                        </div>
-                        {/* {appointment.checkIn?.vetCheckInTime && (
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase">
-                                <Clock size={14} className="text-blue-600" />
-                                <span>Checked In: {new Date(appointment.checkIn.vetCheckInTime).toLocaleTimeString()}</span>
-                            </div>
-                        )} */}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        {appointment.status === 'Confirmed' && !appointment.checkIn?.vetCheckInTime && (
-                            <button
-                                // onClick={handleCheckIn}
-                                // disabled={isActionLoading}
-                                className="px-8 py-2.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-emerald-600 transition shadow-lg shadow-emerald-100 active:scale-95 flex items-center gap-2"
-                            >
-                                {isActionLoading && <Loader2 size={14} className="animate-spin" />}
-                                Check In
-                            </button>
-                        )}
-                        {appointment.checkIn?.vetCheckInTime && appointment.status !== 'Completed' && (
-                            <button
-                                // onClick={handleCheckOut}
-                                // disabled={isActionLoading}
-                                className="px-8 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-100 active:scale-95 flex items-center gap-2"
-                            >
-                                {isActionLoading && <Loader2 size={14} className="animate-spin" />}
-                                Complete & Check Out
-                            </button>
-                        )}
-                        {appointment.status === 'Confirmed' && (
-                            <button 
-                                onClick={handleCancel}
-                                disabled={isActionLoading}
-                                className="px-6 py-2.5 bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 transition border border-red-100 disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                        )}
-                    </div>
+                {/* Tab Navigation */}
+                <div className="px-8 mt-6 flex gap-8 border-b border-gray-50">
+                    <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Activity size={14}/>} label="Full Details" />
+                    {isConsultationActive && (
+                        <>
+                            <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14}/>} label="Live Consultation" />
+                            <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="E-Prescription" />
+                        </>
+                    )}
+                    {appointment.status === 'completed' && prescription && (
+                        <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="View Medical Record" />
+                    )}
                 </div>
 
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column: Info & Vitals */}
-                    <div className="lg:col-span-2 space-y-12">
-                        {/* Summary */}
-                        <section>
-                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#002B49] mb-6 border-b border-gray-100 pb-2">Information Summary</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                <div>
-                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Service Type</span>
-                                    <p className="text-sm font-bold text-gray-900">{appointment.serviceType}</p>
-                                </div>
-                                <div>
-                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Date & Time</span>
-                                    <p className="text-sm font-bold text-gray-900">
-                                        {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentStartTime}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Pet & Owner */}
-                        <section className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
-                            <div className="flex flex-wrap gap-8">
-                                <div className="flex items-center gap-4 flex-1 min-w-[200px]">
-                                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-sm shrink-0">
-                                        <Image src={appointment.petId?.picture || appointment.petId?.image || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=128&h=128"} alt="Pet" width={64} height={64} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div>
-                                        <span className="text-[9px] font-black text-blue-600 uppercase mb-0.5 block">Patient</span>
-                                        <h4 className="text-lg font-bold text-gray-900 leading-tight">{appointment.petId?.name || "N/A"}</h4>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">{appointment.petId?.species} • {appointment.petId?.breed}</p>
-                                    </div>
-                                </div>
-                                <div className="flex-1 min-w-[200px]">
-                                    <span className="text-[9px] font-black text-blue-600 uppercase mb-1 block">Owner Contact</span>
-                                    <h4 className="text-sm font-bold text-gray-900 mb-1">{appointment.ownerId?.username}</h4>
+                <div className="p-8">
+                    {activeTab === 'details' && (
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            {/* Actions & Status */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-[2rem] p-8 flex flex-wrap items-center justify-between gap-6 shadow-sm">
+                                <div className="flex items-center gap-6">
                                     <div className="space-y-1">
-                                        <p className="text-xs text-gray-500 flex items-center gap-2"><Mail size={12}/> {appointment.ownerId?.email}</p>
-                                        <p className="text-xs text-gray-500 flex items-center gap-2"><Phone size={12}/> {appointment.ownerId?.phone || "No phone provided"}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Vitals Form */}
-                        <section>
-                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#002B49] mb-6 border-b border-gray-100 pb-2">Record Vitals</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                                {[
-                                    { key: "temperature", label: "Temp", unit: "°F" },
-                                    { key: "pulse", label: "Pulse", unit: "BPM" },
-                                    { key: "respiratoryRate", label: "Resp", unit: "RPM" },
-                                    { key: "weight", label: "Weight", unit: "KG" }
-                                ].map((field) => (
-                                    <div key={field.key}>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">{field.label}</label>
-                                        <div className="relative">
-                                            <input 
-                                                type="text" 
-                                                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-black"
-                                                placeholder="..."
-                                                value={(vitals as any)[field.key]}
-                                                onChange={(e) => setVitals({...vitals, [field.key]: e.target.value})}
-                                            />
-                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-gray-300 uppercase">{field.unit}</span>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Current Status</p>
+                                        <div className={cn(
+                                            "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm inline-block",
+                                            appointment.status === 'confirmed' ? "bg-emerald-500 text-white" :
+                                                appointment.status === 'cancelled' ? "bg-red-500 text-white" :
+                                                    appointment.status === 'completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
+                                        )}>
+                                            {appointment.status}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </section>
+                                    {appointment.checkIn?.vetCheckInTime && (
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">In-Time</p>
+                                            <p className="text-xs font-black text-blue-900">{new Date(appointment.checkIn.vetCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        </div>
+                                    )}
+                                </div>
 
-                        {/* Problem Description */}
-                        <section className="bg-blue-50/50 rounded-2xl p-6 border border-blue-100/50">
-                            <h4 className="text-[10px] font-black text-[#002B49] uppercase tracking-widest mb-3">Problem Description</h4>
-                            <p className="text-sm text-gray-700 leading-relaxed italic">{appointment.problemDescription || "No description provided"}"</p>
-                        </section>
-
-                        {/* Clinical Notes */}
-                        {/* <section className="space-y-6">
-                            <div>
-                                <h4 className="text-[10px] font-black text-[#002B49] uppercase tracking-widest mb-3">Notes & Observations</h4>
-                                <textarea 
-                                    rows={4} 
-                                    className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-black"
-                                    placeholder="Type clinical notes here..."
-                                    value={notes.clinical}
-                                    onChange={(e) => setNotes({...notes, clinical: e.target.value})}
-                                />
-                            </div>
-                        </section> */}
-                    </div>
-
-                    {/* Right Column: Prescription / Summary */}
-                    <div className="bg-gray-50/30 rounded-3xl border border-gray-100 p-6 h-fit sticky top-6">
-                        <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-[#002B49] mb-8 text-center">Checkout Summary</h3>
-                        
-                        <div className="space-y-6">
-                            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                <span className="text-[9px] font-black text-gray-400 uppercase block mb-3">Transaction Details</span>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-bold">
-                                        <span className="text-gray-500">Consultation Fee</span>
-                                        <span className="text-gray-950">${appointment.consultationFees}</span>
-                                    </div>
-                                    <div className="flex justify-between text-[11px] font-bold">
-                                        <span className="text-gray-400 uppercase tracking-tighter">Status</span>
-                                        <span className="text-amber-600 uppercase">{appointment.paymentStatus}</span>
-                                    </div>
+                                <div className="flex items-center gap-4">
+                                    {appointment.status === 'confirmed' && !appointment.checkIn?.vetCheckInTime && (
+                                        <button
+                                            onClick={handleCheckIn}
+                                            disabled={isActionLoading}
+                                            className="px-10 py-3.5 bg-emerald-500 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-600 transition shadow-xl shadow-emerald-500/20 active:scale-95 flex items-center gap-3 disabled:opacity-50"
+                                        >
+                                            {isActionLoading ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
+                                            Start Consultation
+                                        </button>
+                                    )}
+                                    {appointment.status === 'confirmed' && (
+                                        <button
+                                            onClick={handleCancel}
+                                            disabled={isActionLoading}
+                                            className="px-6 py-3.5 bg-red-50 text-red-500 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-red-100 transition border border-red-100 disabled:opacity-50"
+                                        >
+                                            Cancel Slot
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                {/* <button 
-                                    onClick={handleSave}
-                                    className="w-full py-3 bg-[#002B49] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-[#001B39] transition shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                                >
-                                    <Save size={14} /> Save Progress
-                                </button> */}
-                                {appointment.status === 'Confirmed' && appointment.checkIn?.vetCheckInTime && (
-                                    <button 
-                                        onClick={handleCheckOut}
-                                        className="w-full py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-100 active:scale-[0.98]"
-                                    >
-                                        Finalize Checkout
-                                    </button>
-                                )}
+                            {/* Info Grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                <section className="space-y-6">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-950 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Patient File
+                                    </h3>
+                                    <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm flex items-center gap-6">
+                                        <div className="w-20 h-20 rounded-3xl overflow-hidden border-4 border-gray-50 shadow-inner group relative">
+                                            <Image 
+                                                src={appointment.petId?.picture || appointment.petId?.image || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=128&h=128"} 
+                                                alt="Pet" width={80} height={80} className="w-full h-full object-cover transition duration-500 group-hover:scale-110" 
+                                            />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xl font-black text-blue-950 leading-tight mb-1">{appointment.petId?.name || "N/A"}</h4>
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                <span className="text-blue-600">{appointment.petId?.species}</span>
+                                                <span className="opacity-30">•</span>
+                                                <span>{appointment.petId?.breed}</span>
+                                                <span className="opacity-30">•</span>
+                                                <span>{appointment.petId?.gender}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Service</p>
+                                            <p className="text-xs font-black text-blue-950 uppercase">{appointment.serviceType}</p>
+                                        </div>
+                                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Fee</p>
+                                            <p className="text-xs font-black text-blue-950 uppercase">${appointment.consultationFees} • {appointment.paymentStatus}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section className="space-y-6">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-950 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Case Details
+                                    </h3>
+                                    <div className="bg-blue-50/30 rounded-[2rem] p-6 border border-blue-100/50 min-h-[160px]">
+                                        <h4 className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-4 opacity-60">Submitted Problem Description</h4>
+                                        <p className="text-xs font-medium text-gray-700 leading-[1.8] italic">"{appointment.problemDescription || "No initial description provided"}"</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-blue-600 uppercase mb-3 px-1">Owner Contact Information</p>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-sm font-black text-gray-900">{appointment.ownerId?.username}</h4>
+                                                <p className="text-[10px] font-bold text-gray-400">{appointment.ownerId?.email}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <a href={`mailto:${appointment.ownerId?.email}`} className="p-2.5 bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-xl transition shadow-sm border border-gray-200"><Mail size={16} /></a>
+                                                <a href={`tel:${appointment.ownerId?.phone}`} className="p-2.5 bg-gray-50 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 rounded-xl transition shadow-sm border border-gray-200"><Phone size={16} /></a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
                         </div>
+                    )}
 
-                        <div className="mt-8 pt-8 border-t border-gray-100 text-center">
-                            <p className="text-[9px] font-bold text-gray-300 uppercase leading-relaxed">
-                                Please ensure all vitals and clinical notes are recorded before finalizing the checkout.
-                            </p>
+                    {activeTab === 'chat' && isConsultationActive && (
+                        <div className="animate-in slide-in-from-right-4 duration-500">
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                                <div className="lg:col-span-3">
+                                    <ConsultationChat 
+                                        messages={messages} 
+                                        onSendMessage={sendMessage} 
+                                        currentUserId={user?.id || ''} 
+                                        isReadOnly={false} 
+                                    />
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="bg-[#002B49] rounded-3xl p-6 text-white shadow-xl">
+                                        <h4 className="text-[11px] font-black uppercase tracking-widest mb-4 text-white/60">Live Consultation</h4>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                <p className="text-xs font-black uppercase">Active Session</p>
+                                            </div>
+                                            <p className="text-[10px] text-white/60 font-medium leading-relaxed uppercase">
+                                                Please advise the owner and record your findings. Chat will be saved in pet history.
+                                            </p>
+                                            <button 
+                                                onClick={() => setActiveTab('prescription')}
+                                                className="w-full py-3 bg-white text-[#002B49] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition active:scale-95 shadow-lg"
+                                            >
+                                                Go to Prescription
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {activeTab === 'prescription' && isConsultationActive && (
+                        <div className="animate-in slide-in-from-bottom-4 duration-500">
+                            <PrescriptionForm 
+                                onSubmit={handlePrescriptionSubmit} 
+                                isSubmitting={isActionLoading} 
+                            />
+                        </div>
+                    )}
+
+                    {activeTab === 'prescription' && appointment.status === 'completed' && prescription && (
+                        <div className="animate-in slide-in-from-bottom-4 duration-500">
+                            <PrescriptionView 
+                                prescription={prescription} 
+                                appointment={appointment}
+                                onDownload={handlePrescriptionDownload} 
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
+    )
+}
+
+function TabButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "py-6 px-4 text-[10px] font-black uppercase tracking-[0.2em] relative transition-all flex items-center gap-2",
+                active ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            )}
+        >
+            {icon} {label}
+            {active && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />
+            )}
+        </button>
     )
 }

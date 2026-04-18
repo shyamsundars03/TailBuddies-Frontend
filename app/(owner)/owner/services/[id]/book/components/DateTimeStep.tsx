@@ -153,15 +153,30 @@ export function DateTimeStep({ data, setData, doctor }: { data: any, setData: an
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                             {slots.map((slot) => {
                                 const isSelected = data.slotId === slot._id
+                                
+                                // Past slot validation
+                                const isToday = data.rawDate === new Date().toISOString().split('T')[0]
+                                let isPast = false
+                                if (isToday) {
+                                    const [hour, min] = slot.startTime.split(':').map(Number)
+                                    const now = new Date()
+                                    const slotTime = new Date()
+                                    slotTime.setHours(hour, min, 0, 0)
+                                    if (slotTime < now) isPast = true
+                                }
+
                                 return (
                                     <button
                                         key={slot._id}
+                                        disabled={isPast}
                                         onClick={() => setData({ ...data, time: `${slot.startTime} - ${slot.endTime}`, slotId: slot._id })}
                                         className={cn(
                                             "py-2.5 rounded text-[10px] font-bold transition-all duration-300 border",
                                             isSelected
                                                 ? "bg-blue-600 text-white border-blue-600 shadow-md scale-105"
-                                                : "bg-gray-50 text-gray-500 border-gray-100 hover:border-blue-200"
+                                                : isPast
+                                                    ? "bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed opacity-50"
+                                                    : "bg-gray-50 text-gray-500 border-gray-100 hover:border-blue-200"
                                         )}
                                     >
                                         {slot.startTime} - {slot.endTime}

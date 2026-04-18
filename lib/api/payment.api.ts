@@ -34,5 +34,15 @@ export const paymentApi = {
     retryPayment: async (data: { appointmentId: string; method: string }) => {
         const response = await apiClient.post('/payments/retry', data);
         return response.data;
+    },
+
+    getAllTransactions: async (page: number = 1, limit: number = 10, search: string = '', status: string = '') => {
+        const response = await apiClient.get(`/payments/admin/transactions?page=${page}&limit=${limit}&search=${search}&status=${status}`);
+        return response.data;
+    },
+
+    getTransactionDetail: async (id: string) => {
+        const response = await apiClient.get(`/payments/admin/transactions/${id}`);
+        return response.data;
     }
 };

@@ -26,7 +26,7 @@ export default function RequestsPage() {
 
     const fetchRequestsData = useCallback(async (page: number) => {
         setIsLoading(true)
-        const response = await appointmentApi.getDoctorAppointments('Booked', page, entriesPerPage)
+        const response = await appointmentApi.getDoctorAppointments('booked', page, entriesPerPage)
         if (response.success) {
             setRequests(response.data || [])
             setTotalEntries(response.total || 0)
@@ -57,7 +57,7 @@ export default function RequestsPage() {
     }
 
     const handleStatusUpdate = async (id: string, status: string) => {
-        if (status === 'Cancelled') {
+        if (status === 'cancelled') {
             const { value: reason } = await Swal.fire({
                 title: 'Reject Appointment',
                 input: 'textarea',
@@ -168,13 +168,13 @@ export default function RequestsPage() {
                                 {/* Action Buttons */}
                                 <div className="flex items-center gap-4 shrink-0 w-full lg:w-auto mt-4 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 lg:border-l border-gray-100">
                                     <button 
-                                        onClick={() => handleStatusUpdate(request._id, 'Confirmed')}
+                                        onClick={() => handleStatusUpdate(request._id, 'confirmed')}
                                         className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100"
                                     >
                                         <CheckCircle2 size={14} /> Accept
                                     </button>
                                     <button 
-                                        onClick={() => handleStatusUpdate(request._id, 'Cancelled')}
+                                        onClick={() => handleStatusUpdate(request._id, 'cancelled')}
                                         className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-red-50 text-red-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100"
                                     >
                                         <XCircle size={14} /> Reject

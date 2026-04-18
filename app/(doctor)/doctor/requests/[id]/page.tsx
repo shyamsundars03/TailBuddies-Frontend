@@ -34,7 +34,7 @@ export default function RequestDetailPage() {
     const handleStatusUpdate = async (status: string) => {
         if (!request?._id) return;
         
-        if (status === 'Cancelled') {
+        if (status === 'cancelled') {
             const { value: reason } = await Swal.fire({
                 title: 'Reject Appointment',
                 input: 'textarea',
@@ -163,13 +163,13 @@ export default function RequestDetailPage() {
 
                         <div className="flex items-center gap-4 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-10">
                             <button 
-                                onClick={() => handleStatusUpdate('Confirmed')}
+                                onClick={() => handleStatusUpdate('confirmed')}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-3 py-3 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm active:scale-95"
                             >
                                 <CheckCircle2 size={16} /> Accept
                             </button>
                             <button 
-                                onClick={() => handleStatusUpdate('Cancelled')}
+                                onClick={() => handleStatusUpdate('cancelled')}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-3 py-3 bg-red-50 text-red-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 shadow-sm active:scale-95"
                             >
                                 <XCircle size={16} /> Reject

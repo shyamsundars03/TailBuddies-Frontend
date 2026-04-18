@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react'
 
 export function AppointmentManagement() {
     const [searchTerm, setSearchTerm] = useState('')
+    const [statusTab, setStatusTab] = useState('All')
     const [appointments, setAppointments] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [currentPage, setCurrentPage] = useState(1)
@@ -20,9 +21,12 @@ export function AppointmentManagement() {
     const limit = 10
     const router = useRouter()
 
-    const fetchAll = async (page: number, search: string) => {
+    const statuses = ['All', 'Booked', 'Confirmed', 'Completed', 'Cancelled', 'Payment Pending']
+
+    const fetchAll = async (page: number, search: string, status: string) => {
         setIsLoading(true)
-        const response = await appointmentApi.getAll(page, limit, search)
+        const statusQuery = status === 'All' ? '' : status.toLowerCase()
+        const response = await appointmentApi.getAll(page, limit, search, statusQuery)
         if (response.success) {
             setAppointments(response.data || [])
             setTotalEntries(response.total || 0)
@@ -35,10 +39,10 @@ export function AppointmentManagement() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchAll(currentPage, searchTerm)
+            fetchAll(currentPage, searchTerm, statusTab)
         }, 500)
         return () => clearTimeout(timer)
-    }, [currentPage, searchTerm])
+    }, [currentPage, searchTerm, statusTab])
 
     const columns: Column<any>[] = [
         {
@@ -92,9 +96,11 @@ export function AppointmentManagement() {
             accessor: (apt) => (
                 <span className={cn(
                     "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm",
-                    apt.status === 'Confirmed' ? "bg-emerald-100 text-emerald-600" :
-                    apt.status === 'Booked' ? "bg-blue-100 text-blue-600" :
-                    apt.status === 'Cancelled' ? "bg-red-100 text-red-600" :
+                    apt.status === 'confirmed' ? "bg-emerald-100 text-emerald-600" :
+                    apt.status === 'booked' ? "bg-blue-100 text-blue-600" :
+                    apt.status === 'cancelled' ? "bg-red-100 text-red-600" :
+                    apt.status === 'completed' ? "bg-purple-100 text-purple-600" :
+                    apt.status === 'payment pending' ? "bg-amber-100 text-amber-600" :
                     "bg-gray-100 text-gray-600"
                 )}>
                     {apt.status}
@@ -108,45 +114,71 @@ export function AppointmentManagement() {
         }
     ]
 
-    if (isLoading && appointments.length === 0) {
-        return (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-20 flex flex-col items-center justify-center">
-                <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Appointments...</p>
-            </div>
-        )
-    }
-
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100 flex justify-end">
-                <SearchInput
-                    placeholder="Search Admin Appointments"
-                    value={searchTerm}
-                    onChange={(e) => {
-                        setSearchTerm(e.target.value)
-                        setCurrentPage(1)
-                    }}
-                    containerClassName="w-64"
-                />
+        <div className="space-y-4">
+            {/* Status Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {statuses.map((status) => (
+                    <button
+                        key={status}
+                        onClick={() => {
+                            setStatusTab(status)
+                            setCurrentPage(1)
+                        }}
+                        className={cn(
+                            "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                            statusTab === status 
+                                ? "bg-blue-600 text-white shadow-lg shadow-blue-100" 
+                                : "bg-white text-gray-400 hover:text-blue-600 border border-gray-100"
+                        )}
+                    >
+                        {status}
+                    </button>
+                ))}
             </div>
 
-            <DataTable
-                columns={columns}
-                data={appointments}
-                keyExtractor={(apt) => apt._id}
-                onRowClick={(apt) => router.push(`/admin/appointmentManagement/${apt._id}`)}
-                className="border-0 shadow-none rounded-none"
-            />
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/30">
+                    <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
+                        Showing {appointments.length} of {totalEntries} Appointments
+                    </p>
+                    <SearchInput
+                        placeholder="Search appointments..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value)
+                            setCurrentPage(1)
+                        }}
+                        containerClassName="w-72"
+                    />
+                </div>
 
-            <div className="px-6 py-4 bg-gray-50/30">
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                    totalEntries={totalEntries}
-                    entriesPerPage={limit}
-                />
+                {isLoading && appointments.length === 0 ? (
+                    <div className="p-20 flex flex-col items-center justify-center">
+                        <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Records...</p>
+                    </div>
+                ) : (
+                    <>
+                        <DataTable
+                            columns={columns}
+                            data={appointments}
+                            keyExtractor={(apt) => apt._id}
+                            onRowClick={(apt) => router.push(`/admin/appointmentManagement/${apt._id}`)}
+                            className="border-0 shadow-none rounded-none"
+                        />
+
+                        <div className="px-8 py-6 bg-gray-50/30 border-t border-gray-50">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                                totalEntries={totalEntries}
+                                entriesPerPage={limit}
+                            />
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     )

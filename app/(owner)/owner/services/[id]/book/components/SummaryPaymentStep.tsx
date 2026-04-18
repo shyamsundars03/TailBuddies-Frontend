@@ -101,14 +101,12 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                             toast.success("Payment successful!")
                             finalizeBooking(appointment)
                         } else {
-                            toast.error("Payment verification failed")
-                            await appointmentApi.cancelPendingAppointment(appointment._id)
+                            toast.error(verifyRes.message || "Payment verification failed")
                             router.push(`/owner/payment/failure?id=${appointment._id}`)
                         }
                     } catch (err: any) {
                         console.error("Verification error:", err)
                         toast.error("An error occurred during verification")
-                        await appointmentApi.cancelPendingAppointment(appointment._id)
                         router.push(`/owner/payment/failure?id=${appointment._id}`)
                     }
                 },
@@ -124,7 +122,6 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                     ondismiss: async () => {
                         toast.error("Payment cancelled")
                         setIsBooking(false)
-                        await appointmentApi.cancelPendingAppointment(appointment._id)
                         router.push(`/owner/payment/failure?id=${appointment._id}`)
                     }
                 }

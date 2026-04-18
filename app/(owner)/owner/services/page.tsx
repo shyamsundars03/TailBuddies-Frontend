@@ -58,7 +58,7 @@ export default function DoctorServicesPage() {
         const response = await doctorApi.getAllDoctors(page, 9, search, true, undefined, activeFilters)
         if (response.success) {
             setDoctors(response.data || [])
-            setTotalPages(Math.ceil((response.total || 0) / (response.limit || 9)))
+            setTotalPages(Math.ceil((response.total || 0) / (response.limit || 3)))
             setTotalDoctors(response.total || 0)
         } else {
             // toast.error(response.error || "Failed to load doctors")

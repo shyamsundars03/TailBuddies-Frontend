@@ -27,8 +27,8 @@ const DoctorDashboardContent = () => {
         try {
             // Fetch both Booked and Confirmed for the dashboard to get a full view
             const [bookedRes, confirmedRes] = await Promise.all([
-                appointmentApi.getDoctorAppointments("Booked", 1, 100),
-                appointmentApi.getDoctorAppointments("Confirmed", 1, 100)
+                appointmentApi.getDoctorAppointments("booked", 1, 100),
+                appointmentApi.getDoctorAppointments("confirmed", 1, 100)
             ])
 
             const allApts = [
@@ -144,8 +144,8 @@ const DoctorDashboardContent = () => {
                                     <div className="flex flex-col items-end gap-1">
                                         <span className={cn(
                                             "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                                            apt.status === "Booked" ? "bg-amber-100 text-amber-700" :
-                                            apt.status === "Confirmed" ? "bg-blue-100 text-blue-700" :
+                                            apt.status === "booked" ? "bg-amber-100 text-amber-700" :
+                                            apt.status === "confirmed" ? "bg-blue-100 text-blue-700" :
                                             "bg-green-100 text-green-700"
                                         )}>
                                             {apt.status}
