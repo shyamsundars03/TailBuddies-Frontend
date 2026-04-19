@@ -55,9 +55,9 @@ export function DoctorHeader() {
                 <button className="w-9 h-9 bg-black bg-opacity-100 hover:bg-opacity-30 rounded-full flex items-center justify-center transition">
                     <Bell size={18} />
                 </button>
-                <button className="w-9 h-9 bg-black  bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition">
+                {/* <button className="w-9 h-9 bg-black  bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition">
                     <MessageSquare size={18} />
-                </button>
+                </button> */}
                 <button
                     onClick={handleLogout}
                     className="w-9 h-9 bg-black bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition"

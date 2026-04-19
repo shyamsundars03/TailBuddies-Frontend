@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2, CreditCard, Activity } from "lucide-react"
+import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2, CreditCard, Activity, CheckCircle2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
@@ -13,6 +13,7 @@ import { useAppSelector } from "@/lib/redux/hooks"
 import { useConsultation } from "@/lib/hooks/useConsultation"
 import { ConsultationChat } from "@/components/consultation/ConsultationChat"
 import { PrescriptionView } from "@/components/consultation/PrescriptionView"
+import Swal from "sweetalert2"
 
 export default function SingleBookingViewPage() {
     const params = useParams()
@@ -24,7 +25,10 @@ export default function SingleBookingViewPage() {
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
 
-    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(params?.id as string, user?.id || '', 'owner')
+    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(params?.id as string, user?.id || (user as any)?._id || '', 'owner', () => {
+        toast.info("Booking status updated");
+        fetchAppointment();
+    });
 
     useEffect(() => {
         if (chatError) {
@@ -68,11 +72,94 @@ export default function SingleBookingViewPage() {
         setIsActionLoading(false)
     }
 
+    const handleCheckout = async () => {
+        if (!appointment) return;
+
+        // 25-minute rule check
+        const now = new Date();
+        const [endH, endM] = appointment.appointmentEndTime.split(':').map(Number);
+        const apptEnd = new Date(appointment.appointmentDate);
+        apptEnd.setHours(endH, endM, 0, 0);
+        const checkoutAllowedTime = new Date(apptEnd.getTime() - 5 * 60 * 1000);
+
+        if (now < checkoutAllowedTime) {
+            Swal.fire({
+                title: 'Too Early!',
+                text: `You can only checkout during the last 5 minutes of your slot (after ${checkoutAllowedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}).`,
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6',
+                customClass: { popup: 'rounded-3xl' }
+            });
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: 'End Consultation?',
+            text: "Are you sure you want to checkout? This will finalize your visit.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3b82f6',
+            confirmButtonText: 'Yes, Checkout',
+            customClass: { popup: 'rounded-3xl' }
+        });
+
+        if (result.isConfirmed) {
+            setIsActionLoading(true)
+            const response = await appointmentApi.checkOut(params?.id as string, 'owner')
+            if (response.success) {
+                toast.success("Checked out successfully")
+                fetchAppointment()
+            } else {
+                toast.error(response.message || "Checkout failed")
+            }
+            setIsActionLoading(false)
+        }
+    }
+
     const handlePrescriptionDownload = async () => {
         if (!prescription?._id) return
+        setIsActionLoading(true)
         const response = await prescriptionApi.downloadPdf(prescription._id)
         if (!response.success) {
             toast.error(response.message || "Failed to download PDF")
+        }
+        setIsActionLoading(false)
+    }
+
+    const handleCancel = async () => {
+        const isEmergency = appointment.status === 'confirmed' || !!appointment.checkIn?.ownerCheckInTime;
+        
+        const { value: reason, isConfirmed } = await Swal.fire({
+            title: isEmergency ? 'Emergency Cancellation' : 'Cancel Booking',
+            text: isEmergency 
+                ? "You are cancelling an ongoing or confirmed appointment. This will trigger a refund request." 
+                : "Are you sure you want to cancel this appointment? This action cannot be undone.",
+            input: 'textarea',
+            inputLabel: 'Reason for cancellation',
+            inputPlaceholder: 'e.g. Pet feeling better, Emergency, Changed my mind...',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: isEmergency ? 'Yes, Cancel & Refund' : 'Yes, Cancel it',
+            cancelButtonText: 'Keep it',
+            customClass: {
+                popup: 'rounded-[2rem]',
+                confirmButton: 'rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 py-3',
+                cancelButton: 'rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 py-3'
+            }
+        });
+
+        if (isConfirmed && reason) {
+            setIsActionLoading(true)
+            const response = await appointmentApi.updateStatus(params?.id as string, 'cancelled', reason)
+            if (response.success) {
+                toast.success(isEmergency ? "Cancellation and refund processed" : "Booking cancelled successfully")
+                fetchAppointment()
+            } else {
+                toast.error(response.message || "Failed to cancel booking")
+            }
+            setIsActionLoading(false)
+        } else if (isConfirmed && !reason) {
+            toast.error("Cancellation reason is required");
         }
     }
 
@@ -90,7 +177,10 @@ export default function SingleBookingViewPage() {
     const doctorUser = appointment.doctorId?.userId;
     const pet = appointment.petId;
     const isConsultationActive = !!appointment.checkIn?.ownerCheckInTime && appointment.status !== 'completed' && appointment.status !== 'cancelled'
+    const canViewChat = !!appointment.checkIn?.ownerCheckInTime || appointment.status === 'completed'
 
+    console.log(appointment)
+    console.log("wefwefe", prescription)
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between mb-8">
@@ -138,7 +228,16 @@ export default function SingleBookingViewPage() {
                             {appointment.status}
                         </div>
 
-                        {appointment.status === 'confirmed' && !appointment.checkIn?.ownerCheckInTime && (
+                                 {(appointment.status === 'booked' || appointment.status === 'confirmed') && (
+                                    <button
+                                        onClick={handleCancel}
+                                        disabled={isActionLoading}
+                                        className="px-6 py-2.5 bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 transition border border-red-100 disabled:opacity-50"
+                                    >
+                                        {appointment.status === 'confirmed' ? 'Emergency Cancel' : 'Cancel Booking'}
+                                    </button>
+                                )}
+                                {appointment.status === 'confirmed' && !appointment.checkIn?.ownerCheckInTime && (
                             <button
                                 onClick={handleCheckIn}
                                 disabled={isActionLoading}
@@ -148,14 +247,29 @@ export default function SingleBookingViewPage() {
                                 Check-In Now
                             </button>
                         )}
+                        {appointment.status === 'confirmed' && appointment.checkIn?.ownerCheckInTime && !appointment.checkOut?.ownerCheckOutTime && (
+                            <button
+                                onClick={handleCheckout}
+                                disabled={isActionLoading}
+                                className="px-8 py-2.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-100 transition border border-blue-100 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} className="hidden" />}
+                                Check-Out
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* Tab Navigation */}
                 <div className="px-10 mt-8 flex gap-8 border-b border-gray-50">
                     <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Calendar size={14} />} label="Overview" />
-                    {isConsultationActive && (
-                        <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14} />} label="Live Chat" />
+                    {canViewChat && (
+                        <TabButton 
+                            active={activeTab === 'chat'} 
+                            onClick={() => setActiveTab('chat')} 
+                            icon={<MessageSquare size={14} />} 
+                            label={appointment.status === 'completed' ? "History" : "Live Chat"} 
+                        />
                     )}
                     {appointment.status === 'completed' && prescription && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14} />} label="Medical Record" />
@@ -180,13 +294,21 @@ export default function SingleBookingViewPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                         <DataField label="Service" value={appointment.serviceType} />
                                         <DataField label="Visit Mode" value={appointment.mode} capitalize />
-                                        <DataField label="Consultation Fee" value={`₹${appointment.consultationFees}`} />
+                                        <DataField label="Consultation Fee" value={`₹${appointment.totalAmount}`} />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                         <DataField label="Scheduled Date" value={new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
                                         <DataField label="Time Window" value={`${appointment.appointmentStartTime} - ${appointment.appointmentEndTime}`} />
                                         <DataField label="Payment Status" value={appointment.paymentStatus} isStatus statusType={appointment.paymentStatus === 'PAID' ? 'success' : 'error'} />
                                     </div>
+                                    {appointment.checkIn?.ownerCheckInTime && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-gray-50">
+                                            <DataField label="Check-In Time" value={new Date(appointment.checkIn.ownerCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                                            {appointment.checkOut?.ownerCheckOutTime && (
+                                                <DataField label="Check-Out Time" value={new Date(appointment.checkOut.ownerCheckOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </SectionLayout>
 
@@ -200,20 +322,20 @@ export default function SingleBookingViewPage() {
                             {/* Transaction */}
                             <SectionLayout title="Transaction Info">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <DataField label="Method" value={appointment.paymentMethod} capitalize />
+                                    <DataField label="Method" value={appointment.paymentMethod  == "cod" ? "Cash After Consultation" : "COC"} capitalize />
                                     <DataField label="Transaction Reference" value={appointment.transactionID || "N/A"} italic />
                                 </div>
                             </SectionLayout>
                         </div>
                     )}
 
-                    {activeTab === 'chat' && isConsultationActive && (
+                    {activeTab === 'chat' && canViewChat && (
                         <div className="animate-in slide-in-from-right-4 duration-500">
                             <ConsultationChat
                                 messages={messages}
                                 onSendMessage={sendMessage}
-                                currentUserId={user?.id || ''}
-                                isReadOnly={false}
+                                currentUserId={user?.id || (user as any)?._id || ''}
+                                isReadOnly={appointment.status === 'completed' || appointment.status === 'cancelled'}
                             />
                         </div>
                     )}

@@ -118,9 +118,9 @@ export default function RequestsPage() {
             <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 font-inter">Requests</h2>
                 <div className="relative group">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
+                    {/* <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-medium hover:bg-gray-100 transition">
                         Newest First <ChevronDown size={16} />
-                    </button>
+                    </button> */}
                 </div>
             </div>
 

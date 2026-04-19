@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils/utils"
 export function AppointmentTypeStep({ data, setData }: { data: any, setData: any }) {
     const types = [
         { id: "Normal", name: "Normal", description: "Standard physical consultation" },
-        { id: "Emergency", name: "Emergency", description: "Urgent medical attention needed" },
+        // { id: "Emergency", name: "Emergency", description: "Urgent medical attention needed" },
         { id: "Subscription", name: "Subscription", description: "Covered by your monthly plan" }
     ]
 

@@ -50,7 +50,7 @@ const menuItems: SidebarMenuItem[] = [
     { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "/admin/appointmentManagement" },
     { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "/admin/transactionManagement" },
     { icon: CreditCard, label: "Payments", id: "payments", href: "#" },
-    { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "/admin/chatAssistant" },
+    // { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "/admin/chatAssistant" },
     { icon: Star, label: "Reviews", id: "reviews", href: "#" },
     { icon: BarChart3, label: "Report", id: "reports", href: "#" },
 ]

@@ -107,11 +107,12 @@ export function SingleAppointmentView({ id }: { id: string }) {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
+                            <span className="text-blue-950 font-black text-xs uppercase">PaymentMethod:</span>
                             <span className={cn(
                                 "px-6 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm",
                                 appointment.status === 'Completed' ? "bg-emerald-500 text-white" : "bg-yellow-400 text-gray-900"
                             )}>
-                                {appointment.status === 'Completed' ? "Paid" : "Pay on Consultation"}
+                                {appointment.paymentMethod}
                             </span>
                         </div>
                     </div>
@@ -222,9 +223,9 @@ export function SingleAppointmentView({ id }: { id: string }) {
                         <SectionLayout title="Payment Information">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                                 <DataField label="Consultation Fee" value={`₹${appointment.doctorId?.profile?.consultationFees || 0}`} />
-                                <DataField label="Payment Method" value="Cash on Consultation" />
-                                <DataField label="Payment Status" value={appointment.status === 'Completed' ? 'Successful' : 'Pending'} isStatus statusType={appointment.status === 'Completed' ? "success" : "error"} />
-                                <DataField label="Transaction ID" value="N/A" italic />
+                                <DataField label="Payment Method" value={appointment.paymentMethod} />
+                                <DataField label="Payment Status" value={appointment.status } />
+                                <DataField label="Transaction ID" value= {appointment.transactionID}italic />
                             </div>
                         </SectionLayout>
                     </div>

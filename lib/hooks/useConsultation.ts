@@ -10,7 +10,7 @@ interface Message {
     timestamp: Date;
 }
 
-export const useConsultation = (appointmentId: string, userId: string, userRole: 'owner' | 'doctor') => {
+export const useConsultation = (appointmentId: string, userId: string, userRole: 'owner' | 'doctor', onStatusUpdate?: (data: any) => void) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -68,6 +68,13 @@ export const useConsultation = (appointmentId: string, userId: string, userRole:
 
             socketInstance.on('receive-message', (message: Message) => {
                 setMessages((prev) => [...prev, message]);
+            });
+
+            socketInstance.on('status-updated', (data: any) => {
+                console.log('Status updated received:', data);
+                if (onStatusUpdate) {
+                    onStatusUpdate(data);
+                }
             });
 
             socketInstance.on('error', (err: { message: string }) => {

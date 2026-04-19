@@ -5,7 +5,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils/utils"
-// import { medicalRecordApi } from "@/lib/api/medical.api" // To be created if doesn't exist
+import { appointmentApi } from "@/lib/api/appointment.api"
+import { userPetApi } from "@/lib/api/user/pet.api"
 import { Pagination } from "@/components/common/ui/Pagination"
 
 export default function MedicalRecordsPage() {
@@ -16,61 +17,81 @@ export default function MedicalRecordsPage() {
     const initialSearch = searchParams.get('search') || ""
     const initialPage = parseInt(searchParams.get('page') || "1")
     const initialPet = searchParams.get('pet') || "All Pets"
+    const initialTimeframe = searchParams.get('timeframe') || "Lifetime"
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
     const [selectedPet, setSelectedPet] = useState(initialPet)
+    const [selectedTimeframe, setSelectedTimeframe] = useState(initialTimeframe)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [isLoading, setIsLoading] = useState(false)
     const [records, setRecords] = useState<any[]>([]) 
+    const [pets, setPets] = useState<any[]>([])
     const [totalEntries, setTotalEntries] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
-    const entriesPerPage = 5
+    const entriesPerPage = 3
 
-    // Mock data for initial implementation matching Image 2
-    const mockRecords = [
-        {
-            id: "REC0001",
-            petName: "MAX",
-            species: "Dog",
-            breed: "Golden Retriever",
-            date: "11 Nov 2025 10.45 AM",
-            type: "General Visit",
-            mode: "Video Call",
-            appointmentId: "#Apt0001",
-            doctorName: "Dr Edalin",
-            clinicalFindings: "Fungal infection observed around neck and belly.",
-            diagnosis: "Dermatitis due to fungal infection.",
-            vetNotes: "Apply antifungal ointment twice daily. Avoid wet areas.",
-            recommendedTests: "None",
-            petImage: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=100&h=100"
+    const fetchPets = useCallback(async () => {
+        const response = await userPetApi.getOwnerPets(1, 100)
+        if (response.success) {
+            setPets(response.data?.pets || response.data || [])
         }
-    ]
+    }, [])
 
-    const fetchRecords = useCallback(async (page: number, search: string, pet: string) => {
+    const fetchRecords = useCallback(async (page: number, search: string, pet: string, timeframe: string) => {
         setIsLoading(true)
-        // Simulated API call
-        setTimeout(() => {
-            setRecords(mockRecords)
-            setTotalEntries(18) // Matching the "Records 18" badge in image
-            setTotalPages(Math.ceil(18 / entriesPerPage) || 1)
-            setIsLoading(false)
-        }, 800)
+        const response = await appointmentApi.getOwnerAppointments(page, entriesPerPage, search, 'completed', timeframe)
+        
+        if (response.success) {
+            let data = response.data || []
+            
+            // Client-side pet filter if needed
+            if (pet !== "All Pets") {
+                data = data.filter((appt: any) => appt.petId?.name === pet)
+            }
+
+            const formattedRecords = data.map((appt: any) => ({
+                id: appt._id,
+                petName: appt.petId?.name || "Unknown",
+                species: appt.petId?.species || "Unknown",
+                breed: appt.petId?.breed || "",
+                date: `${new Date(appt.appointmentDate).toLocaleDateString()} ${appt.appointmentStartTime}`,
+                type: appt.serviceType,
+                mode: appt.mode === 'online' ? 'Video Call' : 'Offline Visit',
+                appointmentId: `#${appt.appointmentId || appt._id.slice(-8).toUpperCase()}`,
+                doctorName: appt.doctorId?.userId?.username || "Unknown",
+                clinicalFindings: appt.prescriptionId?.clinicalFindings || "Not available",
+                diagnosis: appt.prescriptionId?.diagnosis || "Not available",
+                vetNotes: appt.prescriptionId?.vetNotes || "Not available",
+                recommendedTests: appt.prescriptionId?.recommendedTests || "None",
+                petImage: appt.petId?.picture || "/placeholder-pet.png"
+            }))
+            
+            setRecords(formattedRecords)
+            setTotalEntries(response.total || formattedRecords.length)
+            setTotalPages(Math.ceil((response.total || formattedRecords.length) / entriesPerPage) || 1)
+        }
+        setIsLoading(false)
     }, [entriesPerPage])
+
+    useEffect(() => {
+        fetchPets()
+    }, [fetchPets])
 
     useEffect(() => {
         const params = new URLSearchParams()
         if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
         if (currentPage > 1) params.set('page', currentPage.toString())
         if (selectedPet !== "All Pets") params.set('pet', selectedPet)
+        if (selectedTimeframe !== "Lifetime") params.set('timeframe', selectedTimeframe)
         
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
     }, [debouncedSearchTerm, currentPage, selectedPet, pathname, router])
 
     useEffect(() => {
-        fetchRecords(currentPage, debouncedSearchTerm, selectedPet)
-    }, [currentPage, debouncedSearchTerm, selectedPet, fetchRecords])
+        fetchRecords(currentPage, debouncedSearchTerm, selectedPet, selectedTimeframe)
+    }, [currentPage, debouncedSearchTerm, selectedPet, selectedTimeframe, fetchRecords])
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -122,8 +143,9 @@ export default function MedicalRecordsPage() {
                                 className="appearance-none pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[160px] text-gray-700"
                             >
                                 <option>All Pets</option>
-                                <option>MAX</option>
-                                <option>Bruno</option>
+                                {pets.map(p => (
+                                    <option key={p._id}>{p.name}</option>
+                                ))}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                         </div>
@@ -132,25 +154,48 @@ export default function MedicalRecordsPage() {
 
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-2 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                        <button className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-400 hover:text-blue-600 hover:border-blue-100 transition flex items-center gap-2 shadow-sm">
+                        <button className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-400 hover:text-blue-600 hover:border-blue-100 transition flex items-center gap-2 shadow-sm pointer-events-none">
                             Records
-                            <span className="px-1.5 py-0.5 bg-blue-50 text-[10px] text-blue-600 rounded-md font-black italic">18</span>
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-[10px] text-blue-600 rounded-md font-black italic">{totalEntries}</span>
                         </button>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-gray-500 shadow-sm">
+                        {/* <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-gray-500 shadow-sm">
                             <Calendar size={14} className="text-blue-600" />
-                            <span>08/04/2020 - 08/11/2020</span>
+                            <span>Lifetime Records</span>
+                        </div> */}
+                        <div className="relative group/filter">
+                            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-black text-gray-500 hover:bg-gray-50 transition shadow-sm uppercase tracking-widest">
+                                <Filter size={14} className="text-blue-600" />
+                                {selectedTimeframe === 'Lifetime' ? 'Filter By' : selectedTimeframe} <ChevronDown size={12} className={cn("transition-transform", "group-hover/filter:rotate-180")} />
+                            </button>
+                            
+                            {/* Filter Dropdown */}
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl shadow-blue-950/5 opacity-0 invisible group-hover/filter:opacity-100 group-hover/filter:visible transition-all z-50 overflow-hidden">
+                                {['Lifetime', 'Today', 'This Week', 'This Month'].map((time) => (
+                                    <button
+                                        key={time}
+                                        onClick={() => {
+                                            setSelectedTimeframe(time)
+                                            setCurrentPage(1)
+                                        }}
+                                        className={cn(
+                                            "w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors",
+                                            selectedTimeframe === time 
+                                                ? "bg-blue-600 text-white" 
+                                                : "text-gray-500 hover:bg-blue-50 hover:text-blue-600"
+                                        )}
+                                    >
+                                        {time}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-gray-500 hover:bg-gray-50 transition shadow-sm">
-                            <Filter size={14} className="text-blue-600" />
-                            Filter By <ChevronDown size={12} />
-                        </button>
-                        <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                        {/* <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                             <button className="p-2.5 bg-blue-600 text-white"><List size={18} /></button>
                             <button className="p-2.5 bg-white text-gray-400 hover:bg-gray-50"><Grid size={18} /></button>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>
@@ -221,10 +266,10 @@ export default function MedicalRecordsPage() {
                                             <p className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-1.5">Vet Notes</p>
                                             <p className="text-sm font-medium text-gray-700 leading-relaxed">{record.vetNotes}</p>
                                         </div>
-                                        <div className="bg-blue-50/30 rounded-2xl p-4 border border-blue-50/50">
+                                        {/* <div className="bg-blue-50/30 rounded-2xl p-4 border border-blue-50/50">
                                             <p className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-1.5">Recommended Tests</p>
                                             <p className="text-sm font-medium text-gray-700 leading-relaxed">{record.recommendedTests}</p>
-                                        </div>
+                                        </div> */}
                                     </div>
                                 </div>
 

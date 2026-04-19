@@ -11,6 +11,10 @@ interface PrescriptionViewProps {
 export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ prescription, appointment, onDownload }) => {
     if (!prescription) return null;
 
+
+console.log("reoer", prescription)
+
+
     return (
         <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
             {/* Header */}

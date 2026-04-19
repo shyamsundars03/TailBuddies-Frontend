@@ -13,6 +13,7 @@ import { useConsultation } from "@/lib/hooks/useConsultation"
 import { ConsultationChat } from "@/components/consultation/ConsultationChat"
 import { PrescriptionForm } from "@/components/consultation/PrescriptionForm"
 import { PrescriptionView } from "@/components/consultation/PrescriptionView"
+import Swal from "sweetalert2"
 
 export default function AppointmentDetailPage() {
     const router = useRouter()
@@ -24,7 +25,10 @@ export default function AppointmentDetailPage() {
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
 
-    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(id as string, user?.id || '', 'doctor')
+    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(id as string, user?.id || '', 'doctor', () => {
+        toast.info("Appointment status updated");
+        fetchDetails();
+    });
 
     useEffect(() => {
         if (chatError) {
@@ -38,7 +42,7 @@ export default function AppointmentDetailPage() {
         const response = await appointmentApi.getAppointmentById(id as string)
         if (response.success) {
             setAppointment(response.data)
-            if (response.data.status === 'completed') {
+            if (response.data.status === 'completed' || response.data.prescriptionId) {
                 const prescRes = await prescriptionApi.getByAppointmentId(id as string)
                 if (prescRes.success) setPrescription(prescRes.data)
             }
@@ -52,6 +56,27 @@ export default function AppointmentDetailPage() {
     useEffect(() => {
         if (id) fetchDetails()
     }, [id])
+
+
+function DataField({ label, value, isStatus, statusType, italic, capitalize }: any) {
+    return (
+        <div>
+            <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-1.5">{label}</p>
+            <p className={cn(
+                "text-xs font-black uppercase",
+                isStatus ? (statusType === "success" ? "text-emerald-500" : "text-rose-500") : "text-gray-900",
+                italic && "italic",
+                capitalize && "capitalize"
+            )}>
+                {value || "N/A"}
+            </p>
+        </div>
+    )
+}
+
+
+
+
 
     const handleCheckIn = async () => {
         setIsActionLoading(true)
@@ -77,16 +102,9 @@ export default function AppointmentDetailPage() {
         })
 
         if (response.success) {
-            toast.success("Prescription saved successfully! Finalizing checkout...")
-            // Automatic checkout after prescription
-            const checkoutRes = await appointmentApi.checkOut(id as string, 'doctor')
-            if (checkoutRes.success) {
-                toast.success("Consultation completed.")
-                router.push("/doctor/appointments")
-            } else {
-                toast.error(checkoutRes.message || "Checkout failed after prescription")
-                fetchDetails()
-            }
+            toast.success("Prescription saved successfully! You can now checkout when ready.")
+            setPrescription(response.data) // Assuming response.data is the prescription
+            fetchDetails() // Refresh to update prescriptionId in appointment
         } else {
             toast.error(response.message || "Failed to save prescription")
         }
@@ -102,21 +120,102 @@ export default function AppointmentDetailPage() {
     }
 
     const handleCancel = async () => {
-        const reason = window.prompt("Please provide a reason for cancellation:", "Emergency at clinic") || "";
-        if (!reason) {
+        const isEmergency = appointment.status === 'confirmed' || !!appointment.checkIn?.vetCheckInTime;
+
+        const { value: reason, isConfirmed } = await Swal.fire({
+            title: isEmergency ? 'Emergency Cancellation' : 'Cancel Appointment',
+            text: isEmergency 
+                ? "You are cancelling an active or confirmed consultation. A full refund will be processed for the owner."
+                : "Enter a reason for cancellation. This will notify the pet owner.",
+            input: 'textarea',
+            inputLabel: 'Reason for cancellation',
+            inputPlaceholder: 'Enter reason here...',
+            inputAttributes: {
+                'aria-label': 'Enter reason here'
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: isEmergency ? 'Yes, Cancel & Refund' : 'Confirm Cancellation',
+            cancelButtonText: 'Nevermind',
+            customClass: {
+                popup: 'rounded-3xl',
+                confirmButton: 'rounded-xl font-bold uppercase text-[10px] tracking-widest',
+                cancelButton: 'rounded-xl font-bold uppercase text-[10px] tracking-widest'
+            }
+        });
+
+        if (isConfirmed && reason) {
+            setIsActionLoading(true)
+            const response = await appointmentApi.updateStatus(id as string, 'cancelled', reason)
+            if (response.success) {
+                toast.success(isEmergency ? "Cancellation processed and refund triggered" : "Appointment cancelled successfully")
+                fetchDetails()
+            } else {
+                toast.error(response.message || "Failed to cancel appointment")
+            }
+            setIsActionLoading(false)
+        } else if (isConfirmed && !reason) {
             toast.error("Cancellation reason is required");
+        }
+    }
+
+    const handleManualCheckout = async () => {
+        if (!appointment) return;
+
+        // 1. Check if prescription exists
+        if (!appointment.prescriptionId) {
+            Swal.fire({
+                title: 'Prescription Required',
+                text: "Please fill out and save the E-Prescription before checking out.",
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6',
+                customClass: { popup: 'rounded-3xl' }
+            });
+            setActiveTab('prescription');
             return;
         }
 
-        setIsActionLoading(true)
-        const response = await appointmentApi.updateStatus(id as string, 'cancelled', reason)
-        if (response.success) {
-            toast.success("Appointment cancelled successfully")
-            fetchDetails()
-        } else {
-            toast.error(response.message || "Failed to cancel appointment")
+        // 2. 25-minute rule check
+        const now = new Date();
+        const [endH, endM] = appointment.appointmentEndTime.split(':').map(Number);
+        const apptEnd = new Date(appointment.appointmentDate);
+        apptEnd.setHours(endH, endM, 0, 0);
+        const checkoutAllowedTime = new Date(apptEnd.getTime() - 5 * 60 * 1000);
+
+        if (now < checkoutAllowedTime) {
+            Swal.fire({
+                title: 'Premature Checkout',
+                text: `You must attend at least 25 minutes of the slot. Checkout will be available after ${checkoutAllowedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
+                icon: 'error',
+                confirmButtonColor: '#3b82f6',
+                customClass: { popup: 'rounded-3xl' }
+            });
+            return;
         }
-        setIsActionLoading(false)
+
+        const result = await Swal.fire({
+            title: 'End Consultation?',
+            text: "Are you sure you want to checkout? This will finalize the medical record.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3b82f6',
+            confirmButtonText: 'Yes, Checkout',
+            customClass: {
+                popup: 'rounded-3xl'
+            }
+        });
+
+        if (result.isConfirmed) {
+            setIsActionLoading(true)
+            const response = await appointmentApi.checkOut(id as string, 'doctor')
+            if (response.success) {
+                toast.success("Checked out successfully. Record finalized.")
+                router.push("/doctor/appointments")
+            } else {
+                toast.error(response.message || "Checkout failed")
+            }
+            setIsActionLoading(false)
+        }
     }
 
     if (isLoading) {
@@ -131,6 +230,7 @@ export default function AppointmentDetailPage() {
     if (!appointment) return null
 
     const isConsultationActive = !!appointment.checkIn?.vetCheckInTime && appointment.status !== 'completed' && appointment.status !== 'cancelled'
+    const canViewChat = !!appointment.checkIn?.vetCheckInTime || appointment.status === 'completed'
 
     return (
         <div className="w-full space-y-6">
@@ -152,11 +252,11 @@ export default function AppointmentDetailPage() {
                 {/* Tab Navigation */}
                 <div className="px-8 mt-6 flex gap-8 border-b border-gray-50">
                     <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Activity size={14}/>} label="Full Details" />
+                    {canViewChat && (
+                        <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14}/>} label={appointment.status === 'completed' ? "Chat History" : "Live Consultation"} />
+                    )}
                     {isConsultationActive && (
-                        <>
-                            <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14}/>} label="Live Consultation" />
-                            <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="E-Prescription" />
-                        </>
+                        <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="E-Prescription" />
                     )}
                     {appointment.status === 'completed' && prescription && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="View Medical Record" />
@@ -199,7 +299,16 @@ export default function AppointmentDetailPage() {
                                             Start Consultation
                                         </button>
                                     )}
-                                    {appointment.status === 'confirmed' && (
+                                    {appointment.status === 'confirmed' && appointment.checkIn?.vetCheckInTime && !appointment.checkOut?.vetCheckOutTime && (
+                                        <button
+                                            onClick={handleManualCheckout}
+                                            disabled={isActionLoading}
+                                            className="px-6 py-3.5 bg-blue-50 text-blue-600 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-100 transition border border-blue-100 disabled:opacity-50"
+                                        >
+                                            Manual Checkout
+                                        </button>
+                                    )}
+                                    {(appointment.status === 'confirmed' || appointment.status === 'booked' || appointment.status === 'BOOKED') && (
                                         <button
                                             onClick={handleCancel}
                                             disabled={isActionLoading}
@@ -243,8 +352,31 @@ export default function AppointmentDetailPage() {
                                         </div>
                                         <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
                                             <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Fee</p>
-                                            <p className="text-xs font-black text-blue-950 uppercase">${appointment.consultationFees} • {appointment.paymentStatus}</p>
+                                            <p className="text-xs font-black text-blue-950 uppercase">₹{appointment.totalAmount} • {appointment.paymentStatus}</p>
                                         </div>
+                                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Date</p>
+                                             <p className="text-xs font-black text-blue-950 uppercase">{new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                                        </div>
+                                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Timings</p>
+                                            <p className="text-xs font-black text-blue-950 uppercase">{`${appointment.appointmentStartTime} - ${appointment.appointmentEndTime}`}</p>
+                                            
+                                            {/* <DataField label="Time Window" value={`${appointment.appointmentStartTime} - ${appointment.appointmentEndTime}`} /> */}
+                                            {/* <DataField label="Payment Status" value={appointment.paymentStatus} isStatus statusType={appointment.paymentStatus === 'PAID' ? 'success' : 'error'} /> */}
+                                        </div>
+
+                                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                                           <p className="text-[9px] font-black text-gray-400 uppercase mb-1"></p>
+                                            {/* <DataField label="Scheduled Date" value={new Date(appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} /> */}
+                                          <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Status</p>
+                                            <p className="text-xs font-black text-blue-950 uppercase">{appointment.paymentStatus }</p>
+
+                                           
+                                        </div>
+
+
+
                                     </div>
                                 </section>
 
@@ -275,7 +407,7 @@ export default function AppointmentDetailPage() {
                         </div>
                     )}
 
-                    {activeTab === 'chat' && isConsultationActive && (
+                    {activeTab === 'chat' && canViewChat && (
                         <div className="animate-in slide-in-from-right-4 duration-500">
                             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                                 <div className="lg:col-span-3">
@@ -283,7 +415,7 @@ export default function AppointmentDetailPage() {
                                         messages={messages} 
                                         onSendMessage={sendMessage} 
                                         currentUserId={user?.id || ''} 
-                                        isReadOnly={false} 
+                                        isReadOnly={appointment.status === 'completed' || appointment.status === 'cancelled'} 
                                     />
                                 </div>
                                 <div className="space-y-6">

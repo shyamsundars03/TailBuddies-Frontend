@@ -28,10 +28,11 @@ export const appointmentApi = {
 
 
 
-    getOwnerAppointments: async (page = 1, limit = 10, search = "", status = "") => {
+    getOwnerAppointments: async (page = 1, limit = 10, search = "", status = "", timeframe = "") => {
         try {
             let url = `/appointments?page=${page}&limit=${limit}&search=${search}`;
             if (status) url += `&status=${status}`;
+            if (timeframe) url += `&timeframe=${timeframe}`;
             const response = await apiClient.get(url);
             return response.data;
         } catch (error: unknown) {

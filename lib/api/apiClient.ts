@@ -113,7 +113,7 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                logger.info('Attempting to refresh token...');
+                logger.info(`Session expired (401). Attempting to refresh token for ${originalRequest.url}`);
                 const response = await axios.post(
                     `${apiClient.defaults.baseURL}/auth/refresh-token`,
                     {},
@@ -126,21 +126,25 @@ apiClient.interceptors.response.use(
                 // Save new token to cookie
                 clientCookies.set('token', accessToken, 7 * 24 * 60 * 60); // 7 days
 
+                // Update default authorization header for future requests
+                apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+                
                 processQueue(null, accessToken);
                 
                 // Update original request header and retry
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return apiClient(originalRequest);
-            } catch (err) {
-                logger.error('Token refresh failed', err);
-                processQueue(err, null);
+            } catch (refreshError: any) {
+                logger.error('Token refresh failed', refreshError);
+                processQueue(refreshError, null);
                 clientCookies.delete('token');
                 localStorage.removeItem('user');
                 
-                if (typeof window !== 'undefined' && window.location.pathname !== '/signin') {
-                    window.location.href = '/signin?error=session_expired';
+                if (typeof window !== 'undefined' && !window.location.pathname.includes('/signin')) {
+                    // Use replace to avoid back-button loops
+                    window.location.replace('/signin?error=session_expired');
                 }
-                return Promise.reject(err);
+                return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
             }
