@@ -13,7 +13,10 @@ import { useAppSelector } from "@/lib/redux/hooks"
 import { useConsultation } from "@/lib/hooks/useConsultation"
 import { ConsultationChat } from "@/components/consultation/ConsultationChat"
 import { PrescriptionView } from "@/components/consultation/PrescriptionView"
+import { ReviewModal } from "@/components/owner/ReviewModal"
+import { reviewApi } from "@/lib/api/review.api"
 import Swal from "sweetalert2"
+// import { Star } from "lucide-react"
 
 export default function SingleBookingViewPage() {
     const params = useParams()
@@ -24,6 +27,8 @@ export default function SingleBookingViewPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
+    const [isReviewOpen, setIsReviewOpen] = useState(false)
+    const [review, setReview] = useState<any>(null)
 
     const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(params?.id as string, user?.id || (user as any)?._id || '', 'owner', () => {
         toast.info("Booking status updated");
@@ -47,6 +52,10 @@ export default function SingleBookingViewPage() {
                 const presResponse = await prescriptionApi.getByAppointmentId(params.id as string)
                 if (presResponse.success) {
                     setPrescription(presResponse.data)
+                }
+                const reviewResponse = await reviewApi.getByAppointment(params.id as string)
+                if (reviewResponse.success) {
+                    setReview(reviewResponse.data)
                 }
             }
         } else {
@@ -247,7 +256,6 @@ export default function SingleBookingViewPage() {
                                 Check-In Now
                             </button>
                         )}
-                        {appointment.status === 'confirmed' && appointment.checkIn?.ownerCheckInTime && !appointment.checkOut?.ownerCheckOutTime && (
                             <button
                                 onClick={handleCheckout}
                                 disabled={isActionLoading}
@@ -255,6 +263,20 @@ export default function SingleBookingViewPage() {
                             >
                                 {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} className="hidden" />}
                                 Check-Out
+                            </button>
+                    
+                        {appointment.status === 'completed' && (
+                            <button
+                                onClick={() => setIsReviewOpen(true)}
+                                className={cn(
+                                    "px-8 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition shadow-lg active:scale-95 flex items-center gap-2",
+                                    review 
+                                        ? "bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100 shadow-amber-50" 
+                                        : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100"
+                                )}
+                            >
+                                <Star size={14} className={review ? "fill-amber-600" : ""} />
+                                {review ? 'Edit Review' : 'Add Review & Rating'}
                             </button>
                         )}
                     </div>
@@ -319,6 +341,43 @@ export default function SingleBookingViewPage() {
                                 </p>
                             </SectionLayout>
 
+                            {review && (
+                                <SectionLayout title="My Feedback">
+                                    <div className="flex flex-col gap-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex gap-1">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star 
+                                                        key={i} 
+                                                        size={18} 
+                                                        className={cn(i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-200")} 
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-3 py-1 rounded-full border border-amber-100/50">
+                                                Rating: {review.rating}/5
+                                            </span>
+                                        </div>
+                                        <div className="bg-white/50 rounded-2xl p-6 border border-gray-100 shadow-inner">
+                                            <p className="text-sm font-medium text-gray-700 italic leading-relaxed">
+                                                "{review.comment || "No comment provided"}"
+                                            </p>
+                                        </div>
+
+                                        {review.isReplied && review.reply && (
+                                            <div className="ml-6 md:ml-10 bg-emerald-50/30 rounded-2xl p-6 space-y-3 border border-emerald-100/30 relative before:absolute before:-left-6 before:top-8 before:w-6 before:h-0.5 before:bg-emerald-100">
+                                                <div className="flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
+                                                    <CheckCircle2 size={14} /> Doctor's Response
+                                                </div>
+                                                <p className="text-xs font-medium text-gray-600 leading-relaxed italic pl-4 border-l-2 border-emerald-100">
+                                                    {review.reply.comment}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </SectionLayout>
+                            )}
+
                             {/* Transaction */}
                             <SectionLayout title="Transaction Info">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -351,6 +410,14 @@ export default function SingleBookingViewPage() {
                     )}
                 </div>
             </div>
+
+            <ReviewModal 
+                isOpen={isReviewOpen} 
+                onClose={() => setIsReviewOpen(false)} 
+                appointmentId={appointment._id}
+                existingReview={review}
+                onSuccess={fetchAppointment}
+            />
         </div>
     )
 }

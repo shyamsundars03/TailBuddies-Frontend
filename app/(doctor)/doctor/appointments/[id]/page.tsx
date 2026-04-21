@@ -12,8 +12,9 @@ import { useAppSelector } from "@/lib/redux/hooks"
 import { useConsultation } from "@/lib/hooks/useConsultation"
 import { ConsultationChat } from "@/components/consultation/ConsultationChat"
 import { PrescriptionForm } from "@/components/consultation/PrescriptionForm"
-import { PrescriptionView } from "@/components/consultation/PrescriptionView"
+import { reviewApi } from "@/lib/api/review.api"
 import Swal from "sweetalert2"
+import { Star,  Trash2, Edit2 } from "lucide-react"
 
 export default function AppointmentDetailPage() {
     const router = useRouter()
@@ -24,6 +25,9 @@ export default function AppointmentDetailPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
+    const [review, setReview] = useState<any>(null)
+    const [replyingTo, setReplyingTo] = useState(false)
+    const [replyComment, setReplyComment] = useState("")
 
     const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(id as string, user?.id || '', 'doctor', () => {
         toast.info("Appointment status updated");
@@ -45,6 +49,12 @@ export default function AppointmentDetailPage() {
             if (response.data.status === 'completed' || response.data.prescriptionId) {
                 const prescRes = await prescriptionApi.getByAppointmentId(id as string)
                 if (prescRes.success) setPrescription(prescRes.data)
+                
+                const reviewRes = await reviewApi.getByAppointment(id as string)
+                if (reviewRes.success) {
+                    setReview(reviewRes.data)
+                    // if (reviewRes.data.isReplied) setReplyComment(reviewRes.data.reply.comment)
+                }
             }
         } else {
             toast.error(response.message || "Failed to load appointment details")
@@ -218,6 +228,59 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
         }
     }
 
+    const handleReplySubmit = async (isUpdate = false) => {
+        if (!replyComment.trim()) {
+            toast.error("Reply cannot be empty")
+            return
+        }
+
+        const wordCount = replyComment.trim().split(/\s+/).filter(Boolean).length
+        if (wordCount > 100) {
+            toast.error("Reply cannot exceed 100 words")
+            return
+        }
+
+        setIsActionLoading(true)
+        const response = isUpdate 
+            ? await reviewApi.updateReply(review._id, replyComment)
+            : await reviewApi.reply(review._id, replyComment)
+
+        if (response.success) {
+            toast.success(isUpdate ? "Response updated" : "Response sent")
+            setReplyingTo(false)
+            fetchDetails()
+        } else {
+            toast.error(response.message || "Failed to post response")
+        }
+        setIsActionLoading(false)
+    }
+
+    const handleDeleteReply = async () => {
+        const result = await Swal.fire({
+            title: 'Delete Response?',
+            text: "Are you sure you want to remove your feedback response?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, Delete',
+            customClass: { popup: 'rounded-3xl' }
+        })
+
+        if (result.isConfirmed) {
+            setIsActionLoading(true)
+            const response = await reviewApi.deleteReply(review._id)
+            if (response.success) {
+                toast.success("Response deleted")
+                setReplyComment("")
+                fetchDetails()
+            } else {
+                toast.error(response.message || "Failed to delete response")
+            }
+            setIsActionLoading(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -379,6 +442,106 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
 
                                     </div>
                                 </section>
+
+                                {appointment.status === 'completed' && review && (
+                                    <section className="space-y-6">
+                                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-950 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Patient Feedback
+                                        </h3>
+                                        <div className="bg-amber-50/30 rounded-[2.5rem] p-8 border border-amber-100/50 shadow-sm transition-all hover:shadow-md">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <div className="flex gap-1">
+                                                    {[...Array(5)].map((_, i) => (
+                                                        <Star 
+                                                            key={i} 
+                                                            size={18} 
+                                                            className={cn(i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-200")} 
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-white/50 px-3 py-1 rounded-full border border-gray-100">
+                                                    Rating: {review.rating}/5
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-medium text-blue-950 leading-relaxed italic mb-8 pl-4 border-l-4 border-amber-200">
+                                                "{review.comment || "No written comment provided"}"
+                                            </p>
+
+                                            {/* Reply Area */}
+                                            <div className="mt-8 pt-8 border-t border-amber-100/50">
+                                                {replyingTo ? (
+                                                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                                        <div className="relative">
+                                                            <textarea
+                                                                value={replyComment}
+                                                                onChange={(e) => setReplyComment(e.target.value)}
+                                                                placeholder="Write a professional response to the patient..."
+                                                                className="w-full h-32 bg-white border-2 border-amber-100 rounded-3xl p-6 text-sm font-medium focus:outline-none focus:border-amber-300 transition-all resize-none shadow-inner"
+                                                            />
+                                                            <div className="absolute bottom-4 right-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                                {replyComment.trim().split(/\s+/).filter(Boolean).length} / 100 words
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex justify-end gap-3">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setReplyingTo(false)
+                                                                    setReplyComment(review.isReplied ? review.reply.comment : "")
+                                                                }}
+                                                                className="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600"
+                                                            >
+                                                                Discard
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleReplySubmit(!!review.isReplied)}
+                                                                disabled={isActionLoading || !replyComment.trim()}
+                                                                className="px-8 py-2.5 bg-blue-950 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-blue-900/10"
+                                                            >
+                                                                {isActionLoading && <Loader2 size={12} className="animate-spin" />}
+                                                                {review.isReplied ? "Update Response" : "Submit Response"}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    review.isReplied ? (
+                                                        <div className="bg-emerald-50/40 rounded-3xl p-6 border border-emerald-100/50 relative group">
+                                                            <div className="flex items-center justify-between mb-4">
+                                                                <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-[0.2em]">
+                                                                    <CheckCircle2 size={14} /> My Response
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <button 
+                                                                        onClick={() => setReplyingTo(true)}
+                                                                        className="p-2 text-blue-500 hover:bg-white rounded-lg transition-all border border-transparent hover:border-blue-100"
+                                                                    >
+                                                                        <Edit2 size={14} />
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={handleDeleteReply}
+                                                                        className="p-2 text-rose-500 hover:bg-white rounded-lg transition-all border border-transparent hover:border-rose-100"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-xs font-medium text-gray-700 leading-relaxed italic pl-4 border-l-2 border-emerald-200">
+                                                                {review.reply.comment}
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <button 
+                                                            onClick={() => setReplyingTo(true)}
+                                                            className="flex items-center gap-2 text-blue-600 hover:text-white hover:bg-blue-600 px-8 py-3 rounded-2xl border border-blue-100 font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 group shadow-sm bg-white"
+                                                        >
+                                                            <MessageSquare size={14} className="group-hover:scale-110 transition-transform" />
+                                                            Post Response to Feedback
+                                                        </button>
+                                                    )
+                                                )}
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
 
                                 <section className="space-y-6">
                                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-950 flex items-center gap-2">

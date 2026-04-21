@@ -55,7 +55,7 @@ export default function DoctorServicesPage() {
 
     const loadDoctors = useCallback(async (page: number, search: string, activeFilters: any) => {
         setIsLoading(true)
-        const response = await doctorApi.getAllDoctors(page, 9, search, true, undefined, activeFilters)
+        const response = await doctorApi.getAllDoctors(page, 3, search, true, undefined, activeFilters)
         if (response.success) {
             setDoctors(response.data || [])
             setTotalPages(Math.ceil((response.total || 0) / (response.limit || 3)))

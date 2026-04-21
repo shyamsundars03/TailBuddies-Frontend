@@ -56,10 +56,10 @@ const menuItems: DoctorSidebarMenuItem[] = [
   { icon: Clock, label: "Available Timings", id: "timings", href: "/doctor/slots" },
   { icon: Users, label: "My Patients", id: "patients", href: "/doctor/patients" },
   { icon: CreditCard, label: "Subscription", id: "subscription", href: "#" },
-  { icon: Star, label: "Reviews", id: "reviews", href: "#" },
+  { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/doctor/reviews" },
   { icon: FileText, label: "Invoices", id: "invoices", href: "/doctor/invoices" },
-  // { icon: Bell, label: "Notifications", id: "notifications", href: "#", badge: true },
-  // { icon: MessageSquare, label: "Message", id: "message", href: "/doctor/chat" },
+  { icon: Bell, label: "Notifications", id: "notifications", href: "#", badge: true },
+  { icon: MessageSquare, label: "Message", id: "message", href: "/doctor/chat" },
   { icon: Bot, label: "Wallet", id: "wallet", href: "/doctor/wallet" },
 ]
 

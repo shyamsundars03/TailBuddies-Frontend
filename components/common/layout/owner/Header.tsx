@@ -4,16 +4,21 @@ import Link from "next/link"
 import { Search, Bell, MessageSquare, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import { useAppSelector } from "../../../../lib/redux/hooks"
+import { useState } from "react"
+import { NotificationPopover } from "../../ui/NotificationPopover"
 import { useSignin } from "../../../../lib/hooks/auth/useSignin"
 import Swal from "sweetalert2"
+import { cn } from "../../../../lib/utils/utils"
 
 export interface OwnerHeaderProps {
     className?: string
+    onChatClick?: () => void
 }
 
-export function OwnerHeader({ className }: OwnerHeaderProps) {
+export function OwnerHeader({ className, onChatClick }: OwnerHeaderProps) {
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
 
     const handleLogout = () => {
         Swal.fire({
@@ -67,11 +72,28 @@ export function OwnerHeader({ className }: OwnerHeaderProps) {
                 <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
                     <Search size={18} className="text-gray-700" />
                 </button>
-                <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
-                    <Bell size={18} className="text-gray-700" />
-                </button>
-                <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
-                    <MessageSquare size={18} className="text-gray-700" />
+                <div className="relative">
+                    <button 
+                        onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                        className={cn(
+                            "w-9 h-9 rounded-full flex items-center justify-center shadow hover:shadow-md transition relative",
+                            isNotificationsOpen ? "bg-blue-600 text-white" : "bg-white text-gray-700"
+                        )}
+                    >
+                        <Bell size={18} />
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center">
+                             <span className="text-[8px] font-bold text-white">2</span>
+                        </div>
+                    </button>
+                    {isNotificationsOpen && (
+                        <NotificationPopover onClose={() => setIsNotificationsOpen(false)} />
+                    )}
+                </div>
+                <button 
+                    onClick={onChatClick}
+                    className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition text-gray-700"
+                >
+                    <MessageSquare size={18} />
                 </button>
                 <button
                     onClick={handleLogout}

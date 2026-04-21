@@ -11,6 +11,7 @@ import {
     LogOut,
     ChevronRight,
     Search,
+    Star,
     type LucideIcon,
 } from "lucide-react"
 import { cn } from "../../../../lib/utils/utils"
@@ -50,12 +51,12 @@ const defaultMenuItems: SidebarMenuItem[] = [
     { icon: FileText, label: "My Bookings", id: "bookings", href: "/owner/bookings" },
     { icon: FileText, label: "Medical Records", id: "medical", href: "/owner/medical-records" },
     { icon: Calendar, label: "Calendar", id: "calendar", href: "#" },
-    // { icon: Phone, label: "Chat / Call", id: "chat", href: "/owner/chat", badge: true },
-    // { icon: MessageSquare, label: "AI Assistant", id: "ai", href: "/owner/ai-assistant" },
-    // { icon: Bell, label: "Notifications", id: "notifications", href: "#" },
+    { icon: Phone, label: "Chat / Call", id: "chat", href: "/owner/chat", badge: true },
+    { icon: MessageSquare, label: "AI Assistant", id: "ai", href: "/owner/ai-assistant" },
+    { icon: Bell, label: "Notifications", id: "notifications", href: "#" },
     { icon: Wallet, label: "Wallet", id: "wallet", href: "/owner/wallet" },
     { icon: FileText, label: "Subscription", id: "subscription", href: "#" },
-    { icon: FileText, label: "Reviews", id: "reviews", href: "#" },
+    { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/owner/reviews" },
 ]
 
 export function OwnerSidebar({

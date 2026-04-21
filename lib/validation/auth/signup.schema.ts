@@ -11,7 +11,7 @@ export const signupSchema = z.object({
   email: z
     .string()
     .min(1, 'Email is required')
-    .regex(/^[a-zA-Z0-9._%+-]+@gmail\.com$/, 'Please enter a valid Gmail address (@gmail.com)')
+    // .regex(/^[a-zA-Z0-9._%+-]/, 'Please enter a valid Gmail address (@gmail.com)')
     .toLowerCase()
     .trim(),
 
