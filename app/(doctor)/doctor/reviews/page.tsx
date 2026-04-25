@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils/utils"
 import { reviewApi } from "@/lib/api/review.api"
 import { toast } from "sonner"
 import Swal from "sweetalert2"
+import { Pagination } from "@/components/common/ui/Pagination"
 
 export default function DoctorReviewsPage() {
     const [reviews, setReviews] = useState<any[]>([])
@@ -15,12 +16,17 @@ export default function DoctorReviewsPage() {
     const [replyingTo, setReplyingTo] = useState<string | null>(null)
     const [replyComment, setReplyComment] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [page, setPage] = useState(1)
+    const [total, setTotal] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
 
-    const fetchReviews = useCallback(async () => {
+    const fetchReviews = useCallback(async (pageNum: number = 1) => {
         setIsLoading(true)
-        const response = await reviewApi.getDoctorReviews()
+        const response = await reviewApi.getDoctorReviews(pageNum, 4)
         if (response.success) {
             setReviews(response.data)
+            setTotal(response.total || 0)
+            setTotalPages(response.totalPages || 1)
         } else {
             toast.error(response.message || "Failed to fetch reviews")
         }
@@ -28,8 +34,13 @@ export default function DoctorReviewsPage() {
     }, [])
 
     useEffect(() => {
-        fetchReviews()
-    }, [fetchReviews])
+        fetchReviews(page)
+    }, [fetchReviews, page])
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 
     const handleReplySubmit = async (reviewId: string, isUpdate = false) => {
         if (!replyComment.trim()) {
@@ -124,7 +135,7 @@ export default function DoctorReviewsPage() {
                                 ))}
                             </div>
                         </div>
-                        <div className="text-center">
+                        {/* <div className="text-center">
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Response Rate</p>
                             <h2 className="text-2xl font-bold text-blue-950 leading-none">
                                 {reviews.length > 0 ? Math.round((repliedCount / reviews.length) * 100) : 0}%
@@ -132,7 +143,7 @@ export default function DoctorReviewsPage() {
                             <p className="text-[9px] font-bold border border-blue-50 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full mt-2 inline-block">
                                 {repliedCount}/{reviews.length} Replied
                             </p>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>
@@ -186,7 +197,7 @@ export default function DoctorReviewsPage() {
                                                     value={replyComment}
                                                     onChange={(e) => setReplyComment(e.target.value)}
                                                     placeholder="Address the patient's concerns professionally..."
-                                                    className="w-full h-32 bg-white border-2 border-blue-50 rounded-2xl p-5 text-sm font-medium focus:outline-none focus:border-blue-200 transition-all resize-none shadow-inner"
+                                                    className="w-full h-32  text-gray-600 bg-white border-2 border-blue-50 rounded-2xl p-5 text-sm font-medium focus:outline-none focus:border-blue-200 transition-all resize-none shadow-inner"
                                                 />
                                                 <div className="absolute bottom-4 right-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                                                     {replyComment.trim().split(/\s+/).filter(Boolean).length} / 100 words
@@ -263,6 +274,18 @@ export default function DoctorReviewsPage() {
                     ))
                 )}
             </div>
+
+            {totalPages > 1 && (
+                <div className="mt-12">
+                    <Pagination
+                        currentPage={page}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                        totalEntries={total}
+                        entriesPerPage={4}
+                    />
+                </div>
+            )}
         </div>
     )
 }

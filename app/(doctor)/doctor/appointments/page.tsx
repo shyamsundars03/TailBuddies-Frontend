@@ -40,6 +40,7 @@ export default function AppointmentsPage() {
         setIsLoading(true)
         let status = ""
         if (tab === "Upcoming") status = "confirmed" // Use confirmed status for upcoming
+        else if (tab === "Ongoing") status = "ongoing"
         else if (tab === "Cancelled") status = "cancelled"
         else if (tab === "Completed") status = "completed"
         else if (tab === "Requests") status = "cancel request"
@@ -109,20 +110,21 @@ export default function AppointmentsPage() {
                             className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64 text-black" 
                         />
                     </div>
-                    <div className="flex border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                    {/* <div className="flex border border-gray-200 rounded-lg overflow-hidden shrink-0">
                         <button className="p-2 bg-blue-600 text-white"><LayoutGrid size={18} /></button>
                         <button className="p-2 bg-white text-gray-400 hover:bg-gray-50"><List size={18} /></button>
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
             {/* Tabs & Date Range */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
                 <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50 rounded-xl w-fit">
-                    {["Upcoming", "Requests", "Cancelled", "Completed"].map((tab) => {
+                    {["Upcoming", "Ongoing", "Requests", "Cancelled", "Completed"].map((tab) => {
                         let count = 0;
                         if (allStats) {
                             if (tab === "Upcoming") count = allStats.upcoming;
+                            else if (tab === "Ongoing") count = allStats.ongoing;
                             else if (tab === "Requests") count = allStats.requests;
                             else if (tab === "Cancelled") count = allStats.cancelled;
                             else if (tab === "Completed") count = allStats.completed;
@@ -152,7 +154,7 @@ export default function AppointmentsPage() {
                         )
                     })}
                 </div>
-                <div className="flex flex-wrap items-center gap-4">
+                {/* <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500">
                         <CalendarIcon size={14} className="text-blue-600" />
                         <span>Today: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
@@ -161,7 +163,7 @@ export default function AppointmentsPage() {
                         <Filter size={14} className="text-blue-600" />
                         Filter By <ChevronDown size={12} />
                     </button>
-                </div>
+                </div> */}
             </div>
 
             {/* Appointment List */}
@@ -187,6 +189,7 @@ export default function AppointmentsPage() {
                                                 "px-2 py-0.5 text-[8px] text-white font-black rounded-full uppercase tracking-tighter",
                                                 apt.status === 'confirmed' ? "bg-emerald-500" :
                                                 apt.status === 'booked' ? "bg-blue-500" :
+                                                apt.status === 'ongoing' ? "bg-cyan-500" :
                                                 apt.status === 'cancel request' ? "bg-orange-500 animate-pulse" :
                                                 apt.status === 'refund request' ? "bg-purple-500" :
                                                 apt.status === 'cancelled' ? "bg-red-500" :

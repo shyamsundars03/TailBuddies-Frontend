@@ -47,7 +47,7 @@ function WalletPageContent() {
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [totalEntries, setTotalEntries] = useState(0)
-    const entriesPerPage = 10
+    const entriesPerPage = 5
 
     const fetchWalletData = useCallback(async () => {
         try {
@@ -170,7 +170,7 @@ function WalletPageContent() {
     }
 
 
-console.log(transactions)
+    console.log(transactions)
 
 
     return (
@@ -220,9 +220,9 @@ console.log(transactions)
                     </div>
                 </div>
 
-                <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl flex flex-col justify-center space-y-8">
-                    <h3 className="text-xs font-black text-blue-950 uppercase tracking-[0.2em] border-b border-gray-50 pb-4">Quick Stats</h3>
-                    <div className="space-y-6">
+                {/* <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl flex flex-col justify-center space-y-8"> */}
+                    {/* <h3 className="text-xs font-black text-blue-950 uppercase tracking-[0.2em] border-b border-gray-50 pb-4">Quick Stats</h3> */}
+                    {/* <div className="space-y-6">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-emerald-50 text-emerald-500 rounded-lg">
@@ -241,11 +241,11 @@ console.log(transactions)
                             </div>
                             <span className="font-bold text-gray-900">₹{transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0).toLocaleString()}</span>
                         </div>
-                    </div>
-                    <button className="w-full py-4 text-blue-600 font-black uppercase tracking-widest text-[10px] hover:bg-blue-50 rounded-xl transition-all">
+                    </div> */}
+                    {/* <button className="w-full py-4 text-blue-600 font-black uppercase tracking-widest text-[10px] hover:bg-blue-50 rounded-xl transition-all">
                         View Detailed Report
-                    </button>
-                </div>
+                    </button> */}
+                {/* </div> */}
             </div>
 
             {/* Transaction History */}

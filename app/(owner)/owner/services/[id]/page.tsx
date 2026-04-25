@@ -170,10 +170,14 @@ export default function DoctorProfilePage() {
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-3">
                                             <h2 className="text-2xl font-bold text-gray-900">{doctorName}</h2>
-                                            <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
-                                                <Star size={10} className="fill-white" />
-                                                4.8
-                                            </div>
+                                            {doctor.averageRating > 0 ? (
+                                                <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                                                    <Star size={10} className="fill-white" />
+                                                    {doctor.averageRating}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Yet to be rated</span>
+                                            )}
                                         </div>
                                         <p className="text-blue-600 font-bold text-sm uppercase tracking-wider">{specialtyName}</p>
                                     </div>

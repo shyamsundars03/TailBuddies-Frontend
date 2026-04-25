@@ -12,28 +12,37 @@ import { AdminPageContainer } from "../../../../components/common/layout/admin/P
 import { SearchInput } from "../../../../components/common/ui/SearchInput"
 import { DataTable, Column } from "../../../../components/common/ui/DataTable"
 import { Pagination } from "../../../../components/common/ui/Pagination"
+import { useDebounce } from "@/lib/hooks/useDebounce"
 
 export default function AdminReviewsListingPage() {
     const [reviews, setReviews] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearch = useDebounce(searchTerm, 500)
     const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 8
+    const [totalEntries, setTotalEntries] = useState(0)
+    const itemsPerPage = 4
 
-    const fetchReviews = useCallback(async () => {
+    const fetchReviews = useCallback(async (page: number, search: string) => {
         setIsLoading(true)
-        const response = await reviewApi.getAllReviews()
+        const response = await reviewApi.getAllReviews(page, itemsPerPage, search)
         if (response.success) {
             setReviews(response.data)
+            setTotalEntries(response.total || 0)
         } else {
             toast.error(response.message || "Failed to fetch reviews")
         }
         setIsLoading(false)
-    }, [])
+    }, [itemsPerPage])
 
     useEffect(() => {
-        fetchReviews()
-    }, [fetchReviews])
+        fetchReviews(1, debouncedSearch)
+        setCurrentPage(1)
+    }, [debouncedSearch, fetchReviews])
+
+    useEffect(() => {
+        fetchReviews(currentPage, debouncedSearch)
+    }, [currentPage, debouncedSearch, fetchReviews])
 
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
@@ -57,15 +66,8 @@ export default function AdminReviewsListingPage() {
         }
     }
 
-    const filteredReviews = reviews.filter(review => 
-        review.doctorId?.userId?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        review.ownerId?.username?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
-    const paginatedReviews = filteredReviews.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    )
+    // Backend handles pagination now
+    const displayReviews = reviews
 
     const columns: Column<any>[] = [
         {
@@ -135,12 +137,12 @@ export default function AdminReviewsListingPage() {
                     >
                         <Eye size={16} />
                     </Link>
-                    <button 
+                    {/* <button 
                         onClick={() => handleDelete(review._id)}
                         className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm"
                     >
                         <Trash2 size={16} />
-                    </button>
+                    </button> */}
                 </div>
             ),
             className: "text-right"
@@ -167,14 +169,17 @@ export default function AdminReviewsListingPage() {
                         <SearchInput
                             placeholder="Search by doctor or patient..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value)
+                                setCurrentPage(1)
+                            }}
                             containerClassName="w-72"
                         />
                     </div>
 
                     <DataTable
                         columns={columns}
-                        data={paginatedReviews}
+                        data={displayReviews}
                         keyExtractor={(r) => r._id}
                         isLoading={isLoading}
                         emptyMessage="No reviews found in the database."
@@ -184,9 +189,9 @@ export default function AdminReviewsListingPage() {
                     <div className="px-6 py-4 bg-gray-50/30">
                         <Pagination
                             currentPage={currentPage}
-                            totalPages={Math.ceil(filteredReviews.length / itemsPerPage) || 1}
+                            totalPages={Math.ceil(totalEntries / itemsPerPage) || 1}
                             onPageChange={setCurrentPage}
-                            totalEntries={filteredReviews.length}
+                            totalEntries={totalEntries}
                             entriesPerPage={itemsPerPage}
                         />
                     </div>

@@ -14,7 +14,9 @@ import { ConsultationChat } from "@/components/consultation/ConsultationChat"
 import { PrescriptionForm } from "@/components/consultation/PrescriptionForm"
 import { reviewApi } from "@/lib/api/review.api"
 import Swal from "sweetalert2"
-import { Star,  Trash2, Edit2 } from "lucide-react"
+import { Star, Trash2, Edit2, Video } from "lucide-react"
+import { VideoCall } from "@/components/consultation/VideoCall"
+import { PrescriptionView } from "@/components/consultation/PrescriptionView"
 
 export default function AppointmentDetailPage() {
     const router = useRouter()
@@ -24,7 +26,8 @@ export default function AppointmentDetailPage() {
     const [prescription, setPrescription] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
+    const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription' | 'video'>('details')
+    const [agoraConfig, setAgoraConfig] = useState<any>(null)
     const [review, setReview] = useState<any>(null)
     const [replyingTo, setReplyingTo] = useState(false)
     const [replyComment, setReplyComment] = useState("")
@@ -41,8 +44,8 @@ export default function AppointmentDetailPage() {
         }
     }, [chatError])
 
-    const fetchDetails = async () => {
-        setIsLoading(true)
+    const fetchDetails = async (isInitial = false) => {
+        if (isInitial) setIsLoading(true)
         const response = await appointmentApi.getAppointmentById(id as string)
         if (response.success) {
             setAppointment(response.data)
@@ -63,8 +66,38 @@ export default function AppointmentDetailPage() {
         setIsLoading(false)
     }
 
+    const fetchAgoraToken = async () => {
+        const userId = user?.id || (user as any)?._id
+        if (!appointment || !userId) {
+            console.log("Cannot fetch Agora token: missing appointment or user ID", { hasAppointment: !!appointment, userId });
+            return
+        }
+        const channelName = `consultation_${appointment._id}`
+        console.log("Fetching Agora token for:", { channelName, userId, role: 'publisher' });
+        const response = await appointmentApi.getAgoraToken(channelName, userId, 'publisher')
+        if (response.success) {
+            console.log("Agora token fetched successfully");
+            setAgoraConfig({
+                token: response.token,
+                channelName,
+                uid: userId,
+                appId: process.env.NEXT_PUBLIC_AGORA_APP_ID
+            })
+        } else {
+            console.error("Agora token fetch failed:", response.message);
+            toast.error("Failed to initialize video call")
+        }
+    }
+
     useEffect(() => {
-        if (id) fetchDetails()
+        const userId = user?.id || (user as any)?._id
+        if (activeTab === 'video' && appointment?.mode === 'online' && appointment?.status === 'ongoing' && !agoraConfig && userId) {
+            fetchAgoraToken()
+        }
+    }, [activeTab, appointment, agoraConfig, user])
+
+    useEffect(() => {
+        if (id) fetchDetails(true)
     }, [id])
 
 
@@ -93,8 +126,9 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
         const response = await appointmentApi.checkIn(id as string, 'doctor')
         if (response.success) {
             toast.success("Checked-in successfully")
-            fetchDetails()
-            setActiveTab('chat')
+            await fetchDetails()
+            const isOnlineConsultation = appointment?.mode === 'online'
+            setActiveTab(isOnlineConsultation ? 'video' : 'chat')
         } else {
             toast.error(response.message || "Check-in failed")
             fetchDetails()
@@ -292,8 +326,9 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
 
     if (!appointment) return null
 
-    const isConsultationActive = !!appointment.checkIn?.vetCheckInTime && appointment.status !== 'completed' && appointment.status !== 'cancelled'
-    const canViewChat = !!appointment.checkIn?.vetCheckInTime || appointment.status === 'completed'
+    const isConsultationActive = appointment.status === 'ongoing'
+    const canJoinVideo = isConsultationActive && appointment.mode === 'online'
+    const canViewChat = appointment.status === 'ongoing' || !!appointment.checkIn?.vetCheckInTime || appointment.status === 'completed'
 
     return (
         <div className="w-full space-y-6">
@@ -302,26 +337,79 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                 <div className="p-8 pb-0 flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-black text-[#002B49] uppercase tracking-tight">Appointment Review</h2>
-                        <p className="text-xs font-bold text-blue-600 uppercase mt-1">Ref: TB-{appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs font-bold text-blue-600 uppercase">Ref: TB-{appointment.appointmentId || appointment._id.slice(-8).toUpperCase()}</p>
+                            <span className="w-1 h-1 rounded-full bg-gray-300" />
+                            <div className={cn(
+                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                                appointment.status === 'confirmed' ? "bg-emerald-500 text-white" :
+                                appointment.status === 'ongoing' ? "bg-blue-500 animate-pulse text-white" :
+                                appointment.status === 'cancelled' ? "bg-red-500 text-white" :
+                                appointment.status === 'completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
+                            )}>
+                                {appointment.status}
+                            </div>
+                        </div>
                     </div>
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 transition border border-gray-200 active:scale-95"
-                    >
-                        <ChevronLeft size={16} /> Close View
-                    </button>
+                    
+                    <div className="flex items-center gap-4">
+                        {/* Action Buttons moved to Header */}
+                        {appointment.status === 'confirmed' && !appointment.checkIn?.vetCheckInTime && (
+                            <button
+                                onClick={handleCheckIn}
+                                disabled={isActionLoading}
+                                className="px-6 py-2.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <Clock size={14} />}
+                                Start Consultation
+                            </button>
+                        )}
+                        
+                        {isConsultationActive && !appointment.checkOut?.vetCheckOutTime && (
+                            <button
+                                onClick={handleManualCheckout}
+                                disabled={isActionLoading}
+                                className="px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                Manual Checkout
+                            </button>
+                        )}
+
+                        {(appointment.status === 'confirmed' || appointment.status === 'booked' || appointment.status === 'BOOKED') && (
+                            <button
+                                onClick={handleCancel}
+                                disabled={isActionLoading}
+                                className="px-4 py-2.5 bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 transition border border-red-100 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                        )}
+
+                        <div className="w-[1px] h-8 bg-gray-100 mx-2" />
+
+                        <button
+                            onClick={() => router.back()}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 transition border border-gray-200 active:scale-95"
+                        >
+                            <ChevronLeft size={16} /> Close
+                        </button>
+                    </div>
                 </div>
 
                 {/* Tab Navigation */}
                 <div className="px-8 mt-6 flex gap-8 border-b border-gray-50">
                     <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Activity size={14}/>} label="Full Details" />
-                    {canViewChat && (
+                    {canViewChat && appointment.mode !== 'online' && (
                         <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14}/>} label={appointment.status === 'completed' ? "Chat History" : "Live Consultation"} />
                     )}
-                    {isConsultationActive && (
+                    {canJoinVideo && (
+                        <TabButton active={activeTab === 'video'} onClick={() => setActiveTab('video')} icon={<Video size={14}/>} label="Video Call" />
+                    )}
+                    {appointment.status !== 'cancelled' && (appointment.status !== 'completed' || !appointment.prescriptionId) && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="E-Prescription" />
                     )}
-                    {appointment.status === 'completed' && prescription && (
+                    {appointment.status === 'completed' && appointment.prescriptionId && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="View Medical Record" />
                     )}
                 </div>
@@ -330,56 +418,63 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                     {activeTab === 'details' && (
                         <div className="space-y-8 animate-in fade-in duration-300">
                             {/* Actions & Status */}
-                            <div className="bg-gray-50 border border-gray-200 rounded-[2rem] p-8 flex flex-wrap items-center justify-between gap-6 shadow-sm">
-                                <div className="flex items-center gap-6">
+                            {/* Check-in Tracking Dashboard */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-[2rem] p-8 space-y-6 shadow-sm">
+                                <div className="flex items-center justify-between flex-wrap gap-4">
                                     <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Current Status</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Consultation Status</p>
                                         <div className={cn(
                                             "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm inline-block",
                                             appointment.status === 'confirmed' ? "bg-emerald-500 text-white" :
-                                                appointment.status === 'cancelled' ? "bg-red-500 text-white" :
-                                                    appointment.status === 'completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
+                                            appointment.status === 'ongoing' ? "bg-blue-500 animate-pulse text-white" :
+                                            appointment.status === 'cancelled' ? "bg-red-500 text-white" :
+                                            appointment.status === 'completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
                                         )}>
                                             {appointment.status}
                                         </div>
                                     </div>
-                                    {appointment.checkIn?.vetCheckInTime && (
-                                        <div className="space-y-1">
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">In-Time</p>
-                                            <p className="text-xs font-black text-blue-900">{new Date(appointment.checkIn.vetCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                                        </div>
-                                    )}
+
+                                    <div className="flex items-center gap-4">
+                                        {/* Actions now in Header */}
+                                    </div>
                                 </div>
 
-                                <div className="flex items-center gap-4">
-                                    {appointment.status === 'confirmed' && !appointment.checkIn?.vetCheckInTime && (
-                                        <button
-                                            onClick={handleCheckIn}
-                                            disabled={isActionLoading}
-                                            className="px-10 py-3.5 bg-emerald-500 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-600 transition shadow-xl shadow-emerald-500/20 active:scale-95 flex items-center gap-3 disabled:opacity-50"
-                                        >
-                                            {isActionLoading ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
-                                            Start Consultation
-                                        </button>
-                                    )}
-                                    {appointment.status === 'confirmed' && appointment.checkIn?.vetCheckInTime && !appointment.checkOut?.vetCheckOutTime && (
-                                        <button
-                                            onClick={handleManualCheckout}
-                                            disabled={isActionLoading}
-                                            className="px-6 py-3.5 bg-blue-50 text-blue-600 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-100 transition border border-blue-100 disabled:opacity-50"
-                                        >
-                                            Manual Checkout
-                                        </button>
-                                    )}
-                                    {(appointment.status === 'confirmed' || appointment.status === 'booked' || appointment.status === 'BOOKED') && (
-                                        <button
-                                            onClick={handleCancel}
-                                            disabled={isActionLoading}
-                                            className="px-6 py-3.5 bg-red-50 text-red-500 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-red-100 transition border border-red-100 disabled:opacity-50"
-                                        >
-                                            Cancel Slot
-                                        </button>
-                                    )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className={cn(
+                                        "p-4 rounded-2xl border flex items-center justify-between transition-all",
+                                        appointment.checkIn?.vetCheckInTime ? "bg-emerald-50 border-emerald-100" : "bg-white border-gray-100 opacity-60"
+                                    )}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", appointment.checkIn?.vetCheckInTime ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400")}>
+                                                <Activity size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase">Doctor Status (You)</p>
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">{appointment.checkIn?.vetCheckInTime ? "Arrived" : "Not Checked In"}</p>
+                                            </div>
+                                        </div>
+                                        {appointment.checkIn?.vetCheckInTime && (
+                                            <p className="text-xs font-black text-emerald-600">{new Date(appointment.checkIn.vetCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        )}
+                                    </div>
+
+                                    <div className={cn(
+                                        "p-4 rounded-2xl border flex items-center justify-between transition-all",
+                                        appointment.checkIn?.ownerCheckInTime ? "bg-blue-50 border-blue-100" : "bg-white border-gray-100 opacity-60"
+                                    )}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", appointment.checkIn?.ownerCheckInTime ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-400")}>
+                                                <Clock size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase">Pet Owner Status</p>
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">{appointment.checkIn?.ownerCheckInTime ? "Arrived" : "Waiting..."}</p>
+                                            </div>
+                                        </div>
+                                        {appointment.checkIn?.ownerCheckInTime && (
+                                            <p className="text-xs font-black text-blue-600">{new Date(appointment.checkIn.ownerCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -552,6 +647,42 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                         <p className="text-xs font-medium text-gray-700 leading-[1.8] italic">"{appointment.problemDescription || "No initial description provided"}"</p>
                                     </div>
 
+                                    {appointment.status === 'cancelled' && appointment.cancellation && (
+                                        <div className="bg-red-50/40 rounded-[2rem] p-8 border border-red-100/50 shadow-sm space-y-6">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-[10px] font-black text-red-900 uppercase tracking-widest opacity-60">Cancellation Details</h4>
+                                                <div className="px-3 py-1 bg-white rounded-full border border-red-100 text-[9px] font-black text-red-500 uppercase">
+                                                    By: {
+                                                        appointment.cancellation.cancelledBy && typeof appointment.cancellation.cancelledBy === 'object' 
+                                                            ? appointment.cancellation.cancelledBy.username 
+                                                            : appointment.cancellation.cancelledBy === appointment.ownerId?._id 
+                                                                ? `${appointment.ownerId?.username} (Pet Owner)` 
+                                                                : appointment.cancellation.cancelledBy === appointment.doctorId?.userId?._id 
+                                                                    ? `Dr. ${appointment.doctorId?.userId?.username} (Doctor)`
+                                                                    : "System"
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Reason for Cancellation</p>
+                                                    <p className="text-sm font-medium text-red-600 italic">
+                                                        "{appointment.cancellation.cancelReason || "No reason provided"}"
+                                                    </p>
+                                                </div>
+                                                <div className="pt-4 border-t border-red-100/50 flex justify-between items-center">
+                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Cancelled At</p>
+                                                    <p className="text-[10px] font-black text-blue-900">
+                                                        {new Date(appointment.cancellation.cancelledAt).toLocaleString('en-GB', { 
+                                                            day: '2-digit', month: 'short', year: 'numeric',
+                                                            hour: '2-digit', minute: '2-digit'
+                                                        })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
                                         <p className="text-[9px] font-black text-blue-600 uppercase mb-3 px-1">Owner Contact Information</p>
                                         <div className="flex items-center justify-between">
@@ -605,22 +736,44 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                         </div>
                     )}
 
-                    {activeTab === 'prescription' && isConsultationActive && (
-                        <div className="animate-in slide-in-from-bottom-4 duration-500">
-                            <PrescriptionForm 
-                                onSubmit={handlePrescriptionSubmit} 
-                                isSubmitting={isActionLoading} 
-                            />
+                    {canJoinVideo && (
+                        <div className={cn("animate-in zoom-in-95 duration-500", activeTab === 'video' ? "block" : "contents")}>
+                            {agoraConfig ? (
+                                <VideoCall 
+                                    appId={agoraConfig.appId}
+                                    channelName={agoraConfig.channelName}
+                                    token={agoraConfig.token}
+                                    uid={agoraConfig.uid}
+                                    localName={`Dr. ${user?.username}`}
+                                    remoteName={appointment.ownerId?.username ?? undefined}
+                                    onEndCall={() => setActiveTab('details')}
+                                    minimized={activeTab !== 'video'}
+                                    onExpand={() => setActiveTab('video')}
+                                />
+                            ) : (
+                                <div className={cn("h-[600px] w-full bg-[#001524] rounded-[2.5rem] flex flex-col items-center justify-center gap-4", activeTab !== 'video' && "hidden")}>
+                                    <div className="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
+                                    <p className="text-white/40 text-xs font-black uppercase tracking-widest">Initializing Video Session...</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {activeTab === 'prescription' && appointment.status === 'completed' && prescription && (
+                    {activeTab === 'prescription' && appointment.status !== 'cancelled' && (
                         <div className="animate-in slide-in-from-bottom-4 duration-500">
-                            <PrescriptionView 
-                                prescription={prescription} 
-                                appointment={appointment}
-                                onDownload={handlePrescriptionDownload} 
-                            />
+                            {(!prescription || appointment.status !== 'completed') ? (
+                                <PrescriptionForm 
+                                    onSubmit={handlePrescriptionSubmit} 
+                                    isSubmitting={isActionLoading} 
+                                    initialData={prescription}
+                                />
+                            ) : (
+                                <PrescriptionView 
+                                    prescription={prescription} 
+                                    appointment={appointment}
+                                    onDownload={handlePrescriptionDownload} 
+                                />
+                            )}
                         </div>
                     )}
                 </div>

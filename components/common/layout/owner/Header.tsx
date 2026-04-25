@@ -4,11 +4,12 @@ import Link from "next/link"
 import { Search, Bell, MessageSquare, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import { useAppSelector } from "../../../../lib/redux/hooks"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { NotificationPopover } from "../../ui/NotificationPopover"
 import { useSignin } from "../../../../lib/hooks/auth/useSignin"
 import Swal from "sweetalert2"
 import { cn } from "../../../../lib/utils/utils"
+import { notificationApi } from "../../../../lib/api/notification.api"
 
 export interface OwnerHeaderProps {
     className?: string
@@ -19,6 +20,22 @@ export function OwnerHeader({ className, onChatClick }: OwnerHeaderProps) {
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+    const [unreadCount, setUnreadCount] = useState(0)
+
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            const response = await notificationApi.getNotifications('unread')
+            if (response.success) {
+                setUnreadCount(response.notifications?.length || 0)
+            }
+        }
+        if (user) {
+            fetchUnreadCount()
+            // Poll every minute
+            const interval = setInterval(fetchUnreadCount, 60000)
+            return () => clearInterval(interval)
+        }
+    }, [user])
 
     const handleLogout = () => {
         Swal.fire({
@@ -81,12 +98,24 @@ export function OwnerHeader({ className, onChatClick }: OwnerHeaderProps) {
                         )}
                     >
                         <Bell size={18} />
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center">
-                             <span className="text-[8px] font-bold text-white">2</span>
-                        </div>
+                        {unreadCount > 0 && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center">
+                                <span className="text-[8px] font-bold text-white">{unreadCount}</span>
+                            </div>
+                        )}
                     </button>
                     {isNotificationsOpen && (
-                        <NotificationPopover onClose={() => setIsNotificationsOpen(false)} />
+                        <NotificationPopover onClose={() => {
+                            setIsNotificationsOpen(false)
+                            // Refresh count when closed
+                            const fetchUnreadCount = async () => {
+                                const response = await notificationApi.getNotifications('unread')
+                                if (response.success) {
+                                    setUnreadCount(response.notifications?.length || 0)
+                                }
+                            }
+                            fetchUnreadCount()
+                        }} />
                     )}
                 </div>
                 <button 

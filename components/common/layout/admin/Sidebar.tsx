@@ -49,10 +49,10 @@ const menuItems: SidebarMenuItem[] = [
     { icon: Receipt, label: "Subscription", id: "subscriptions", href: "#" },
     { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "/admin/appointmentManagement" },
     { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "/admin/transactionManagement" },
-    { icon: CreditCard, label: "Payments", id: "payments", href: "#" },
-    { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "/admin/chatAssistant" },
+    { icon: CreditCard, label: "Payment Approvals", id: "payments", href: "/admin/paymentApprovals" },
+    // { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "/admin/chatAssistant" },
     { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/admin/reviews" },
-    { icon: BarChart3, label: "Report", id: "reports", href: "#" },
+    { icon: BarChart3, label: "Reports", id: "reports", href: "/admin/reports" },
 ]
 
 export const AdminSidebar = memo(function AdminSidebar({ onItemClick, className, activeItem }: AdminSidebarProps) {

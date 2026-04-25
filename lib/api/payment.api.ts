@@ -44,5 +44,17 @@ export const paymentApi = {
     getTransactionDetail: async (id: string) => {
         const response = await apiClient.get(`/payments/admin/transactions/${id}`);
         return response.data;
+    },
+    requestWithdrawal: async (amount: number) => {
+        const response = await apiClient.post('/payments/wallet/withdraw/request', { amount });
+        return response.data;
+    },
+    approveWithdrawal: async (id: string) => {
+        const response = await apiClient.patch(`/payments/admin/transactions/${id}/approve`);
+        return response.data;
+    },
+    rejectWithdrawal: async (id: string) => {
+        const response = await apiClient.patch(`/payments/admin/transactions/${id}/reject`);
+        return response.data;
     }
 };

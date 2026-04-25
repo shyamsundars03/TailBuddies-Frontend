@@ -8,6 +8,8 @@ import Swal from "sweetalert2"
 import { useState } from "react"
 import { NotificationPopover } from "../../ui/NotificationPopover"
 import { cn } from "../../../../lib/utils/utils"
+import { useEffect } from "react"
+import { notificationApi } from "../../../../lib/api/notification.api"
 
 
 
@@ -15,6 +17,21 @@ export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+    const [unreadCount, setUnreadCount] = useState(0)
+
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            const response = await notificationApi.getNotifications('unread')
+            if (response.success) {
+                setUnreadCount(response.notifications?.length || 0)
+            }
+        }
+        if (user) {
+            fetchUnreadCount()
+            const interval = setInterval(fetchUnreadCount, 60000)
+            return () => clearInterval(interval)
+        }
+    }, [user])
 
     const handleLogout = () => {
         Swal.fire({
@@ -65,12 +82,23 @@ export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
                          )}
                     >
                         <Bell size={18} />
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-blue-600 flex items-center justify-center">
-                             <span className="text-[8px] font-bold text-white">2</span>
-                        </div>
+                        {unreadCount > 0 && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-blue-600 flex items-center justify-center">
+                                <span className="text-[8px] font-bold text-white">{unreadCount}</span>
+                            </div>
+                        )}
                     </button>
                     {isNotificationsOpen && (
-                        <NotificationPopover onClose={() => setIsNotificationsOpen(false)} />
+                        <NotificationPopover onClose={() => {
+                            setIsNotificationsOpen(false)
+                            const fetchUnreadCount = async () => {
+                                const response = await notificationApi.getNotifications('unread')
+                                if (response.success) {
+                                    setUnreadCount(response.notifications?.length || 0)
+                                }
+                            }
+                            fetchUnreadCount()
+                        }} />
                     )}
                 </div>
                  <button 

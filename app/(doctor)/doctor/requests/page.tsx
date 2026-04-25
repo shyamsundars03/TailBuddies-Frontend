@@ -78,7 +78,7 @@ export default function RequestsPage() {
                     toast.success("Appointment rejected successfully")
                     fetchRequestsData(currentPage)
                 } else {
-                    toast.error(response.error || "Failed to reject appointment")
+                    toast.error(response.message || "Failed to reject appointment")
                 }
             }
         } else {
@@ -98,7 +98,7 @@ export default function RequestsPage() {
                     toast.success("Appointment accepted successfully")
                     fetchRequestsData(currentPage)
                 } else {
-                    toast.error(response.error || "Failed to accept appointment")
+                    toast.error(response.message || "Failed to accept appointment")
                 }
             }
         }

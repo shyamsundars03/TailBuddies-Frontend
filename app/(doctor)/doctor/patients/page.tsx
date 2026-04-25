@@ -17,19 +17,23 @@ export default function PatientsPage() {
 
     const initialSearch = searchParams.get('search') || ""
     const initialPage = parseInt(searchParams.get('page') || "1")
+    const initialSpecies = searchParams.get('species') || ""
+    const initialDate = searchParams.get('date') || ""
 
     const [patients, setPatients] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState(initialSearch)
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const [selectedSpecies, setSelectedSpecies] = useState(initialSpecies)
+    const [selectedDate, setSelectedDate] = useState(initialDate)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [totalEntries, setTotalEntries] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
     const entriesPerPage = 9
 
-    const fetchPatients = useCallback(async (page: number, search: string) => {
+    const fetchPatients = useCallback(async (page: number, search: string, species: string, date: string) => {
         setIsLoading(true)
-        const response = await appointmentApi.getDoctorPatients(page, entriesPerPage, search)
+        const response = await appointmentApi.getDoctorPatients(page, entriesPerPage, search, species, date)
         if (response.success) {
             setPatients(response.data || [])
             setTotalEntries(response.total || 0)
@@ -42,16 +46,18 @@ export default function PatientsPage() {
     useEffect(() => {
         const params = new URLSearchParams()
         if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
+        if (selectedSpecies) params.set('species', selectedSpecies)
+        if (selectedDate) params.set('date', selectedDate)
         if (currentPage > 1) params.set('page', currentPage.toString())
         
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
-    }, [debouncedSearchTerm, currentPage, pathname, router])
+    }, [debouncedSearchTerm, selectedSpecies, selectedDate, currentPage, pathname, router])
 
     // Load data
     useEffect(() => {
-        fetchPatients(currentPage, debouncedSearchTerm)
-    }, [currentPage, debouncedSearchTerm, fetchPatients])
+        fetchPatients(currentPage, debouncedSearchTerm, selectedSpecies, selectedDate)
+    }, [currentPage, debouncedSearchTerm, selectedSpecies, selectedDate, fetchPatients])
 
     // Debounce search
     useEffect(() => {
@@ -80,26 +86,65 @@ export default function PatientsPage() {
                             placeholder="Search patients..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 text-black" 
+                            className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-72" 
                         />
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <div className="flex gap-2 p-1 bg-gray-50 rounded-xl invisible">
-                        {/* Tab filtering can be added here if needed */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="relative group">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 group-hover:scale-110 transition-transform" size={16} />
+                            <input 
+                                type="date" 
+                                value={selectedDate}
+                                onChange={(e) => {
+                                    setSelectedDate(e.target.value)
+                                    setCurrentPage(1)
+                                }}
+                                className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="relative group">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 group-hover:rotate-12 transition-transform" size={16} />
+                            <select
+                                value={selectedSpecies}
+                                onChange={(e) => {
+                                    setSelectedSpecies(e.target.value)
+                                    setCurrentPage(1)
+                                }}
+                                className="pl-10 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none transition-all cursor-pointer min-w-[140px]"
+                            >
+                                <option value="">All Categories</option>
+                                <option value="dog">Dogs</option>
+                                <option value="cat">Cats</option>
+                                <option value="bird">Birds</option>
+                                <option value="rabbit">Rabbits</option>
+                            </select>
+                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600">
-                            <Calendar size={16} className="text-blue-600" />
-                            <span className="text-xs">09 December 25 - 09 December 25</span>
+                    <div className="flex items-center gap-2">
+                        {(selectedSpecies || selectedDate || searchTerm) && (
+                            <button 
+                                onClick={() => {
+                                    setSearchTerm("")
+                                    setSelectedSpecies("")
+                                    setSelectedDate("")
+                                    setCurrentPage(1)
+                                }}
+                                className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 hover:text-rose-600 transition-colors mr-2"
+                            >
+                                Clear Filters
+                            </button>
+                        )}
+                        <div className="px-4 py-2.5 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                            <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
+                                {totalEntries} {totalEntries === 1 ? 'Patient' : 'Patients'} Found
+                            </p>
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium group text-gray-600">
-                            <Filter size={16} className="text-blue-600" />
-                            <span className="text-xs group-hover:text-blue-600 transition">Filter By</span>
-                            <ChevronDown size={14} className="text-gray-400" />
-                        </button>
                     </div>
                 </div>
             </div>

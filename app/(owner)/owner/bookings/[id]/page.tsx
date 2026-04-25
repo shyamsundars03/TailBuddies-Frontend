@@ -16,7 +16,8 @@ import { PrescriptionView } from "@/components/consultation/PrescriptionView"
 import { ReviewModal } from "@/components/owner/ReviewModal"
 import { reviewApi } from "@/lib/api/review.api"
 import Swal from "sweetalert2"
-// import { Star } from "lucide-react"
+import { VideoCall } from "@/components/consultation/VideoCall"
+import { Video } from "lucide-react"
 
 export default function SingleBookingViewPage() {
     const params = useParams()
@@ -26,7 +27,8 @@ export default function SingleBookingViewPage() {
     const [prescription, setPrescription] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription'>('details')
+    const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription' | 'video'>('details')
+    const [agoraConfig, setAgoraConfig] = useState<any>(null)
     const [isReviewOpen, setIsReviewOpen] = useState(false)
     const [review, setReview] = useState<any>(null)
 
@@ -42,9 +44,9 @@ export default function SingleBookingViewPage() {
         }
     }, [chatError])
 
-    const fetchAppointment = async () => {
+    const fetchAppointment = async (isInitial = false) => {
         if (!params?.id) return
-        setIsLoading(true)
+        if (isInitial) setIsLoading(true)
         const response = await appointmentApi.getAppointmentById(params.id as string)
         if (response.success) {
             setAppointment(response.data)
@@ -64,8 +66,38 @@ export default function SingleBookingViewPage() {
         setIsLoading(false)
     }
 
+    const fetchAgoraToken = async () => {
+        const userId = user?.id || (user as any)?._id
+        if (!appointment || !userId) {
+            console.log("Cannot fetch Agora token: missing appointment or user ID", { hasAppointment: !!appointment, userId });
+            return
+        }
+        const channelName = `consultation_${appointment._id}`
+        console.log("Fetching Agora token for:", { channelName, userId, role: 'subscriber' });
+        const response = await appointmentApi.getAgoraToken(channelName, userId, 'subscriber')
+        if (response.success) {
+            console.log("Agora token fetched successfully");
+            setAgoraConfig({
+                token: response.token,
+                channelName,
+                uid: userId,
+                appId: process.env.NEXT_PUBLIC_AGORA_APP_ID
+            })
+        } else {
+            console.error("Agora token fetch failed:", response.message);
+            toast.error("Failed to initialize video call")
+        }
+    }
+
     useEffect(() => {
-        fetchAppointment()
+        const userId = user?.id || (user as any)?._id
+        if (activeTab === 'video' && appointment?.mode === 'online' && appointment?.status === 'ongoing' && !agoraConfig && userId) {
+            fetchAgoraToken()
+        }
+    }, [activeTab, appointment, agoraConfig, user])
+
+    useEffect(() => {
+        fetchAppointment(true)
     }, [params?.id])
 
     const handleCheckIn = async () => {
@@ -185,8 +217,9 @@ export default function SingleBookingViewPage() {
 
     const doctorUser = appointment.doctorId?.userId;
     const pet = appointment.petId;
-    const isConsultationActive = !!appointment.checkIn?.ownerCheckInTime && appointment.status !== 'completed' && appointment.status !== 'cancelled'
-    const canViewChat = !!appointment.checkIn?.ownerCheckInTime || appointment.status === 'completed'
+    const isConsultationActive = appointment.status === 'ongoing'
+    const canJoinVideo = isConsultationActive && appointment.mode === 'online'
+    const canViewChat = appointment.status === 'ongoing' || !!appointment.checkIn?.ownerCheckInTime || appointment.status === 'completed'
 
     console.log(appointment)
     console.log("wefwefe", prescription)
@@ -231,6 +264,7 @@ export default function SingleBookingViewPage() {
                         <div className={cn(
                             "font-black text-[10px] uppercase px-4 py-1.5 rounded-full tracking-widest shadow-sm",
                             appointment.status === 'confirmed' ? "bg-emerald-500 text-white" :
+                                appointment.status === 'ongoing' ? "bg-blue-500 animate-pulse text-white" :
                                 appointment.status === 'cancelled' ? "bg-red-500 text-white" :
                                     appointment.status === 'completed' ? "bg-blue-600 text-white" : "bg-gray-400 text-white"
                         )}>
@@ -256,36 +290,49 @@ export default function SingleBookingViewPage() {
                                 Check-In Now
                             </button>
                         )}
-                            <button
-                                onClick={handleCheckout}
-                                disabled={isActionLoading}
-                                className="px-8 py-2.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-100 transition border border-blue-100 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} className="hidden" />}
-                                Check-Out
-                            </button>
-                    
-                        {appointment.status === 'completed' && (
-                            <button
-                                onClick={() => setIsReviewOpen(true)}
-                                className={cn(
-                                    "px-8 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition shadow-lg active:scale-95 flex items-center gap-2",
-                                    review 
-                                        ? "bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100 shadow-amber-50" 
-                                        : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100"
+                                 {isConsultationActive && (
+                                    <button
+                                        onClick={handleCheckout}
+                                        disabled={isActionLoading}
+                                        className="px-8 py-2.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-100 transition border border-blue-100 disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {isActionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} className="hidden" />}
+                                        Check-Out
+                                    </button>
                                 )}
-                            >
-                                <Star size={14} className={review ? "fill-amber-600" : ""} />
-                                {review ? 'Edit Review' : 'Add Review & Rating'}
-                            </button>
-                        )}
+
+                                {canJoinVideo && (
+                                    <button
+                                        onClick={() => setActiveTab('video')}
+                                        className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition shadow-lg active:scale-95 flex items-center gap-2"
+                                    >
+                                        <Video size={14} /> Enter Call
+                                    </button>
+                                )}
+                    
+                        <div className="flex flex-col gap-3">
+                            {appointment.status === 'completed' && (
+                                <button
+                                    onClick={() => setIsReviewOpen(true)}
+                                    className={cn(
+                                        "px-8 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition shadow-lg active:scale-95 flex items-center gap-2",
+                                        review 
+                                            ? "bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100 shadow-amber-50" 
+                                            : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100"
+                                    )}
+                                >
+                                    <Star size={14} className={review ? "fill-amber-600" : ""} />
+                                    {review ? 'Edit Review' : 'Add Review & Rating'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Tab Navigation */}
                 <div className="px-10 mt-8 flex gap-8 border-b border-gray-50">
                     <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Calendar size={14} />} label="Overview" />
-                    {canViewChat && (
+                    {canViewChat && appointment.mode !== 'online' && (
                         <TabButton 
                             active={activeTab === 'chat'} 
                             onClick={() => setActiveTab('chat')} 
@@ -293,7 +340,15 @@ export default function SingleBookingViewPage() {
                             label={appointment.status === 'completed' ? "History" : "Live Chat"} 
                         />
                     )}
-                    {appointment.status === 'completed' && prescription && (
+                    {isConsultationActive && appointment.mode === 'online' && (
+                        <TabButton 
+                            active={activeTab === 'video'} 
+                            onClick={() => setActiveTab('video')} 
+                            icon={<Video size={14} />} 
+                            label="Video Call" 
+                        />
+                    )}
+                    {prescription && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14} />} label="Medical Record" />
                     )}
                 </div>
@@ -301,7 +356,55 @@ export default function SingleBookingViewPage() {
                 <div className="p-10">
                     {activeTab === 'details' && (
                         <div className="space-y-10 animate-in fade-in duration-300">
-                            {/* Pet Section */}
+                            {/* Check-in Tracking */}
+                            <div className="bg-gray-50 border border-gray-100 rounded-[2rem] p-8 space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Arrival Tracking</h4>
+                                    <div className={cn(
+                                        "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                        appointment.status === 'ongoing' ? "bg-blue-500 text-white animate-pulse" : "bg-gray-200 text-gray-500"
+                                    )}>
+                                        {appointment.status}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className={cn(
+                                        "p-4 rounded-2xl border flex items-center justify-between",
+                                        appointment.checkIn?.ownerCheckInTime ? "bg-emerald-50 border-emerald-100" : "bg-white border-gray-100 opacity-60"
+                                    )}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", appointment.checkIn?.ownerCheckInTime ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400")}>
+                                                <Activity size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase">Your Status</p>
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">{appointment.checkIn?.ownerCheckInTime ? "Checked In" : "Not Arrived"}</p>
+                                            </div>
+                                        </div>
+                                        {appointment.checkIn?.ownerCheckInTime && (
+                                            <p className="text-xs font-black text-emerald-600">{new Date(appointment.checkIn.ownerCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        )}
+                                    </div>
+
+                                    <div className={cn(
+                                        "p-4 rounded-2xl border flex items-center justify-between",
+                                        appointment.checkIn?.vetCheckInTime ? "bg-blue-50 border-blue-100" : "bg-white border-gray-100 opacity-60"
+                                    )}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", appointment.checkIn?.vetCheckInTime ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-400")}>
+                                                <Clock size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase">Doctor Status</p>
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">{appointment.checkIn?.vetCheckInTime ? "Arrived" : "Waiting for Doctor..."}</p>
+                                            </div>
+                                        </div>
+                                        {appointment.checkIn?.vetCheckInTime && (
+                                            <p className="text-xs font-black text-blue-600">{new Date(appointment.checkIn.vetCheckInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                             <SectionLayout title="Pet Information">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                     <DataField label="Pet Name" value={pet?.name} />
@@ -378,10 +481,46 @@ export default function SingleBookingViewPage() {
                                 </SectionLayout>
                             )}
 
+                            {/* Cancellation Details */}
+                            {appointment.status === 'cancelled' && appointment.cancellation && (
+                                <SectionLayout title="Cancellation Details">
+                                    <div className="bg-red-50/50 rounded-2xl p-6 border border-red-100 space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <DataField 
+                                                label="Cancelled By" 
+                                                value={
+                                                    appointment.cancellation.cancelledBy && typeof appointment.cancellation.cancelledBy === 'object' 
+                                                        ? appointment.cancellation.cancelledBy.username 
+                                                        : appointment.cancellation.cancelledBy === appointment.ownerId?._id 
+                                                            ? `${appointment.ownerId?.username} (Pet Owner)` 
+                                                            : appointment.cancellation.cancelledBy === appointment.doctorId?.userId?._id 
+                                                                ? `Dr. ${appointment.doctorId?.userId?.username} (Doctor)`
+                                                                : "System/Staff"
+                                                } 
+                                                capitalize 
+                                            />
+                                            <DataField 
+                                                label="Cancelled At" 
+                                                value={new Date(appointment.cancellation.cancelledAt).toLocaleString('en-GB', { 
+                                                    day: '2-digit', month: 'short', year: 'numeric',
+                                                    hour: '2-digit', minute: '2-digit'
+                                                })} 
+                                            />
+                                        </div>
+                                        <div className="pt-4 border-t border-red-100/50">
+                                            <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-2">Reason for Cancellation</p>
+                                            <p className="text-xs font-medium text-red-600 italic leading-relaxed">
+                                                "{appointment.cancellation.cancelReason || "No reason provided"}"
+                                            </p>
+                                        </div>
+                                    </div>
+                                </SectionLayout>
+                            )}
+
                             {/* Transaction */}
                             <SectionLayout title="Transaction Info">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <DataField label="Method" value={appointment.paymentMethod  == "cod" ? "Cash After Consultation" : "COC"} capitalize />
+                                    <DataField label="Method" value={appointment.paymentMethod  == "cod" ? "Cash After Consultation" : appointment.paymentMethod } capitalize />
                                     <DataField label="Transaction Reference" value={appointment.transactionID || "N/A"} italic />
                                 </div>
                             </SectionLayout>
@@ -396,6 +535,29 @@ export default function SingleBookingViewPage() {
                                 currentUserId={user?.id || (user as any)?._id || ''}
                                 isReadOnly={appointment.status === 'completed' || appointment.status === 'cancelled'}
                             />
+                        </div>
+                    )}
+
+                    {canJoinVideo && (
+                        <div className={cn("animate-in zoom-in-95 duration-500", activeTab === 'video' ? "block" : "contents")}>
+                            {agoraConfig ? (
+                                <VideoCall 
+                                    appId={agoraConfig.appId}
+                                    channelName={agoraConfig.channelName}
+                                    token={agoraConfig.token}
+                                    uid={agoraConfig.uid}
+                                    localName={user?.username ?? undefined}
+                                    remoteName={`Dr. ${appointment.doctorId?.userId?.username}`}
+                                    onEndCall={() => setActiveTab('details')}
+                                    minimized={activeTab !== 'video'}
+                                    onExpand={() => setActiveTab('video')}
+                                />
+                            ) : (
+                                <div className={cn("h-[600px] w-full bg-[#001524] rounded-[2.5rem] flex flex-col items-center justify-center gap-4", activeTab !== 'video' && "hidden")}>
+                                    <div className="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
+                                    <p className="text-white/40 text-xs font-black uppercase tracking-widest">Initializing Video Session...</p>
+                                </div>
+                            )}
                         </div>
                     )}
 

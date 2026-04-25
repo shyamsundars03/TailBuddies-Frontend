@@ -85,9 +85,12 @@ export const appointmentApi = {
         }
     },
 
-    getDoctorPatients: async (page = 1, limit = 10, search = "") => {
+    getDoctorPatients: async (page = 1, limit = 10, search = "", species = "", date = "") => {
         try {
-            const response = await apiClient.get(`/appointments/doctor/patients?page=${page}&limit=${limit}&search=${search}`);
+            let url = `/appointments/doctor/patients?page=${page}&limit=${limit}&search=${search}`;
+            if (species) url += `&species=${species}`;
+            if (date) url += `&date=${date}`;
+            const response = await apiClient.get(url);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -265,6 +268,20 @@ export const appointmentApi = {
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
                 return { success: false, message: error.response?.data?.message || 'Failed to check slot availability' };
+            }
+            return { success: false, message: 'An unknown error occurred' };
+        }
+    },
+    getAgoraToken: async (channelName: string, uid?: string | number, role?: 'publisher' | 'subscriber') => {
+        try {
+            let url = `/agora/rtc-token?channelName=${channelName}`;
+            if (uid) url += `&uid=${uid}`;
+            if (role) url += `&role=${role}`;
+            const response = await apiClient.get(url);
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch Agora token' };
             }
             return { success: false, message: 'An unknown error occurred' };
         }

@@ -97,7 +97,7 @@ export const ConsultationChat: React.FC<ConsultationChatProps> = ({
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         placeholder={isReadOnly ? "Chat disabled after consultation" : "Type your message here..."}
-                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="flex-1 text-gray-900 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                     <button
                         disabled={isReadOnly}

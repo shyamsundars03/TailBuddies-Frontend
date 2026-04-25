@@ -146,6 +146,12 @@ export default function MyBookingsPage() {
                             active={activeTab === "confirmed"} 
                             onClick={() => handleTabChange("confirmed")} 
                         />
+                        <TabButton 
+                            label="Ongoing" 
+                            count={allStats?.ongoing || 0} 
+                            active={activeTab === "ongoing"} 
+                            onClick={() => handleTabChange("ongoing")} 
+                        />
                          <TabButton 
                             label="Pending Payment" 
                             count={allStats?.pending || 0} 
@@ -196,6 +202,7 @@ export default function MyBookingsPage() {
                                                         "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
                                                         booking.status === 'confirmed' ? "bg-emerald-100 text-emerald-600" :
                                                         booking.status === 'booked' ? "bg-blue-100 text-blue-600" :
+                                                        booking.status === 'ongoing' ? "bg-cyan-100 text-cyan-600" :
                                                         booking.status === 'cancelled' ? "bg-red-100 text-red-600" :
                                                         booking.status === 'payment pending' ? "bg-amber-100 text-amber-600" :
                                                         booking.status === 'cancel request' ? "bg-orange-100 text-orange-600" :

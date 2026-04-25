@@ -1,7 +1,21 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Mic, MicOff, Video, VideoOff, Monitor, MessageSquare, PhoneOff, ChevronLeft, MoreHorizontal } from "lucide-react"
+import { 
+    Mic, 
+    MicOff, 
+    Video, 
+    VideoOff, 
+    Monitor, 
+    MessageSquare, 
+    PhoneOff, 
+    ChevronLeft, 
+    MoreHorizontal,
+    X,
+    Maximize,
+    Settings,
+    MessageCircle
+} from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 
 export default function VideoCallPage() {
@@ -12,92 +26,87 @@ export default function VideoCallPage() {
     const [elapsedTime, setElapsedTime] = useState("13:38")
 
     return (
-        <div className="relative w-full h-full bg-[#1A1D21] flex flex-col overflow-hidden font-inter">
+        <div className="relative w-full h-full bg-[#1A1D21] flex flex-col overflow-hidden font-inter border-[12px] border-[#0F1114]">
             
-            {/* Top Bar */}
-            <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-20">
-                <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 flex items-center gap-3">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="text-white text-xs font-black uppercase tracking-[0.2em]">{elapsedTime} elapsed</span>
-                </div>
-
+            {/* Top Bar Actions */}
+            <div className="absolute top-8 right-12 z-20 flex items-center gap-4">
                 <button 
                     onClick={() => router.back()}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all border border-white/10"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[#002B49] hover:bg-blue-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 border border-white/10"
                 >
-                    <ChevronLeft size={16} strokeWidth={3} />
+                    <ChevronLeft size={14} strokeWidth={3} />
                     Back
                 </button>
             </div>
 
+            {/* Timer Overlay */}
+            <div className="absolute top-12 left-12 z-20">
+                <div className="bg-black/60 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/10 flex items-center gap-3">
+                    <ClockIcon size={14} className="text-white/60" />
+                    <span className="text-white text-[10px] font-black uppercase tracking-[0.2em]">{elapsedTime} elapsed</span>
+                </div>
+            </div>
+
             {/* Main Video Area (Remote) */}
-            <div className="flex-1 flex items-center justify-center relative">
-                <div className="flex flex-col items-center gap-8">
-                    <div className="w-48 h-48 rounded-full bg-emerald-600 flex items-center justify-center text-6xl font-black text-white shadow-2xl ring-8 ring-emerald-500/20">
+            <div className="flex-1 flex flex-col items-center justify-center relative bg-linear-to-b from-[#252A30] to-[#1A1D21]">
+                <div className="flex flex-col items-center gap-10 animate-in zoom-in duration-700">
+                    <div className="w-56 h-56 rounded-full bg-emerald-600 flex items-center justify-center text-7xl font-black text-white shadow-[0_0_80px_rgba(16,185,129,0.2)] ring-[16px] ring-emerald-500/10">
                         JS
                     </div>
-                    <h2 className="text-2xl font-black text-white uppercase tracking-[0.3em]">John Smith</h2>
+                    <h2 className="text-2xl font-black text-white uppercase tracking-[0.4em] drop-shadow-lg">John Smith</h2>
                 </div>
 
-                {/* Local Video Inset (Bottom Right) */}
-                <div className="absolute bottom-32 right-8 w-64 aspect-video bg-slate-800 rounded-2xl border-2 border-white/10 shadow-2xl overflow-hidden group">
-                    <div className="w-full h-full flex items-center justify-center bg-slate-900/50">
-                        <div className="w-16 h-16 rounded-full bg-emerald-600 flex items-center justify-center text-xl font-black text-white ring-4 ring-emerald-500/20">
+                {/* Local Video Inset (Full Box matching Image 3) */}
+                <div className="absolute bottom-24 right-12 w-80 aspect-video bg-[#2D333B] rounded-3xl border border-white/10 shadow-2xl overflow-hidden ring-[12px] ring-black/20 group">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/50">
+                        <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center text-xl font-black text-white ring-8 ring-emerald-500/10">
                             You
                         </div>
+                        <p className="mt-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Your Video</p>
                     </div>
-                    <div className="absolute bottom-4 left-4">
-                        <p className="text-[10px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded">Your Video</p>
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="p-2 bg-black/40 hover:bg-black/60 rounded-lg text-white"><Maximize size={14} /></button>
                     </div>
                 </div>
             </div>
 
-            {/* Controls Bar */}
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-6 z-30">
-                <ControlButton 
-                    icon={isMuted ? MicOff : Mic} 
-                    active={!isMuted} 
-                    onClick={() => setIsMuted(!isMuted)} 
-                    danger={isMuted}
-                />
-                <ControlButton 
-                    icon={isCameraOff ? VideoOff : Video} 
-                    active={!isCameraOff} 
-                    onClick={() => setIsCameraOff(!isCameraOff)} 
-                    danger={isCameraOff}
-                />
-                <ControlButton icon={Monitor} />
-                <ControlButton icon={MessageSquare} />
-                <button 
-                    onClick={() => router.back()}
-                    className="w-16 h-16 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-xl shadow-red-500/20 transition-all active:scale-90 hover:rotate-90"
-                >
-                    <PhoneOff size={28} />
-                </button>
+            {/* Control Strip (matching Image 3 white/gray bar) */}
+            <div className="h-28 bg-[#F8FAFC] flex items-center justify-center relative z-30">
+                <div className="flex items-center gap-6">
+                    <ControlRoundButton 
+                        icon={isMuted ? MicOff : Mic} 
+                        onClick={() => setIsMuted(!isMuted)} 
+                        active={!isMuted} 
+                    />
+                    <ControlRoundButton 
+                        icon={isCameraOff ? VideoOff : Video} 
+                        onClick={() => setIsCameraOff(!isCameraOff)} 
+                        active={!isCameraOff} 
+                    />
+                    <ControlRoundButton icon={Monitor} />
+                    <ControlRoundButton icon={MessageCircle} />
+                    <button 
+                        onClick={() => router.back()}
+                        className="w-16 h-16 bg-[#F43F5E] hover:bg-rose-600 text-white rounded-3xl flex items-center justify-center shadow-xl shadow-rose-200 transition-all active:scale-90 hover:rotate-90 group"
+                    >
+                        <PhoneOff size={28} className="group-hover:scale-110 transition-transform" />
+                    </button>
+                </div>
             </div>
 
-            {/* Info Footer Strip (Matching Image 4 Green Bar) */}
-            <div className="h-16 bg-emerald-600 flex items-center justify-between px-12 z-40">
-                <div className="flex items-center gap-6 text-white">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase opacity-60">With:</span>
-                        <span className="text-sm font-black whitespace-nowrap">John Smith</span>
-                    </div>
-                    <div className="h-4 w-px bg-white/20" />
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase opacity-60">Type:</span>
-                        <span className="text-sm font-black whitespace-nowrap">Proposal Interview</span>
-                    </div>
-                    <div className="h-4 w-px bg-white/20" />
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase opacity-60">Time:</span>
-                        <span className="text-sm font-black whitespace-nowrap">2:00 PM – 2:30 PM</span>
-                    </div>
+            {/* Info Footer Strip (Matching Image 3 Green Bar) */}
+            <div className="h-20 bg-[#15803D] flex items-center justify-between px-16 z-40">
+                <div className="flex items-center gap-8 text-white">
+                    <InfoItem label="With" value="John Smith" />
+                    <div className="h-6 w-px bg-white/20" />
+                    <InfoItem label="Type" value="Proposal Interview" />
+                    <div className="h-6 w-px bg-white/20" />
+                    <InfoItem label="Time" value="2:00 PM – 2:30 PM" />
                 </div>
 
-                <div className="flex items-center gap-3 text-white">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                    <span className="text-sm font-black uppercase tracking-widest">{elapsedTime} elapsed</span>
+                <div className="flex items-center gap-4 text-white">
+                    <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]" />
+                    <span className="text-sm font-black uppercase tracking-[0.2em]">{elapsedTime} elapsed</span>
                 </div>
             </div>
 
@@ -105,20 +114,46 @@ export default function VideoCallPage() {
     )
 }
 
-function ControlButton({ icon: Icon, active = false, onClick, danger = false }: { icon: any; active?: boolean; onClick?: () => void; danger?: boolean }) {
+function ControlRoundButton({ icon: Icon, active, onClick }: any) {
     return (
         <button 
             onClick={onClick}
             className={cn(
-                "w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90 border",
+                "w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border",
                 active 
-                    ? "bg-white/10 text-white border-white/20 hover:bg-white/20" 
-                    : danger 
-                        ? "bg-red-500/20 text-red-500 border-red-500/40 hover:bg-red-500/30"
-                        : "bg-slate-800 text-slate-400 border-white/5 hover:bg-slate-700"
+                    ? "bg-white text-gray-400 border-gray-100 shadow-xl shadow-gray-100" 
+                    : "bg-gray-100 text-gray-600 border-gray-200 shadow-inner"
             )}
         >
-            <Icon size={22} />
+            <Icon size={22} strokeWidth={2.5} />
         </button>
+    )
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">{label}:</span>
+            <span className="text-sm font-black whitespace-nowrap tracking-wider">{value}</span>
+        </div>
+    )
+}
+
+function ClockIcon({ size, className }: any) {
+    return (
+        <svg 
+            width={size} 
+            height={size} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="3" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className={className}
+        >
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+        </svg>
     )
 }

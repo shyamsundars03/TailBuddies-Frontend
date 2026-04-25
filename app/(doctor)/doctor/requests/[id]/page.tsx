@@ -55,7 +55,7 @@ export default function RequestDetailPage() {
                     toast.success("Appointment rejected successfully")
                     router.push('/doctor/requests')
                 } else {
-                    toast.error(response.error || "Failed to reject appointment")
+                    toast.error(response.message || "Failed to reject appointment")
                 }
             }
         } else {
@@ -75,7 +75,7 @@ export default function RequestDetailPage() {
                     toast.success("Appointment accepted successfully")
                     router.push('/doctor/requests')
                 } else {
-                    toast.error(response.error || "Failed to accept appointment")
+                    toast.error(response.message || "Failed to accept appointment")
                 }
             }
         }

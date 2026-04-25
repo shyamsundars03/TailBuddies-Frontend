@@ -187,6 +187,8 @@ export const doctorApi = {
                 if (filters.specialty) params.append('specialty', filters.specialty);
                 if (filters.gender) params.append('gender', filters.gender);
                 if (filters.experienceYears) params.append('experienceYears', filters.experienceYears);
+                if (filters.city) params.append('city', filters.city);
+                if (filters.minRating) params.append('minRating', filters.minRating);
             }
 
             // Determine base URL: /admin/doctors for admin, /auth/doctors for public

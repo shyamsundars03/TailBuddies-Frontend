@@ -1,227 +1,263 @@
-
 "use client"
 
-import { User, FileText, ChevronDown } from "lucide-react"
+import { useState, useEffect } from "react"
+import { User, FileText, ChevronDown, TrendingUp, PieChart as PieIcon, BarChart3, Loader2, IndianRupee } from "lucide-react"
+import { adminAnalyticsApi } from "@/lib/api/admin-analytics.api"
+import { Line, Bar, Pie } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
 
-const revenueData = [
-    { month: "Jan 23", value: 60 },
-    { month: "July", value: 80 },
-    { month: "April", value: 100 },
-    { month: "Sep", value: 65 },
-    { month: "Oct", value: 50 },
-    { month: "Nov", value: 90 },
-    { month: "Jan 24", value: 120 },
-]
-
-const statusData = [
-    { month: "Jan", active: 70, inactive: 40 },
-    { month: "Feb", active: 50, inactive: 60 },
-    { month: "Mar", active: 80, inactive: 30 },
-    { month: "Apr", active: 65, inactive: 45 },
-]
-
-const serviceData = [
-    { name: "Grooming", appointments: 90, earned: 107, earnings: "₹4560" },
-    { name: "Gastrointestional", appointments: 78, earned: 139, earnings: "₹4660" },
-    { name: "Orthopaedic", appointments: 77, earned: 171, earnings: "₹9800" },
-    { name: "Dermatologist", appointments: 8, earned: 28, earnings: "₹1490" },
-]
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
 
 export function AdminDashboardContent() {
-    const maxRevenue = Math.max(...revenueData.map((d) => d.value))
-    const maxStatus = 100
+    const [stats, setStats] = useState<any>(null)
+    const [specialtyStats, setSpecialtyStats] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true)
+            const [statsRes, specRes] = await Promise.all([
+                adminAnalyticsApi.getDashboardStats(),
+                adminAnalyticsApi.getSpecialtyStats({})
+            ])
+
+            if (statsRes.success) setStats(statsRes)
+            if (specRes.success) setSpecialtyStats(specRes.stats || [])
+            setIsLoading(false)
+        }
+        fetchData()
+    }, [])
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-40">
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+                <p className="text-sm font-black text-gray-400 uppercase tracking-widest">Generating Real-time Insights...</p>
+            </div>
+        )
+    }
+
+    const cards = stats?.cards || { totalDoctors: 0, totalPets: 0, totalOwners: 0, totalRevenue: 0 }
+    const graphData = stats?.graphData || []
+
+    const lineChartData = {
+        labels: graphData.map((d: any) => d.month),
+        datasets: [
+            {
+                label: 'Revenue (₹)',
+                data: graphData.map((d: any) => d.revenue),
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4,
+                yAxisID: 'y',
+            },
+            {
+                label: 'Appointments',
+                data: graphData.map((d: any) => d.appointments),
+                borderColor: 'rgb(244, 63, 94)',
+                backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                fill: false,
+                tension: 0.4,
+                yAxisID: 'y1',
+            }
+        ]
+    }
+
+    const lineOptions = {
+        responsive: true,
+        interaction: { mode: 'index' as const, intersect: false },
+        scales: {
+            y: { type: 'linear' as const, display: true, position: 'left' as const, title: { display: true, text: 'Revenue (₹)' } },
+            y1: { type: 'linear' as const, display: true, position: 'right' as const, grid: { drawOnChartArea: false }, title: { display: true, text: 'Appointments' } },
+        }
+    }
+
+    const pieData = {
+        labels: ['Doctors', 'Pets', 'Pet Owners'],
+        datasets: [
+            {
+                data: [cards.totalDoctors, cards.totalPets, cards.totalOwners],
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(244, 63, 94, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                ],
+                borderColor: '#fff',
+                borderWidth: 2,
+            }
+        ]
+    }
 
     return (
-        <>
+        <div className="space-y-8 pb-10">
             {/* Stats Cards */}
-            <div className="grid grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User size={24} className="text-blue-600" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                    { label: "Total Doctors", value: cards.totalDoctors, icon: User, color: "blue", bg: "bg-blue-50" },
+                    { label: "Total Pets", value: cards.totalPets, icon: BarChart3, color: "rose", bg: "bg-rose-50" },
+                    { label: "Pet Owners", value: cards.totalOwners, icon: User, color: "emerald", bg: "bg-emerald-50" },
+                    { label: "Total Revenue", value: `₹${cards.totalRevenue}`, icon: IndianRupee, color: "amber", bg: "bg-amber-50" },
+                ].map((card, i) => (
+                    <div key={i} className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className={`w-12 h-12 ${card.bg} rounded-2xl flex items-center justify-center`}>
+                                <card.icon size={24} className={`text-${card.color}-600`} />
+                            </div>
+                            <div className="text-right">
+                                <div className="text-3xl font-black text-[#002B49]">{card.value}</div>
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-bold text-gray-800">168</div>
-                        </div>
-                    </div>
-                    <div className="text-sm font-medium text-gray-600">Doctors</div>
-                    <div className="mt-2 h-1 bg-blue-600 rounded"></div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <User size={24} className="text-yellow-600" />
-                        </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-bold text-gray-800">562323</div>
+                        <div className="text-xs font-black text-gray-400 uppercase tracking-widest">{card.label}</div>
+                        <div className={`mt-4 h-1.5 w-full bg-gray-50 rounded-full overflow-hidden`}>
+                            <div className={`h-full w-2/3 bg-${card.color}-500 rounded-full`} />
                         </div>
                     </div>
-                    <div className="text-sm font-medium text-gray-600">Patients</div>
-                    <div className="mt-2 h-1 bg-yellow-500 rounded"></div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                            <FileText size={24} className="text-green-600" />
-                        </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-bold text-gray-800">487</div>
-                        </div>
-                    </div>
-                    <div className="text-sm font-medium text-gray-600">Clinics</div>
-                    <div className="mt-2 h-1 bg-green-600 rounded"></div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                            <User size={24} className="text-red-600" />
-                        </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-bold text-gray-800">485</div>
-                        </div>
-                    </div>
-                    <div className="text-sm font-medium text-gray-600">Appointment</div>
-                    <div className="mt-2 h-1 bg-red-600 rounded"></div>
-                </div>
+                ))}
             </div>
 
-            {/* Revenue Chart */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-6">Revenue</h3>
-                <div className="relative h-64">
-                    <svg className="w-full h-full" viewBox="0 0 700 200" preserveAspectRatio="none">
-                        <defs>
-                            <linearGradient id="revenueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.6" />
-                                <stop offset="100%" stopColor="#93C5FD" stopOpacity="0.1" />
-                            </linearGradient>
-                        </defs>
-                        <path
-                            d={`M 0,${200 - (revenueData[0].value / maxRevenue) * 160} ${revenueData.map((d, i) => `L ${(i * 700) / (revenueData.length - 1)},${200 - (d.value / maxRevenue) * 160}`).join(" ")} L 700,200 L 0,200 Z`}
-                            fill="url(#revenueGradient)"
-                            stroke="#3B82F6"
-                            strokeWidth="2"
-                        />
-                    </svg>
-                    <div className="absolute bottom-0 left-0 right-0 flex justify-between px-4 text-xs text-gray-500">
-                        {revenueData.map((d, i) => (
-                            <span key={i}>{d.month}</span>
-                        ))}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Revenue & Appointments Chart */}
+                <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-50 rounded-xl">
+                                <TrendingUp className="text-blue-600" size={20} />
+                            </div>
+                            <h3 className="text-lg font-black text-[#002B49] uppercase tracking-widest">Platform Growth</h3>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                                <span className="text-[10px] font-black uppercase text-gray-400">Revenue</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500" />
+                                <span className="text-[10px] font-black uppercase text-gray-400">Appointments</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="h-[350px]">
+                        <Line data={lineChartData} options={lineOptions as any} />
                     </div>
                 </div>
-            </div>
 
-            {/* Status Chart */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-6">Status</h3>
-                <div className="relative h-64">
-                    <svg className="w-full h-full" viewBox="0 0 700 200" preserveAspectRatio="none">
-                        <polyline
-                            points={statusData
-                                .map((d, i) => `${(i * 700) / (statusData.length - 1)},${200 - (d.active / maxStatus) * 160}`)
-                                .join(" ")}
-                            fill="none"
-                            stroke="#3B82F6"
-                            strokeWidth="2"
-                        />
-                        <polyline
-                            points={statusData
-                                .map((d, i) => `${(i * 700) / (statusData.length - 1)},${200 - (d.inactive / maxStatus) * 160}`)
-                                .join(" ")}
-                            fill="none"
-                            stroke="#F59E0B"
-                            strokeWidth="2"
-                        />
-                    </svg>
-                    <div className="absolute bottom-0 left-0 right-0 flex justify-between px-4 text-xs text-gray-500">
-                        {statusData.map((d, i) => (
-                            <span key={i}>{d.month}</span>
-                        ))}
+                {/* User Distribution Pie Chart */}
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="p-2 bg-rose-50 rounded-xl">
+                            <PieIcon className="text-rose-600" size={20} />
+                        </div>
+                        <h3 className="text-lg font-black text-[#002B49] uppercase tracking-widest">User Base</h3>
                     </div>
-                </div>
-                <div className="flex justify-center gap-6 mt-4">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                        <span className="text-sm text-gray-600">Active</span>
+                    <div className="h-[300px] flex items-center justify-center">
+                        <Pie data={pieData} options={{ maintainAspectRatio: false }} />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                        <span className="text-sm text-gray-600">Inactive</span>
+                    <div className="mt-6 space-y-3">
+                        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
+                            <span className="text-blue-600">Doctors</span>
+                            <span className="text-gray-400">
+                                {cards.totalDoctors + cards.totalPets + cards.totalOwners > 0 
+                                    ? Math.round((cards.totalDoctors / (cards.totalDoctors + cards.totalPets + cards.totalOwners)) * 100) 
+                                    : 0}%
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
+                            <span className="text-rose-600">Pets</span>
+                            <span className="text-gray-400">
+                                {cards.totalDoctors + cards.totalPets + cards.totalOwners > 0 
+                                    ? Math.round((cards.totalPets / (cards.totalDoctors + cards.totalPets + cards.totalOwners)) * 100) 
+                                    : 0}%
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
+                            <span className="text-emerald-600">Owners</span>
+                            <span className="text-gray-400">
+                                {cards.totalDoctors + cards.totalPets + cards.totalOwners > 0 
+                                    ? Math.round((cards.totalOwners / (cards.totalDoctors + cards.totalPets + cards.totalOwners)) * 100) 
+                                    : 0}%
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Based on Service Table */}
-            <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Based on Service</h3>
-
-                <div className="flex gap-3 mb-4 flex-wrap">
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
-                        Skin and Grooming
-                        <ChevronDown size={16} />
-                    </button>
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200 transition">
-                        Emergency
-                    </button>
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200 transition">
-                        Subscription
-                    </button>
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200 transition flex items-center gap-2">
-                        By Schedule - 14/1/2020
-                        <ChevronDown size={16} />
-                    </button>
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200 transition flex items-center gap-2">
-                        Filter by
-                        <ChevronDown size={16} />
-                    </button>
+            {/* Specialty Stats Table */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-50 rounded-xl">
+                            <FileText className="text-emerald-600" size={20} />
+                        </div>
+                        <h3 className="text-lg font-black text-[#002B49] uppercase tracking-widest">Specialty Performance</h3>
+                    </div>
+                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                        Updated Live
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-gray-200">
-                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Specialty Name</th>
-                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">No of Appointment</th>
-                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Earning</th>
-                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Total Earning</th>
+                            <tr className="border-b border-gray-100">
+                                <th className="text-left py-4 px-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Specialty Name</th>
+                                <th className="text-center py-4 px-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">No of Doctors</th>
+                                <th className="text-center py-4 px-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Appointments</th>
+                                <th className="text-right py-4 px-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Revenue</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {serviceData.map((service, index) => (
-                                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                                    <td className="py-3 px-4">
-                                        <span className="text-sm text-blue-600 font-medium hover:underline cursor-pointer">
-                                            {service.name}
+                            {specialtyStats.length > 0 ? specialtyStats.map((service, index) => (
+                                <tr key={index} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                    <td className="py-5 px-4">
+                                        <span className="text-sm font-black text-blue-600 uppercase tracking-tight">
+                                            {service.specialtyName}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4 text-sm text-gray-700">{service.appointments}</td>
-                                    <td className="py-3 px-4 text-sm text-gray-700">{service.earned}</td>
-                                    <td className="py-3 px-4 text-sm text-gray-700">{service.earnings}</td>
+                                    <td className="py-5 px-4 text-center">
+                                        <span className="inline-flex items-center justify-center px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-black">
+                                            {service.noOfDoctors}
+                                        </span>
+                                    </td>
+                                    <td className="py-5 px-4 text-center text-sm font-bold text-gray-600">{service.noOfAppointments}</td>
+                                    <td className="py-5 px-4 text-right">
+                                        <span className="text-sm font-black text-[#002B49]">₹{service.revenue}</span>
+                                    </td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="py-10 text-center text-gray-400 text-sm italic">
+                                        No specialty data available yet
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                    <span className="text-sm text-gray-600">Showing 1 to 4 of 10 entries</span>
-                    <div className="flex gap-2">
-                        <button className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">
-                            Previous
-                        </button>
-                        <button className="px-3 py-1 bg-red-600 text-white rounded text-sm font-medium">1</button>
-                        <button className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">
-                            2
-                        </button>
-                        <button className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50">
-                            Next
-                        </button>
-                    </div>
-                </div>
             </div>
-        </>
+        </div>
     )
 }

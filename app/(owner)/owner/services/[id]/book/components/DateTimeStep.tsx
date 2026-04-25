@@ -197,15 +197,37 @@ export function DateTimeStep({ data, setData, doctor }: { data: any, setData: an
                 <h3 className="text-center text-[10px] font-black text-blue-950 uppercase tracking-[0.2em]">Consultation Mode</h3>
                 <div className="flex justify-center gap-6">
                     <button
-                        disabled
-                        title="Currently unavailable"
-                        className="flex items-center gap-2 bg-gray-50 text-gray-300 border border-gray-100 px-8 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-not-allowed opacity-60"
+                        onClick={() => setData({ ...data, mode: "online" })}
+                        className={cn(
+                            "flex items-center gap-2 px-8 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                            data.mode === "online"
+                                ? "bg-yellow-400 text-blue-950 border-yellow-500 shadow-md shadow-yellow-100"
+                                : "bg-white text-gray-500 border-gray-100 hover:border-blue-200"
+                        )}
                     >
-                        <div className="w-2.5 h-2.5 rounded-full border border-gray-200 bg-white"></div>
+                        <div
+                            className={cn(
+                                "w-2.5 h-2.5 rounded-full bg-white shadow-inner",
+                                data.mode === "online" ? "border-2 border-blue-950" : "border border-gray-300"
+                            )}
+                        ></div>
                         Online
                     </button>
-                    <button className="flex items-center gap-2 bg-yellow-400 text-blue-950 px-8 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-yellow-100 border border-yellow-500">
-                        <div className="w-2.5 h-2.5 rounded-full border-2 border-blue-950 bg-white shadow-inner"></div>
+                    <button
+                        onClick={() => setData({ ...data, mode: "offline" })}
+                        className={cn(
+                            "flex items-center gap-2 px-8 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                            data.mode === "offline"
+                                ? "bg-yellow-400 text-blue-950 border-yellow-500 shadow-md shadow-yellow-100"
+                                : "bg-white text-gray-500 border-gray-100 hover:border-blue-200"
+                        )}
+                    >
+                        <div
+                            className={cn(
+                                "w-2.5 h-2.5 rounded-full bg-white shadow-inner",
+                                data.mode === "offline" ? "border-2 border-blue-950" : "border border-gray-300"
+                            )}
+                        ></div>
                         Offline
                     </button>
                 </div>

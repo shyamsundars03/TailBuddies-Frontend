@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { DataTable, Column } from '../common/ui/DataTable'
 import { SearchInput } from '../common/ui/SearchInput'
+import { Pagination } from '../common/ui/Pagination'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils/utils'
 import { Filter, MoreVertical, Loader2 } from 'lucide-react'
@@ -15,6 +17,7 @@ export function TransactionManagement() {
     const [limit] = useState(10)
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const debouncedSearch = useDebounce(searchTerm, 500)
     const [activeTab, setActiveTab] = useState('Paid')
     const router = useRouter()
 
@@ -37,8 +40,13 @@ export function TransactionManagement() {
     }
 
     useEffect(() => {
+        setPage(1)
         fetchTransactions()
-    }, [page, searchTerm, activeTab])
+    }, [debouncedSearch, activeTab])
+
+    useEffect(() => {
+        fetchTransactions()
+    }, [page])
 
     const formatAmount = (amount: number) => {
         return new Intl.NumberFormat('en-IN', {
@@ -66,7 +74,7 @@ export function TransactionManagement() {
 
                 {/* Filter Controls */}
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                    <div className="flex bg-gray-50/50 p-2.5 rounded-2xl w-fit gap-4 ">
+                    <div className="flex bg-gray-50/50 p-2.5 rounded-5xl w-fit gap-2 ">
                         {[
                             { label: 'Paid', status: 'paid' },
                             { label: 'Refunded', status: 'refunded' },
@@ -91,18 +99,15 @@ export function TransactionManagement() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4">
-                        <div className="relative">
-                            <input 
-                                type="text" 
-                                placeholder="Search transactions..." 
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 border border-gray-100 rounded-2xl shadow-sm text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                            />
-                            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
+                        <SearchInput 
+                            placeholder="Search by transaction ID or doctor..." 
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value)
+                                setPage(1)
+                            }}
+                            containerClassName="w-72"
+                        />
                     </div>
                 </div>
 
@@ -180,26 +185,14 @@ export function TransactionManagement() {
 
                 {/* Pagination */}
                 {total > limit && (
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total} entries
-                        </p>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="px-4 py-2 bg-gray-50 text-gray-400 disabled:opacity-50 hover:bg-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-gray-100 transition"
-                            >
-                                Previous
-                            </button>
-                            <button 
-                                onClick={() => setPage(p => p + 1)}
-                                disabled={page * limit >= total}
-                                className="px-4 py-2 bg-yellow-400 text-gray-900 disabled:opacity-50 hover:bg-yellow-500 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md transition"
-                            >
-                                Next
-                            </button>
-                        </div>
+                    <div className="px-6 py-4 bg-gray-50/30">
+                        <Pagination
+                            currentPage={page}
+                            totalPages={Math.ceil(total / limit) || 1}
+                            onPageChange={setPage}
+                            totalEntries={total}
+                            entriesPerPage={limit}
+                        />
                     </div>
                 )}
             </div>

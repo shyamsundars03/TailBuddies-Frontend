@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, ChevronDown, Check } from "lucide-react"
+import { Search, ChevronDown, Check, Star } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils/utils"
 
@@ -9,6 +9,8 @@ interface DoctorFiltersProps {
         specialty: string;
         gender: string;
         experienceYears: string;
+        city: string;
+        minRating: string;
     };
     onFilterChange: (key: string, value: string) => void;
     onClear: () => void;
@@ -16,7 +18,7 @@ interface DoctorFiltersProps {
 }
 
 export function DoctorFilters({ activeFilters, onFilterChange, onClear, specialties }: DoctorFiltersProps) {
-    const [expandedSections, setExpandedSections] = useState<string[]>(["specialties", "gender", "experience"])
+    const [expandedSections, setExpandedSections] = useState<string[]>(["specialties", "location", "gender", "experience", "ratings"])
 
     const toggleSection = (section: string) => {
         setExpandedSections(prev =>
@@ -57,6 +59,28 @@ export function DoctorFilters({ activeFilters, onFilterChange, onClear, specialt
             </FilterSection>
 
             <FilterSection
+                title="Location"
+                isOpen={expandedSections.includes("location")}
+                onToggle={() => toggleSection("location")}
+            >
+                <div className="space-y-4">
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">City Name</label>
+                        <div className="relative group/input">
+                            <input
+                                type="text"
+                                placeholder="Enter city..."
+                                value={activeFilters.city}
+                                onChange={(e) => onFilterChange('city', e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-blue-950 focus:outline-none focus:border-blue-400 transition-all placeholder:text-gray-300"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </FilterSection>
+
+
+            <FilterSection
                 title="Gender"
                 isOpen={expandedSections.includes("gender")}
                 onToggle={() => toggleSection("gender")}
@@ -89,15 +113,53 @@ export function DoctorFilters({ activeFilters, onFilterChange, onClear, specialt
                 </div>
             </FilterSection>
 
+            <FilterSection
+                title="Ratings"
+                isOpen={expandedSections.includes("ratings")}
+                onToggle={() => toggleSection("ratings")}
+            >
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-1.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                                key={star}
+                                onClick={() => onFilterChange('minRating', activeFilters.minRating === star.toString() ? '' : star.toString())}
+                                className="focus:outline-none transition-transform active:scale-90 group"
+                            >
+                                <Star 
+                                    size={22} 
+                                    className={cn(
+                                        "transition-all duration-300",
+                                        parseInt(activeFilters.minRating) >= star 
+                                            ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]" 
+                                            : "text-gray-200 group-hover:text-amber-200"
+                                    )}
+                                />
+                            </button>
+                        ))}
+                    </div>
+                    {activeFilters.minRating && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                            <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 uppercase tracking-widest">
+                                {activeFilters.minRating}+ Stars
+                            </span>
+                            <button 
+                                onClick={() => onFilterChange('minRating', '')}
+                                className="text-[9px] font-bold text-gray-400 hover:text-rose-500 transition-colors uppercase tracking-wider"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </FilterSection>
+
             {/* Hidden sections as per requirements */}
             <div className="pt-4 border-t border-gray-50 opacity-40 grayscale pointer-events-none">
                 <p className="text-[9px] font-bold text-gray-400 uppercase mb-4 tracking-tighter">Planned Filters:</p>
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-gray-400 uppercase">Consultation type</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-gray-400 uppercase">Ratings</span>
                     </div>
                 </div>
             </div>

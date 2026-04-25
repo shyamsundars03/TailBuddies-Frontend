@@ -21,7 +21,7 @@ export function AppointmentManagement() {
     const limit = 10
     const router = useRouter()
 
-    const statuses = ['All', 'Booked', 'Confirmed', 'Completed', 'Cancelled', 'Payment Pending']
+    const statuses = ['All', 'Booked', 'Confirmed', 'Ongoing', 'Completed', 'Cancelled', 'Payment Pending']
 
     const fetchAll = async (page: number, search: string, status: string) => {
         setIsLoading(true)
@@ -98,6 +98,7 @@ export function AppointmentManagement() {
                     "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm",
                     apt.status === 'confirmed' ? "bg-emerald-100 text-emerald-600" :
                     apt.status === 'booked' ? "bg-blue-100 text-blue-600" :
+                    apt.status === 'ongoing' ? "bg-cyan-100 text-cyan-600" :
                     apt.status === 'cancelled' ? "bg-red-100 text-red-600" :
                     apt.status === 'completed' ? "bg-purple-100 text-purple-600" :
                     apt.status === 'payment pending' ? "bg-amber-100 text-amber-600" :
