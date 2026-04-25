@@ -182,7 +182,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                 appointmentDate: data.rawDate,
                 appointmentStartTime: data.time.split(' - ')[0],
                 appointmentEndTime: data.time.split(' - ')[1],
-                mode: 'offline',
+                mode: data.mode || 'offline',
                 paymentMethod: paymentMethod.toLowerCase(),
                 totalAmount: amount
             }
@@ -253,7 +253,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                             </div>
                             <div className="flex justify-between">
                                 <span className="uppercase text-[10px]">Mode:</span> 
-                                <span className="text-blue-900 font-bold">Offline</span>
+                                <span className="text-blue-900 font-bold capitalize">{data.mode || "offline"}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="uppercase text-[10px]">Service:</span> 

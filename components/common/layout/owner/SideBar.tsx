@@ -50,12 +50,12 @@ const defaultMenuItems: SidebarMenuItem[] = [
     { icon: Calendar, label: "My Pet", id: "pet", href: "/owner/pets" },
     { icon: FileText, label: "My Bookings", id: "bookings", href: "/owner/bookings" },
     { icon: FileText, label: "Medical Records", id: "medical", href: "/owner/medical-records" },
-    { icon: Calendar, label: "Calendar", id: "calendar", href: "#" },
-    { icon: Phone, label: "Chat / Call", id: "chat", href: "/owner/chat", badge: true },
-    { icon: MessageSquare, label: "AI Assistant", id: "ai", href: "/owner/ai-assistant" },
-    { icon: Bell, label: "Notifications", id: "notifications", href: "#" },
+    { icon: Calendar, label: "Calendar", id: "calendar", href: "/owner/calendar" },
+    // { icon: Phone, label: "Chat / Call", id: "chat", href: "/owner/chat", badge: true },
+    // { icon: MessageSquare, label: "AI Assistant", id: "ai", href: "/owner/ai-assistant" },
+    // { icon: Bell, label: "Notifications", id: "notifications", href: "#" },
     { icon: Wallet, label: "Wallet", id: "wallet", href: "/owner/wallet" },
-    { icon: FileText, label: "Subscription", id: "subscription", href: "#" },
+    { icon: FileText, label: "Subscription", id: "subscription", href: "/owner/subscriptions" },
     { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/owner/reviews" },
 ]
 

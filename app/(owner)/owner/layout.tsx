@@ -20,6 +20,8 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         if (pathname.startsWith('/owner/bookings')) return 'bookings'
         if (pathname.startsWith('/owner/services')) return 'services'
         if (pathname.startsWith('/owner/medical-records')) return 'medical'
+        if (pathname.startsWith('/owner/calendar')) return 'calendar'
+        if (pathname.startsWith('/owner/subscriptions')) return 'subscription'
         if (pathname.startsWith('/owner/chat')) return 'chat'
         if (pathname.startsWith('/owner/profile')) return 'profile'
         if (pathname.startsWith('/owner/account')) return 'account'

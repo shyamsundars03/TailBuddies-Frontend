@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pill, Plus, Trash2, Save, FileText, Activity } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Pill, Plus, Trash2, Save, FileText, Activity, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/utils';
 
 interface Medication {
@@ -13,20 +13,68 @@ interface Medication {
 interface PrescriptionFormProps {
     onSubmit: (data: any) => void;
     isSubmitting: boolean;
+    initialData?: any;
 }
 
-export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, isSubmitting }) => {
+export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, isSubmitting, initialData }) => {
     const [formData, setFormData] = useState({
         vitals: {
-            temperature: '',
-            pulse: '',
-            respiration: ''
+            temperature: initialData?.vitals?.temperature || '',
+            pulse: initialData?.vitals?.pulse || '',
+            respiration: initialData?.vitals?.respiration || ''
         },
-        clinicalFindings: '',
-        diagnosis: '',
-        vetNotes: '',
-        medications: [] as Medication[]
+        clinicalFindings: initialData?.clinicalFindings || '',
+        diagnosis: initialData?.diagnosis || '',
+        vetNotes: initialData?.vetNotes || '',
+        medications: (initialData?.medications || []) as Medication[]
     });
+
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Word count helper
+    const getWordCount = (str: string) => {
+        return str.trim().split(/\s+/).filter(word => word.length > 0).length;
+    };
+
+    // Validation Logic
+    const validateField = (name: string, value: any) => {
+        let error = '';
+        
+        if (['clinicalFindings', 'diagnosis', 'vetNotes'].includes(name)) {
+            const words = getWordCount(value as string);
+            if (words > 100) error = `Exceeds 100 word limit (${words}/100)`;
+        } else if (['temperature', 'pulse', 'respiration'].includes(name)) {
+            if (value && (isNaN(Number(value)) || Number(value) <= 0)) {
+                error = 'Must be a positive number';
+            }
+        }
+        
+        setErrors(prev => {
+            const next = { ...prev };
+            if (error) next[name] = error;
+            else delete next[name];
+            return next;
+        });
+    };
+
+    const hasErrors = useMemo(() => Object.keys(errors).length > 0, [errors]);
+
+    // Update form if initialData changes (e.g. after first save)
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                vitals: {
+                    temperature: initialData.vitals?.temperature || '',
+                    pulse: initialData.vitals?.pulse || '',
+                    respiration: initialData.vitals?.respiration || ''
+                },
+                clinicalFindings: initialData.clinicalFindings || '',
+                diagnosis: initialData.diagnosis || '',
+                vetNotes: initialData.vetNotes || '',
+                medications: initialData.medications || []
+            });
+        }
+    }, [initialData]);
 
     const addMedication = () => {
         setFormData(prev => ({
@@ -52,6 +100,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (hasErrors) return;
         onSubmit(formData);
     };
 
@@ -76,19 +125,31 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                     <InputField 
                         label="Temperature (°C)" 
                         value={formData.vitals.temperature} 
-                        onChange={(v) => setFormData(p => ({ ...p, vitals: { ...p.vitals, temperature: v } }))} 
+                        error={errors.temperature}
+                        onChange={(v) => {
+                            setFormData(p => ({ ...p, vitals: { ...p.vitals, temperature: v } }));
+                            validateField('temperature', v);
+                        }} 
                         placeholder="e.g. 38.5"
                     />
                     <InputField 
                         label="Pulse (BPM)" 
                         value={formData.vitals.pulse} 
-                        onChange={(v) => setFormData(p => ({ ...p, vitals: { ...p.vitals, pulse: v } }))} 
+                        error={errors.pulse}
+                        onChange={(v) => {
+                            setFormData(p => ({ ...p, vitals: { ...p.vitals, pulse: v } }));
+                            validateField('pulse', v);
+                        }} 
                         placeholder="e.g. 80"
                     />
                     <InputField 
                         label="Respiration (BRPM)" 
                         value={formData.vitals.respiration} 
-                        onChange={(v) => setFormData(p => ({ ...p, vitals: { ...p.vitals, respiration: v } }))} 
+                        error={errors.respiration}
+                        onChange={(v) => {
+                            setFormData(p => ({ ...p, vitals: { ...p.vitals, respiration: v } }));
+                            validateField('respiration', v);
+                        }} 
                         placeholder="e.g. 24"
                     />
                 </div>
@@ -101,13 +162,23 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                     <TextAreaField 
                         label="Clinical Findings" 
                         value={formData.clinicalFindings} 
-                        onChange={(v) => setFormData(p => ({ ...p, clinicalFindings: v }))} 
+                        error={errors.clinicalFindings}
+                        maxWords={100}
+                        onChange={(v) => {
+                            setFormData(p => ({ ...p, clinicalFindings: v }));
+                            validateField('clinicalFindings', v);
+                        }} 
                         placeholder="Detailed observations during examination..."
                     />
                     <TextAreaField 
                         label="Diagnosis" 
                         value={formData.diagnosis} 
-                        onChange={(v) => setFormData(p => ({ ...p, diagnosis: v }))} 
+                        error={errors.diagnosis}
+                        maxWords={100}
+                        onChange={(v) => {
+                            setFormData(p => ({ ...p, diagnosis: v }));
+                            validateField('diagnosis', v);
+                        }} 
                         placeholder="Final medical conclusion..."
                     />
                 </div>
@@ -159,14 +230,19 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
             <TextAreaField 
                 label="Veterinary Notes (For Owner)" 
                 value={formData.vetNotes} 
-                onChange={(v) => setFormData(p => ({ ...p, vetNotes: v }))} 
+                error={errors.vetNotes}
+                maxWords={100}
+                onChange={(v) => {
+                    setFormData(p => ({ ...p, vetNotes: v }));
+                    validateField('vetNotes', v);
+                }} 
                 placeholder="Additional instructions or advice for the pet owner..."
             />
 
             <div className="pt-6 border-t border-gray-50 flex justify-end">
                 <button
                     type="submit"
-                    disabled={isSubmitting || !formData.clinicalFindings || !formData.diagnosis}
+                    disabled={isSubmitting || !formData.clinicalFindings || !formData.diagnosis || hasErrors}
                     className="flex items-center gap-3 px-10 py-4 bg-[#002B49] hover:bg-[#001B39] disabled:bg-gray-200 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition shadow-xl active:scale-95"
                 >
                     {isSubmitting ? "Saving..." : <><Save size={18} /> Complete Appointment</>}
@@ -176,7 +252,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
     );
 };
 
-function InputField({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string }) {
+function InputField({ label, value, onChange, placeholder, error }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, error?: string }) {
     return (
         <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
@@ -185,23 +261,51 @@ function InputField({ label, value, onChange, placeholder }: { label: string, va
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500/50 transition shadow-sm"
+                className={cn(
+                    "w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-xs font-bold outline-none transition shadow-sm",
+                    error ? "border-red-500 text-red-900 focus:ring-red-500/10" : "border-gray-100 text-gray-700 focus:ring-blue-500/10 focus:border-blue-500/50"
+                )}
             />
+            {error && (
+                <p className="text-[9px] font-bold text-red-500 flex items-center gap-1 ml-1 uppercase tracking-wider">
+                    <AlertCircle size={10} /> {error}
+                </p>
+            )}
         </div>
     );
 }
 
-function TextAreaField({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string }) {
+function TextAreaField({ label, value, onChange, placeholder, error, maxWords }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, error?: string, maxWords?: number }) {
+    const wordCount = value.trim().split(/\s+/).filter(w => w.length > 0).length;
+    
     return (
         <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+            <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</label>
+                {maxWords && (
+                    <span className={cn(
+                        "text-[9px] font-black uppercase tracking-widest",
+                        wordCount > maxWords ? "text-red-500" : "text-gray-300"
+                    )}>
+                        {wordCount} / {maxWords} Words
+                    </span>
+                )}
+            </div>
             <textarea 
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
                 rows={3}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500/50 transition shadow-sm resize-none"
+                className={cn(
+                    "w-full bg-gray-50 border rounded-xl px-4 py-3 text-xs font-bold outline-none transition shadow-sm resize-none",
+                    error ? "border-red-500 text-red-900 focus:ring-red-500/10" : "border-gray-100 text-gray-700 focus:ring-blue-500/10 focus:border-blue-500/50"
+                )}
             />
+            {error && (
+                <p className="text-[9px] font-bold text-red-500 flex items-center gap-1 ml-1 uppercase tracking-wider">
+                    <AlertCircle size={10} /> {error}
+                </p>
+            )}
         </div>
     );
 }

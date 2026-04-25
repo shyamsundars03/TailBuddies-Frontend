@@ -9,18 +9,28 @@ import { reviewApi } from "@/lib/api/review.api"
 import { toast } from "sonner"
 import { ReviewModal } from "@/components/owner/ReviewModal"
 import Swal from "sweetalert2"
+import { SearchInput } from "@/components/common/ui/SearchInput"
+import { Pagination } from "@/components/common/ui/Pagination"
+import { useDebounce } from "@/lib/hooks/useDebounce"
 
 export default function OwnerReviewsPage() {
     const [reviews, setReviews] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [selectedReview, setSelectedReview] = useState<any>(null)
+    const [page, setPage] = useState(1)
+    const [total, setTotal] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
+    const [searchTerm, setSearchTerm] = useState("")
+    const debouncedSearch = useDebounce(searchTerm, 500)
 
-    const fetchReviews = useCallback(async () => {
+    const fetchReviews = useCallback(async (pageNum: number = 1, search: string = "") => {
         setIsLoading(true)
-        const response = await reviewApi.getOwnerReviews()
+        const response = await reviewApi.getOwnerReviews(pageNum, 4, search)
         if (response.success) {
             setReviews(response.data)
+            setTotal(response.total || 0)
+            setTotalPages(Math.ceil((response.total || 0) / 4) || 1)
         } else {
             toast.error(response.message || "Failed to fetch reviews")
         }
@@ -28,8 +38,18 @@ export default function OwnerReviewsPage() {
     }, [])
 
     useEffect(() => {
-        fetchReviews()
-    }, [fetchReviews])
+        fetchReviews(1, debouncedSearch)
+        setPage(1)
+    }, [debouncedSearch, fetchReviews])
+
+    useEffect(() => {
+        fetchReviews(page, debouncedSearch)
+    }, [fetchReviews, page])
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
@@ -74,6 +94,15 @@ export default function OwnerReviewsPage() {
                         <span className="text-blue-600/60 font-medium tracking-tight">Review History</span>
                     </nav>
                 </div>
+                <SearchInput
+                    placeholder="Search by doctor name..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value)
+                        setPage(1)
+                    }}
+                    containerClassName="w-full md:w-80"
+                />
             </div>
 
             {reviews.length === 0 ? (
@@ -180,8 +209,20 @@ export default function OwnerReviewsPage() {
                 onClose={() => setIsEditModalOpen(false)}
                 appointmentId="" 
                 existingReview={selectedReview}
-                onSuccess={fetchReviews}
+                onSuccess={() => fetchReviews(page, debouncedSearch)}
             />
+
+            {totalPages > 1 && (
+                <div className="flex justify-center pt-8">
+                    <Pagination
+                        currentPage={page}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                        totalEntries={total}
+                        entriesPerPage={4}
+                    />
+                </div>
+            )}
         </div>
     )
 }

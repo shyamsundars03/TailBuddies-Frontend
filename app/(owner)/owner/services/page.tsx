@@ -27,6 +27,8 @@ export default function DoctorServicesPage() {
     const initialSpecialty = searchParams.get('specialty') || ''
     const initialGender = searchParams.get('gender') || ''
     const initialExperience = searchParams.get('experienceYears') || ''
+    const initialCity = searchParams.get('city') || ''
+    const initialMinRating = searchParams.get('minRating') || ''
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
@@ -37,7 +39,9 @@ export default function DoctorServicesPage() {
     const [filters, setFilters] = useState({
         specialty: initialSpecialty,
         gender: initialGender,
-        experienceYears: initialExperience
+        experienceYears: initialExperience,
+        city: initialCity,
+        minRating: initialMinRating
     })
 
     const [specialties, setSpecialties] = useState<any[]>([])
@@ -55,16 +59,26 @@ export default function DoctorServicesPage() {
 
     const loadDoctors = useCallback(async (page: number, search: string, activeFilters: any) => {
         setIsLoading(true)
+        console.log("🔍 Fetching doctors with:", { page, search, activeFilters })
         const response = await doctorApi.getAllDoctors(page, 3, search, true, undefined, activeFilters)
+        
+        console.log("📦 API Response:", response)
         if (response.success) {
+            console.log("✅ Filtered Doctors count:", response.data?.length || 0)
+            console.log("🏥 Doctor Cities:", response.data?.map((d: any) => d.clinicInfo?.address?.city))
             setDoctors(response.data || [])
             setTotalPages(Math.ceil((response.total || 0) / (response.limit || 3)))
             setTotalDoctors(response.total || 0)
         } else {
+            console.error("❌ Failed to load doctors:", response.error)
             // toast.error(response.error || "Failed to load doctors")
         }
         setIsLoading(false)
     }, [])
+
+
+
+
 
     // Debounce search term
     useEffect(() => {
@@ -82,6 +96,8 @@ export default function DoctorServicesPage() {
         if (filters.specialty) params.set('specialty', filters.specialty)
         if (filters.gender) params.set('gender', filters.gender)
         if (filters.experienceYears) params.set('experienceYears', filters.experienceYears)
+        if (filters.city) params.set('city', filters.city)
+        if (filters.minRating) params.set('minRating', filters.minRating)
         
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
@@ -105,10 +121,48 @@ export default function DoctorServicesPage() {
     }
 
     const clearFilters = () => {
-        setFilters({ specialty: '', gender: '', experienceYears: '' })
+        setFilters({ specialty: '', gender: '', experienceYears: '', city: '', minRating: '' })
         setSearchTerm('')
         setDebouncedSearchTerm('')
     }
+
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser")
+            return
+        }
+
+        setIsLoading(true)
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const { latitude, longitude } = position.coords
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+                const data = await res.json()
+                const addr = data.address
+                
+                const city = addr.city || addr.town || addr.village || ""
+
+                if (city) {
+                    setFilters(prev => ({ ...prev, city }))
+                    toast.success(`Location detected: ${city}`)
+                } else {
+                    toast.error("Could not determine your city")
+                }
+            } catch (err) {
+                console.error("Error fetching location details:", err)
+                toast.error("Failed to fetch location details")
+            } finally {
+                setIsLoading(false)
+            }
+        }, (error) => {
+            console.error("Geolocation error:", error)
+            toast.error("Unable to retrieve your location")
+            setIsLoading(false)
+        })
+    }
+
+
 
     return (
         <div className="min-h-screen bg-white p-4">
@@ -138,6 +192,12 @@ export default function DoctorServicesPage() {
                             className="bg-yellow-400 hover:bg-yellow-500 text-blue-950 font-bold px-8 py-3 rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
                         >
                             Search
+                        </button>                        <button 
+                            onClick={handleGetLocation}
+                            className="ml-2 px-4 py-3 bg-blue-50 text-blue-600 rounded-md font-bold text-[10px] uppercase tracking-widest hover:bg-blue-100 transition active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                            Near Me
                         </button>
                     </div>
                 </div>
@@ -232,7 +292,7 @@ export default function DoctorServicesPage() {
                                     id={doctor._id}
                                     name={doctor.userId?.username || "N/A"}
                                     specialty={doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"}
-                                    rating={4.8} // Placeholder for now
+                                    rating={doctor.averageRating || 0}
                                     reviewsCount={doctor.totalAppointments || 0}
                                     location={doctor.clinicInfo?.address?.city || "N/A"}
                                     duration={`${doctor.appointmentDuration || 30} Min`}

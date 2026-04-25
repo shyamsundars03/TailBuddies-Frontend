@@ -30,27 +30,28 @@ export default function AppointmentBookingPage() {
 
     // Booking State
     const [bookingData, setBookingData] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const saved = sessionStorage.getItem(`booking_${params.id}`)
-            return saved ? JSON.parse(saved) : {
-                type: "Normal",
-                petId: "",
-                problemDescription: "",
-                symptoms: [] as string[],
-                date: "",
-                time: "",
-                paymentMethod: "Razerpay"
-            }
-        }
-        return {
+        const defaultBookingData = {
             type: "Normal",
             petId: "",
             problemDescription: "",
             symptoms: [] as string[],
             date: "",
+            rawDate: "",
             time: "",
+            slotId: "",
+            mode: "offline",
             paymentMethod: "Razerpay"
         }
+
+        if (typeof window !== 'undefined') {
+            const saved = sessionStorage.getItem(`booking_${params.id}`)
+            if (saved) {
+                const parsed = JSON.parse(saved)
+                return { ...defaultBookingData, ...parsed, mode: parsed.mode || "offline" }
+            }
+            return defaultBookingData
+        }
+        return defaultBookingData
     })
 
     // Action Verification

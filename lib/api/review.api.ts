@@ -74,9 +74,11 @@ export const reviewApi = {
         }
     },
 
-    getDoctorReviews: async () => {
+    getDoctorReviews: async (page: number = 1, limit: number = 4, search: string = '') => {
         try {
-            const response = await apiClient.get('/reviews/doctor/me');
+            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+            if (search) params.append('search', search);
+            const response = await apiClient.get(`/reviews/doctor/me?${params.toString()}`);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -86,9 +88,11 @@ export const reviewApi = {
         }
     },
 
-    getOwnerReviews: async () => {
+    getOwnerReviews: async (page: number = 1, limit: number = 4, search: string = '') => {
         try {
-            const response = await apiClient.get('/reviews/owner/me');
+            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+            if (search) params.append('search', search);
+            const response = await apiClient.get(`/reviews/owner/me?${params.toString()}`);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -98,9 +102,11 @@ export const reviewApi = {
         }
     },
 
-    getAllReviews: async () => {
+    getAllReviews: async (page: number = 1, limit: number = 4, search: string = '') => {
         try {
-            const response = await apiClient.get('/reviews/all');
+            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+            if (search) params.append('search', search);
+            const response = await apiClient.get(`/reviews/all?${params.toString()}`);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -129,6 +135,20 @@ export const reviewApi = {
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
                 return { success: false, message: error.response?.data?.message || 'Failed to fetch appointment review' };
+            }
+            return { success: false, message: 'An unknown error occurred' };
+        }
+    },
+
+    getByDoctorId: async (doctorId: string, page: number = 1, limit: number = 10, search: string = '') => {
+        try {
+            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+            if (search) params.append('search', search);
+            const response = await apiClient.get(`/reviews/doctor/${doctorId}?${params.toString()}`);
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch doctor reviews' };
             }
             return { success: false, message: 'An unknown error occurred' };
         }
