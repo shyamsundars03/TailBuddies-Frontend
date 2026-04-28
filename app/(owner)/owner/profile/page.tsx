@@ -8,6 +8,8 @@ import { OwnerSidebar } from "../../../../components/common/layout/owner/SideBar
 import { PageContainer } from "../../../../components/common/layout/owner/PageContainer"
 import { AccountForm } from "../../../../components/owner/AccountForm"
 
+import Link from "next/link"
+
 function OwnerProfileInner() {
     const { user } = useAppSelector((state) => state.auth)
     const router = useRouter()
@@ -31,7 +33,19 @@ function OwnerProfileInner() {
     }
 
     return (
-        <AccountForm initialData={userData} isReadOnly={true} />
+        <div className="space-y-6">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-blue-950 mb-1">My Profile</h1>
+                    <nav className="flex items-center gap-2 text-sm text-gray-400">
+                        <Link href="/owner/dashboard" className="hover:text-blue-600 transition">Dashboard</Link>
+                        <span>/</span>
+                        <span className="text-blue-600/60 font-medium">Profile View</span>
+                    </nav>
+                </div>
+            </div>
+            <AccountForm initialData={userData} isReadOnly={true} />
+        </div>
     )
 }
 

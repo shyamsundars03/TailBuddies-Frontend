@@ -48,8 +48,8 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                     }
 
                     dispatch(setDoctorProfile({
-                        qualification: doc.profile?.designation || "MBBS, MD",
-                        specialty: doc.profile?.specialtyId?.name || "General Physician",
+                        qualification: doc.profile?.designation || "Get qualified",
+                        specialty: doc.profile?.specialtyId?.name || "Finalize you spec",
                         isActive: doc.isActive,
                         verificationStatus: doc.verificationStatus,
                         appointmentDuration: doc.appointmentDuration || 30
@@ -58,8 +58,8 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                     logger.warn('Doctor profile data is null despite success response');
                     // Set default profile for incomplete registration
                     dispatch(setDoctorProfile({
-                        qualification: "MBBS, MD",
-                        specialty: "General Physician",
+                        qualification: "Get qualified",
+                        specialty: "Finalize you spec",
                         isActive: true,
                         verificationStatus: { clinic: false, education: false, experience: false, certificates: false, businessHours: false },
                         appointmentDuration: 30

@@ -26,6 +26,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
         clinicalFindings: initialData?.clinicalFindings || '',
         diagnosis: initialData?.diagnosis || '',
         vetNotes: initialData?.vetNotes || '',
+        symptoms: (initialData?.symptoms || []) as string[],
         medications: (initialData?.medications || []) as Medication[]
     });
 
@@ -39,7 +40,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
     // Validation Logic
     const validateField = (name: string, value: any) => {
         let error = '';
-        
+
         if (['clinicalFindings', 'diagnosis', 'vetNotes'].includes(name)) {
             const words = getWordCount(value as string);
             if (words > 100) error = `Exceeds 100 word limit (${words}/100)`;
@@ -48,7 +49,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                 error = 'Must be a positive number';
             }
         }
-        
+
         setErrors(prev => {
             const next = { ...prev };
             if (error) next[name] = error;
@@ -71,6 +72,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                 clinicalFindings: initialData.clinicalFindings || '',
                 diagnosis: initialData.diagnosis || '',
                 vetNotes: initialData.vetNotes || '',
+                symptoms: initialData.symptoms || [],
                 medications: initialData.medications || []
             });
         }
@@ -98,9 +100,26 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
         });
     };
 
+    const isFormValid = useMemo(() => {
+        if (hasErrors) return false;
+        if (!formData.clinicalFindings.trim()) return false;
+        if (!formData.diagnosis.trim()) return false;
+        if (!formData.vetNotes.trim()) return false;
+
+        // If medicines are added, ensure they have at least name, dosage, and frequency
+        if (formData.medications.length > 0) {
+            const hasEmptyMedicine = formData.medications.some(med =>
+                !med.name.trim() || !med.dosage.trim() || !med.frequency.trim() || !med.duration.trim()
+            );
+            if (hasEmptyMedicine) return false;
+        }
+
+        return true;
+    }, [formData, hasErrors]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (hasErrors) return;
+        if (!isFormValid) return;
         onSubmit(formData);
     };
 
@@ -122,35 +141,53 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                     <Activity size={14} className="text-blue-500" /> Patient Vitals
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <InputField 
-                        label="Temperature (°C)" 
-                        value={formData.vitals.temperature} 
-                        error={errors.temperature}
+                    <InputField
+                        label="Temperature (°C)"
+                        value={formData.vitals.temperature}
+                        error={formData.vitals.temperature && (isNaN(Number(formData.vitals.temperature)) || Number(formData.vitals.temperature) <= 0) ? "Must be a valid number" : errors.temperature}
                         onChange={(v) => {
                             setFormData(p => ({ ...p, vitals: { ...p.vitals, temperature: v } }));
                             validateField('temperature', v);
-                        }} 
+                        }}
                         placeholder="e.g. 38.5"
                     />
-                    <InputField 
-                        label="Pulse (BPM)" 
-                        value={formData.vitals.pulse} 
-                        error={errors.pulse}
+                    <InputField
+                        label="Pulse (BPM)"
+                        value={formData.vitals.pulse}
+                        error={formData.vitals.pulse && (isNaN(Number(formData.vitals.pulse)) || Number(formData.vitals.pulse) <= 0) ? "Must be a valid number" : errors.pulse}
                         onChange={(v) => {
                             setFormData(p => ({ ...p, vitals: { ...p.vitals, pulse: v } }));
                             validateField('pulse', v);
-                        }} 
+                        }}
                         placeholder="e.g. 80"
                     />
-                    <InputField 
-                        label="Respiration (BRPM)" 
-                        value={formData.vitals.respiration} 
-                        error={errors.respiration}
+                    <InputField
+                        label="Respiration (BRPM)"
+                        value={formData.vitals.respiration}
+                        error={formData.vitals.respiration && (isNaN(Number(formData.vitals.respiration)) || Number(formData.vitals.respiration) <= 0) ? "Must be a valid number" : errors.respiration}
                         onChange={(v) => {
                             setFormData(p => ({ ...p, vitals: { ...p.vitals, respiration: v } }));
                             validateField('respiration', v);
-                        }} 
+                        }}
                         placeholder="e.g. 24"
+                    />
+                </div>
+            </section>
+
+            {/* Symptoms Section */}
+            <section className="space-y-4">
+                <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest">Symptoms & Signs</h3>
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Presenting Symptoms (Comma separated)</label>
+                    <textarea
+                        value={formData.symptoms.join(', ')}
+                        onChange={(e) => {
+                            const syms = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                            setFormData(p => ({ ...p, symptoms: syms }));
+                        }}
+                        placeholder="e.g. Fever, Coughing, Loss of appetite..."
+                        className="w-full text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-blue-500/50 transition shadow-sm resize-none"
+                        rows={2}
                     />
                 </div>
             </section>
@@ -159,26 +196,26 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
             <section className="space-y-4">
                 <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest">Observations</h3>
                 <div className="space-y-4">
-                    <TextAreaField 
-                        label="Clinical Findings" 
-                        value={formData.clinicalFindings} 
+                    <TextAreaField
+                        label="Clinical Findings"
+                        value={formData.clinicalFindings}
                         error={errors.clinicalFindings}
                         maxWords={100}
                         onChange={(v) => {
                             setFormData(p => ({ ...p, clinicalFindings: v }));
                             validateField('clinicalFindings', v);
-                        }} 
+                        }}
                         placeholder="Detailed observations during examination..."
                     />
-                    <TextAreaField 
-                        label="Diagnosis" 
-                        value={formData.diagnosis} 
+                    <TextAreaField
+                        label="Diagnosis"
+                        value={formData.diagnosis}
                         error={errors.diagnosis}
                         maxWords={100}
                         onChange={(v) => {
                             setFormData(p => ({ ...p, diagnosis: v }));
                             validateField('diagnosis', v);
-                        }} 
+                        }}
                         placeholder="Final medical conclusion..."
                     />
                 </div>
@@ -190,7 +227,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                     <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2">
                         <Pill size={14} className="text-blue-500" /> Medications
                     </h3>
-                    <button 
+                    <button
                         type="button"
                         onClick={addMedication}
                         className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition shadow-sm"
@@ -205,7 +242,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                     ) : (
                         formData.medications.map((med, idx) => (
                             <div key={idx} className="p-5 bg-gray-50/50 rounded-2xl border border-gray-100 relative group animate-in fade-in slide-in-from-top-2 duration-300">
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => removeMedication(idx)}
                                     className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition"
@@ -213,10 +250,33 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                                     <Trash2 size={16} />
                                 </button>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <InputField label="Medicine Name" value={med.name} onChange={(v) => updateMedication(idx, 'name', v)} />
-                                    <InputField label="Dosage" value={med.dosage} onChange={(v) => updateMedication(idx, 'dosage', v)} placeholder="e.g. 1 tablet" />
-                                    <InputField label="Frequency" value={med.frequency} onChange={(v) => updateMedication(idx, 'frequency', v)} placeholder="e.g. 2 times/day" />
-                                    <InputField label="Duration" value={med.duration} onChange={(v) => updateMedication(idx, 'duration', v)} placeholder="e.g. 5 days" />
+                                    <InputField 
+                                        label="Medicine Name" 
+                                        value={med.name} 
+                                        onChange={(v) => updateMedication(idx, 'name', v)} 
+                                        error={!med.name.trim() ? "Required" : ""}
+                                    />
+                                    <InputField 
+                                        label="Dosage" 
+                                        value={med.dosage} 
+                                        onChange={(v) => updateMedication(idx, 'dosage', v)} 
+                                        placeholder="Enter number" 
+                                        error={med.dosage && (isNaN(Number(med.dosage)) || Number(med.dosage) < 0) ? "Must be a valid number" : (!med.dosage.trim() ? "Required" : "")}
+                                    />
+                                    <InputField 
+                                        label="Frequency" 
+                                        value={med.frequency} 
+                                        onChange={(v) => updateMedication(idx, 'frequency', v)} 
+                                        placeholder="Enter number" 
+                                        error={med.frequency && (isNaN(Number(med.frequency)) || Number(med.frequency) < 0) ? "Must be a valid number" : (!med.frequency.trim() ? "Required" : "")}
+                                    />
+                                    <InputField 
+                                        label="Duration" 
+                                        value={med.duration} 
+                                        onChange={(v) => updateMedication(idx, 'duration', v)} 
+                                        placeholder="Enter number" 
+                                        error={med.duration && (isNaN(Number(med.duration)) || Number(med.duration) < 0) ? "Must be a valid number" : (!med.duration.trim() ? "Required" : "")}
+                                    />
                                 </div>
                                 <div className="mt-4">
                                     <InputField label="Instructions / Notes" value={med.notes || ''} onChange={(v) => updateMedication(idx, 'notes', v)} placeholder="e.g. After food" />
@@ -227,22 +287,22 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                 </div>
             </section>
 
-            <TextAreaField 
-                label="Veterinary Notes (For Owner)" 
-                value={formData.vetNotes} 
+            <TextAreaField
+                label="Veterinary Notes (For Owner)"
+                value={formData.vetNotes}
                 error={errors.vetNotes}
                 maxWords={100}
                 onChange={(v) => {
                     setFormData(p => ({ ...p, vetNotes: v }));
                     validateField('vetNotes', v);
-                }} 
+                }}
                 placeholder="Additional instructions or advice for the pet owner..."
             />
 
             <div className="pt-6 border-t border-gray-50 flex justify-end">
                 <button
                     type="submit"
-                    disabled={isSubmitting || !formData.clinicalFindings || !formData.diagnosis || hasErrors}
+                    disabled={isSubmitting || !isFormValid}
                     className="flex items-center gap-3 px-10 py-4 bg-[#002B49] hover:bg-[#001B39] disabled:bg-gray-200 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition shadow-xl active:scale-95"
                 >
                     {isSubmitting ? "Saving..." : <><Save size={18} /> Complete Appointment</>}
@@ -252,12 +312,12 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
     );
 };
 
-function InputField({ label, value, onChange, placeholder, error }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, error?: string }) {
+function InputField({ label, value, onChange, placeholder, error, type = "text" }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, error?: string, type?: string }) {
     return (
         <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-            <input 
-                type="text"
+            <input
+                type={type}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
@@ -277,7 +337,7 @@ function InputField({ label, value, onChange, placeholder, error }: { label: str
 
 function TextAreaField({ label, value, onChange, placeholder, error, maxWords }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string, error?: string, maxWords?: number }) {
     const wordCount = value.trim().split(/\s+/).filter(w => w.length > 0).length;
-    
+
     return (
         <div className="space-y-1.5">
             <div className="flex items-center justify-between px-1">
@@ -291,7 +351,7 @@ function TextAreaField({ label, value, onChange, placeholder, error, maxWords }:
                     </span>
                 )}
             </div>
-            <textarea 
+            <textarea
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}

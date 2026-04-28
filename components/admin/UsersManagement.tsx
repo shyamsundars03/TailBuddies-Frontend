@@ -74,6 +74,17 @@ useEffect(() => {
             sortable: true
         },
         {
+            header: "Specialty",
+            accessor: (user) => (
+                user.role === "doctor" ? (
+                    <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-tighter">
+                        {user.specialty || 'N/A'}
+                    </span>
+                ) : <span className="text-gray-300">---</span>
+            ),
+            sortable: true
+        },
+        {
             header: "Role",
             accessor: (user) => (
                 <span className={cn(

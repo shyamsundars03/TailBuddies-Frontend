@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Input } from "../common/forms/Input"
@@ -8,6 +10,7 @@ import { userApi } from "../../lib/api/user/user.api"
 import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
 import { setUser } from "../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils/utils"
 
 export interface AccountData {
     username: string
@@ -173,146 +176,114 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     }
 
     const pathname = usePathname()
+    const isProfilePage = pathname.endsWith("/profile")
     const isDoctor = pathname.startsWith("/doctor")
     const accountPrefix = isDoctor ? "/doctor/profile" : "/owner/account"
     const variant = isDoctor ? "doctor" : "owner"
+    
+    // Override isReadOnly if on profile page to ensure it stays readonly there
+    const effectiveReadOnly = isProfilePage ? true : isReadOnly
 
     // Determine phone display value
-    const phoneValue = !userData.phone && isGoogleUser && isReadOnly ? "no phone number" : userData.phone
+    const phoneValue = !userData.phone && isGoogleUser && effectiveReadOnly ? "no phone number" : userData.phone
+
+    const renderField = (label: string, value: string, name: string, type: string = "text", options?: { value: string; label: string }[]) => {
+        if (effectiveReadOnly) {
+            return (
+                <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+                    <p className="text-base font-black text-blue-950 min-h-[1.5rem]">
+                        {value || "—"}
+                    </p>
+                </div>
+            )
+        }
+
+        if (options) {
+            return (
+                <Select
+                    label={label}
+                    name={name}
+                    value={value}
+                    onChange={handleChange}
+                    options={options}
+                />
+            )
+        }
+
+        return (
+            <Input
+                label={label}
+                type={type}
+                name={name}
+                value={value}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={errors[name]}
+                className="bg-gray-50/50"
+                placeholder={`Enter ${label.toLowerCase()}`}
+            />
+        )
+    }
 
     return (
-        <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Account</h2>
-
-            {/* Account Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <Input
-                    label="User Name"
-                    type="text"
-                    name="username"
-                    value={userData?.username}
-                    onChange={handleChange}
-                    className="bg-gray-50"
-                    disabled={isReadOnly}
-                />
-
-                <Input
-                    label="Email"
-                    type="email"
-                    name="email"
-                    value={userData.email}
-                    className="bg-gray-50"
-                    disabled={true}
-                />
-
-                <Input
-                    label="Phone"
-                    type="tel"
-                    name="phone"
-                    value={phoneValue}
-                    onChange={handleChange}
-                    className="bg-gray-50"
-                    disabled={isReadOnly}
-                    placeholder={isGoogleUser ? "no phone number" : "Enter phone number"}
-                />
-
-                <Select
-                    label="Gender"
-                    name="gender"
-                    value={userData.gender}
-                    onChange={handleChange}
-                    options={GENDER_OPTIONS}
-                    disabled={isReadOnly}
-                />
+        <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-100 border border-gray-100 p-8 md:p-10">
+            <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-bold text-blue-900/80 uppercase tracking-tight flex items-center gap-3">
+                    <span className="w-1.5 h-8 bg-yellow-400 rounded-full" />
+                    Account Details
+                </h2>
             </div>
 
-            {!isReadOnly && (
-                <div className="flex flex-wrap gap-4 mb-8">
-                    <Button onClick={handleSaveDetails} variant={variant}>
-                        Save Details
+            {/* Account Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 mb-10">
+                {renderField("User Name", userData.username, "username")}
+                {renderField("Email", userData.email, "email", "email")}
+                {renderField("Phone", phoneValue, "phone", "tel")}
+                {renderField("Gender", userData.gender, "gender", "text", GENDER_OPTIONS)}
+            </div>
+
+            {!effectiveReadOnly && (
+                <div className="flex flex-wrap gap-4 mb-12">
+                    <Button onClick={handleSaveDetails} variant={variant} className="px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs">
+                        Save Changes
                     </Button>
                     {!isGoogleUser && (
                         <Link href={`${accountPrefix}/change-password`}>
-                            <Button variant={variant}>Change Password</Button>
+                            <Button variant={variant} className="px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs">Change Password</Button>
                         </Link>
                     )}
                     <Link href={`${accountPrefix}/change-email`}>
-                        <Button variant={variant}>Change Email</Button>
+                        <Button variant={variant} className="px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs">Change Email</Button>
                     </Link>
                 </div>
             )}
 
             {/* Address Section */}
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Address</h2>
-
-            <div className="mb-6">
-                <Input
-                    label="Address"
-                    type="text"
-                    name="address"
-                    value={userData.address}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={errors.address}
-                    disabled={isReadOnly}
-                    required
-                />
+            <div className="flex items-center justify-between mb-8 mt-4">
+                <h2 className="text-xl font-bold text-blue-900/80 uppercase tracking-tight flex items-center gap-3">
+                    <span className="w-1.5 h-8 bg-indigo-500 rounded-full" />
+                    Address Information
+                </h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                <Input
-                    label="City"
-                    type="text"
-                    name="city"
-                    value={userData.city}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={errors.city}
-                    disabled={isReadOnly}
-                    required
-                />
-                <Input
-                    label="State"
-                    type="text"
-                    name="state"
-                    value={userData.state}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={errors.state}
-                    disabled={isReadOnly}
-                    required
-                />
+            <div className="space-y-8">
+                <div>
+                    {renderField("Street Address", userData.address || "", "address")}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                    {renderField("City", userData.city || "", "city")}
+                    {renderField("State", userData.state || "", "state")}
+                    {renderField("Country", userData.country || "", "country")}
+                    {renderField("Pincode", userData.pincode || "", "pincode")}
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                <Input
-                    label="Country"
-                    type="text"
-                    name="country"
-                    value={userData.country}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={errors.country}
-                    disabled={isReadOnly}
-                    required
-                />
-                <Input
-                    label="Pincode"
-                    type="text"
-                    name="pincode"
-                    value={userData.pincode}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={errors.pincode}
-                    disabled={isReadOnly}
-                    required
-                />
-            </div>
-
-            {!isReadOnly && (
-                <div className="flex justify-end">
-                    <Button onClick={handleSaveAddress} variant={variant} className="rounded-lg">
-                        Save Address
+            {!effectiveReadOnly && (
+                <div className="flex justify-end mt-10">
+                    <Button onClick={handleSaveAddress} variant={variant} className="px-10 py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-indigo-100">
+                        Update Address
                     </Button>
                 </div>
             )}

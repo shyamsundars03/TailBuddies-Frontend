@@ -32,7 +32,7 @@ export const doctorApi = {
     getProfile: async () => {
         try {
             // const response = await apiClient.get('/doctor/profile');
-             const response = await apiClient.get(DOCTOR_ENDPOINTS.PROFILE);
+            const response = await apiClient.get(DOCTOR_ENDPOINTS.PROFILE);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -71,7 +71,7 @@ export const doctorApi = {
     updateProfile: async (data: Record<string, any>) => {
         try {
             // const response = await apiClient.put('/doctor/profile', data);
-             const response = await apiClient.put(DOCTOR_ENDPOINTS.UPDATE_PROFILE, data);
+            const response = await apiClient.put(DOCTOR_ENDPOINTS.UPDATE_PROFILE, data);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -101,7 +101,7 @@ export const doctorApi = {
             // });
             const response = await apiClient.post(DOCTOR_ENDPOINTS.UPLOAD_DOCUMENT, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
-                });
+            });
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
@@ -128,7 +128,7 @@ export const doctorApi = {
     requestVerification: async () => {
         try {
             // const response = await apiClient.post('/doctor/verification-request');
-                  const response = await apiClient.post(DOCTOR_ENDPOINTS.VERIFICATION_REQUEST);
+            const response = await apiClient.post(DOCTOR_ENDPOINTS.VERIFICATION_REQUEST);
 
             return response.data;
         } catch (error: unknown) {
@@ -138,7 +138,7 @@ export const doctorApi = {
             return { success: false, error: 'An unknown error occurred' };
         }
     },
-    
+
 
 
 
@@ -173,8 +173,8 @@ export const doctorApi = {
 
 
 
-    
-    getAllDoctors: async (page = 1, limit = 3, search?: string, isVerified?: boolean, status?: string, filters?: any) => {
+
+    getAllDoctors: async (page = 1, limit = 3, search?: string, isVerified?: boolean, status?: string, filters?: any, sortBy?: string) => {
         try {
             const params = new URLSearchParams();
             params.append('page', page.toString());
@@ -182,7 +182,8 @@ export const doctorApi = {
             if (search) params.append('search', search);
             if (isVerified !== undefined) params.append('isVerified', isVerified.toString());
             if (status) params.append('status', status);
-            
+            if (sortBy) params.append('sortBy', sortBy);
+
             if (filters) {
                 if (filters.specialty) params.append('specialty', filters.specialty);
                 if (filters.gender) params.append('gender', filters.gender);
@@ -193,7 +194,7 @@ export const doctorApi = {
 
             // Determine base URL: /admin/doctors for admin, /auth/doctors for public
             const url = status || isVerified === undefined ? `/admin/doctors?${params.toString()}` : `/auth/doctors?${params.toString()}`;
-            
+
             const response = await apiClient.get(url);
             return response.data;
         } catch (error: unknown) {
@@ -221,7 +222,7 @@ export const doctorApi = {
     verifyDoctor: async (doctorId: string, data: { isVerified: boolean, rejectionReason?: string, verificationStatus?: Record<string, boolean> }) => {
         try {
             // const response = await apiClient.patch(`/admin/doctors/${doctorId}/verify`, data);
-                  const response = await apiClient.patch(DOCTOR_ENDPOINTS.ADMIN_VERIFY(doctorId), data);
+            const response = await apiClient.patch(DOCTOR_ENDPOINTS.ADMIN_VERIFY(doctorId), data);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError) {

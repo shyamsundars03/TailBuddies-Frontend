@@ -26,10 +26,18 @@ export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
                 setUnreadCount(response.notifications?.length || 0)
             }
         }
+        
         if (user) {
             fetchUnreadCount()
+            
+            // Listen for real-time updates from SocketHandler
+            window.addEventListener('notification-received', fetchUnreadCount);
+            
             const interval = setInterval(fetchUnreadCount, 60000)
-            return () => clearInterval(interval)
+            return () => {
+                clearInterval(interval);
+                window.removeEventListener('notification-received', fetchUnreadCount);
+            }
         }
     }, [user])
 
@@ -101,12 +109,12 @@ export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
                         }} />
                     )}
                 </div>
-                 <button 
+                 {/* <button 
                     onClick={onChatClick}
                     className="w-9 h-9 bg-black bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition"
                 >
                     <MessageSquare size={18} />
-                </button>
+                </button> */}
                 <button
                     onClick={handleLogout}
                     className="w-9 h-9 bg-black bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition"

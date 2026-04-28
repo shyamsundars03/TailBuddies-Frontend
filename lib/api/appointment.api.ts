@@ -285,5 +285,16 @@ export const appointmentApi = {
             }
             return { success: false, message: 'An unknown error occurred' };
         }
+    },
+    getDoctorSlots: async (date: string) => {
+        try {
+            const response = await apiClient.get(`/appointments/doctor/slots?date=${date}`);
+            return response.data;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                return { success: false, message: error.response?.data?.message || 'Failed to fetch doctor slots' };
+            }
+            return { success: false, message: 'An unknown error occurred' };
+        }
     }
 };

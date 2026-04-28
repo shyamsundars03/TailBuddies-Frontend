@@ -5,7 +5,7 @@ import { Pagination } from '../common/ui/Pagination'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils/utils'
-import { Filter, MoreVertical, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { paymentApi } from '@/lib/api/payment.api'
 import { toast } from 'sonner'
@@ -18,16 +18,19 @@ export function TransactionManagement() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const debouncedSearch = useDebounce(searchTerm, 500)
-    const [activeTab, setActiveTab] = useState('Paid')
+    const [activeTab, setActiveTab] = useState('All')
     const router = useRouter()
+
+    const tabs = ['All', 'Paid', 'Refunded']
 
     const fetchTransactions = async () => {
         setIsLoading(true)
         try {
-            const response = await paymentApi.getAllTransactions(page, limit, searchTerm, activeTab)
+            const statusQuery = activeTab === 'All' ? '' : activeTab.toLowerCase()
+            const response = await paymentApi.getAllTransactions(page, limit, searchTerm, statusQuery)
             if (response.success) {
-                setTransactions(response.transactions)
-                setTotal(response.total)
+                setTransactions(response.transactions || [])
+                setTotal(response.total || 0)
             } else {
                 toast.error(response.message || "Failed to fetch transactions")
             }
@@ -55,145 +58,164 @@ export function TransactionManagement() {
         }).format(amount)
     }
 
+    const columns: Column<any>[] = [
+        {
+            header: "Transaction ID",
+            accessor: (tx) => (
+                <span className="text-[11px] font-black text-blue-500 hover:underline">
+                    {tx.transactionID}
+                </span>
+            )
+        },
+        {
+            header: "User",
+            accessor: (tx) => (
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                        {tx.walletID?.userId?.profilePic ? (
+                            <img src={tx.walletID.userId.profilePic} alt="User" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-[10px] font-bold text-gray-400">{tx.walletID?.userId?.username?.charAt(0).toUpperCase() || 'U'}</span>
+                        )}
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-gray-700 truncate max-w-[150px] block leading-none">
+                            {tx.walletID?.userId?.username || 'System User'}
+                        </span>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: "Role",
+            accessor: (tx) => (
+                <span className={cn(
+                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
+                    tx.walletID?.userId?.role === 'doctor' ? "text-blue-600 bg-blue-50" : "text-purple-600 bg-purple-50"
+                )}>
+                    {tx.walletID?.userId?.role || 'User'}
+                </span>
+            )
+        },
+        {
+            header: "Amount",
+            accessor: (tx) => (
+                <span className={cn(
+                    "text-xs font-black",
+                    tx.type === 'credit' ? "text-emerald-600" : "text-amber-600"
+                )}>
+                    {tx.type === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}
+                </span>
+            )
+        },
+        {
+            header: "Source",
+            accessor: (tx) => (
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight bg-gray-100 px-2 py-0.5 rounded">
+                    {tx.source?.replace(/-/g, ' ')}
+                </span>
+            )
+        },
+        {
+            header: "Date",
+            accessor: (tx) => (
+                <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
+                    {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+            )
+        },
+        {
+            header: "Type",
+            className: "text-right",
+            accessor: (tx) => (
+                <span className={cn(
+                    "px-4 py-1 text-[9px] font-black rounded-full uppercase tracking-widest shadow-sm",
+                    tx.type === 'credit' ? "bg-emerald-500 text-white" : "bg-blue-600 text-white"
+                )}>
+                    {tx.type}
+                </span>
+            )
+        }
+    ]
+
     return (
-        <div className="space-y-8 font-inter">
+        <div className="space-y-4">
             {/* Header / Breadcrumb */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-[#333333] mb-1">Transactions</h1>
-                <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                <h1 className="text-2xl font-bold text-[#333333] mb-1 tracking-tight">System Transactions</h1>
+                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                     <Link href="/admin/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
                     <span>/</span>
-                    <span className="text-gray-400">Transactions</span>
+                    <span>Finance Management</span>
+                    <span>/</span>
+                    <span className="text-gray-300">Transactions</span>
                 </div>
             </div>
 
-            <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-black text-[#002B49] uppercase tracking-tight">System Transactions</h2>
+            {/* Status Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {tabs.map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => {
+                            setActiveTab(tab)
+                            setPage(1)
+                        }}
+                        className={cn(
+                            "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                            activeTab === tab
+                                ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                                : "bg-white text-gray-400 hover:text-blue-600 border border-gray-100"
+                        )}
+                    >
+                        {tab}
+                    </button>
+                ))}
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/30">
+                    <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
+                        Showing {transactions.length} of {total} Transactions
+                    </p>
+                    <SearchInput
+                        placeholder="Search by ID, user or source..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value)
+                            setPage(1)
+                        }}
+                        containerClassName="w-72"
+                    />
                 </div>
 
-                {/* Filter Controls */}
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                    <div className="flex bg-gray-50/50 p-2.5 rounded-5xl w-fit gap-2 ">
-                        {[
-                            { label: 'Paid', status: 'paid' },
-                            { label: 'Refunded', status: 'refunded' },
-                            { label: 'All', status: '' }
-                        ].map((tab) => (
-                            <button
-                                key={tab.label}
-                                onClick={() => {
-                                    setActiveTab(tab.label)
-                                    setPage(1)
-                                }}
-                                className={cn(
-                                    "px-8 py-2.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center gap-2 whitespace-nowrap",
-                                    activeTab === tab.label 
-                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30" 
-                                        : "text-gray-400 hover:text-gray-600 border border-gray-300 px-6 "
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+                {isLoading && transactions.length === 0 ? (
+                    <div className="p-20 flex flex-col items-center justify-center">
+                        <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Records...</p>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-4">
-                        <SearchInput 
-                            placeholder="Search by transaction ID or doctor..." 
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value)
-                                setPage(1)
-                            }}
-                            containerClassName="w-72"
+                ) : (
+                    <>
+                        <DataTable
+                            columns={columns}
+                            data={transactions}
+                            keyExtractor={(tx) => tx._id}
+                            onRowClick={(tx) => router.push(`/admin/transactionManagement/${tx._id}`)}
+                            className="border-0 shadow-none rounded-none"
                         />
-                    </div>
-                </div>
 
-                {/* Transactions Table */}
-                <div className="overflow-x-auto min-h-[400px]">
-                    {isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-64 space-y-4">
-                            <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Loading transactions...</p>
-                        </div>
-                    ) : transactions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                            <p className="text-sm font-bold">No transactions found</p>
-                        </div>
-                    ) : (
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-gray-50">
-                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Transaction ID</th>
-                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Owner</th>
-                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
-                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Source</th>
-                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                                    <th className="px-6 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {transactions.map((tx) => (
-                                    <tr key={tx._id} className="group hover:bg-blue-50/20 transition-colors cursor-pointer" onClick={() => router.push(`/admin/transactionManagement/${tx._id}`)}>
-                                        <td className="px-6 py-5">
-                                            <span className="text-[11px] font-black text-blue-500 hover:underline">
-                                                {tx.transactionID}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-gray-50 bg-gray-100 flex items-center justify-center">
-                                                    {tx.walletID?.userId?.profilePic ? (
-                                                        <img src={tx.walletID.userId.profilePic} alt="User" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span className="text-[10px] font-bold text-gray-400">{tx.walletID?.userId?.username?.charAt(0).toUpperCase() || 'U'}</span>
-                                                    )}
-                                                </div>
-                                                <span className="text-[11px] font-black text-blue-900">{tx.walletID?.userId?.username || 'System User'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className={cn(
-                                                "text-[12px] font-black",
-                                                tx.type === 'credit' ? "text-emerald-600" : "text-amber-600"
-                                            )}>
-                                                {tx.type === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-tighter">{tx.source?.replace(/-/g, ' ')}</span>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className="text-[11px] font-medium text-gray-400">{new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-right">
-                                            <span className={cn(
-                                                "inline-flex items-center justify-center px-4 py-1 text-[9px] font-black rounded-full uppercase tracking-widest shadow-sm",
-                                                tx.type === 'credit' ? "bg-emerald-500 text-white" : "bg-blue-600 text-white"
-                                            )}>
-                                                {tx.type}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-
-                {/* Pagination */}
-                {total > limit && (
-                    <div className="px-6 py-4 bg-gray-50/30">
-                        <Pagination
-                            currentPage={page}
-                            totalPages={Math.ceil(total / limit) || 1}
-                            onPageChange={setPage}
-                            totalEntries={total}
-                            entriesPerPage={limit}
-                        />
-                    </div>
+                        {total > limit && (
+                            <div className="px-8 py-6 bg-gray-50/30 border-t border-gray-50">
+                                <Pagination
+                                    currentPage={page}
+                                    totalPages={Math.ceil(total / limit) || 1}
+                                    onPageChange={setPage}
+                                    totalEntries={total}
+                                    entriesPerPage={limit}
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>

@@ -126,9 +126,20 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
         const response = await appointmentApi.checkIn(id as string, 'doctor')
         if (response.success) {
             toast.success("Checked-in successfully")
-            await fetchDetails()
-            const isOnlineConsultation = appointment?.mode === 'online'
-            setActiveTab(isOnlineConsultation ? 'video' : 'chat')
+            
+            // Use updated data from response to avoid stale state issues
+            const updatedAppt = response.data
+            setAppointment(updatedAppt)
+            
+            const isOnlineConsultation = updatedAppt?.mode === 'online'
+            const isOngoing = updatedAppt?.status === 'ongoing'
+            
+            // Only switch to video if both parties have checked in and it's online
+            if (isOnlineConsultation && isOngoing) {
+                setActiveTab('video')
+            } else {
+                setActiveTab('chat')
+            }
         } else {
             toast.error(response.message || "Check-in failed")
             fetchDetails()
@@ -400,7 +411,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                 {/* Tab Navigation */}
                 <div className="px-8 mt-6 flex gap-8 border-b border-gray-50">
                     <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Activity size={14}/>} label="Full Details" />
-                    {canViewChat && appointment.mode !== 'online' && (
+                    {canViewChat && (
                         <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare size={14}/>} label={appointment.status === 'completed' ? "Chat History" : "Live Consultation"} />
                     )}
                     {canJoinVideo && (
@@ -571,9 +582,9 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                                                 value={replyComment}
                                                                 onChange={(e) => setReplyComment(e.target.value)}
                                                                 placeholder="Write a professional response to the patient..."
-                                                                className="w-full h-32 bg-white border-2 border-amber-100 rounded-3xl p-6 text-sm font-medium focus:outline-none focus:border-amber-300 transition-all resize-none shadow-inner"
+                                                                className="w-full h-32 text-gray-800 bg-white border-2 border-amber-100 rounded-3xl p-6 text-sm font-medium focus:outline-none focus:border-amber-300 transition-all resize-none shadow-inner"
                                                             />
-                                                            <div className="absolute bottom-4 right-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                            <div className="absolute bottom-4 right-6 text-[10px] font-bold text-gray-900 uppercase tracking-widest">
                                                                 {replyComment.trim().split(/\s+/).filter(Boolean).length} / 100 words
                                                             </div>
                                                         </div>
@@ -619,7 +630,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                                                     </button>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-xs font-medium text-gray-700 leading-relaxed italic pl-4 border-l-2 border-emerald-200">
+                                                            <p className="text-xs font-medium text-gray-900 leading-relaxed italic pl-4 border-l-2 border-emerald-200">
                                                                 {review.reply.comment}
                                                             </p>
                                                         </div>

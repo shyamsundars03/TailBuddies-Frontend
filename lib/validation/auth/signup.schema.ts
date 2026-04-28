@@ -23,6 +23,10 @@ export const signupSchema = z.object({
     .string()
     .min(6, 'Password must be at least 6 characters')
     .max(50, 'Password too long'),
+        // .regex(
+        //     /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/,
+        //     'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character'
+        // ),
 
   confirmPassword: z
     .string(),

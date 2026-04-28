@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "../lib/redux/provider";
 import { AuthLoader } from "../lib/providers/AuthLoader";
+import { NotificationSocketHandler } from "../components/common/NotificationSocketHandler";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,6 +33,7 @@ export default function RootLayout({
       >
         <ReduxProvider>
           <AuthLoader>
+            <NotificationSocketHandler />
             {children}
             <Toaster richColors position="top-right" />
           </AuthLoader>

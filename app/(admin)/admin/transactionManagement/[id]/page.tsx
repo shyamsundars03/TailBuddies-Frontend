@@ -78,7 +78,7 @@ export default function AdminTransactionDetailsPage() {
                             <span className="text-gray-400">Ledger Detail</span>
                         </nav>
                     </div>
-                    <button 
+                    <button
                         onClick={() => router.back()}
                         className="flex items-center gap-2 px-8 py-3 bg-gray-900 border border-gray-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 hover:bg-gray-800"
                     >
@@ -103,8 +103,8 @@ export default function AdminTransactionDetailsPage() {
                                 </div>
                                 <div className={cn(
                                     "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm border",
-                                    transaction.type === 'credit' 
-                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                                    transaction.type === 'credit'
+                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                                         : "bg-blue-50 text-blue-600 border-blue-100"
                                 )}>
                                     {transaction.type}
@@ -149,7 +149,7 @@ export default function AdminTransactionDetailsPage() {
                                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-950 flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Linked Appointment Details
                                     </h3>
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {/* Pet Info */}
                                         <div className="bg-white border border-gray-100 p-6 rounded-3xl flex items-center gap-4 shadow-sm">
@@ -195,7 +195,7 @@ export default function AdminTransactionDetailsPage() {
                         {/* Involved Parties */}
                         <div className="bg-[#002B49] rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16" />
-{/*                             
+                            {/*                             
                             <h3 className="text-[10px] font-black uppercase tracking-widest mb-8 text-white/40 flex items-center gap-2">
                                 <User size={14} /> Counterparties
                             </h3> */}
@@ -240,14 +240,14 @@ export default function AdminTransactionDetailsPage() {
                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Quick Metrics</p>
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <p className="text-[10px] font-bold text-white/40">Fee Share 5%</p>
+                                        <p className="text-[10px] font-bold text-white/40">Fee Share 10%</p>
                                         <p className="text-xl font-black text-emerald-400">
-                                            {formatAmount(transaction.amount * 0.05)}
+                                            {formatAmount(transaction.amount * 0.1)}
                                         </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[10px] font-bold text-white/40">Payout</p>
-                                        <p className="text-lg font-black">{formatAmount(transaction.amount * 0.95)}</p>
+                                        <p className="text-lg font-black">{formatAmount(transaction.amount * 0.9)}</p>
                                     </div>
                                 </div>
                             </div>

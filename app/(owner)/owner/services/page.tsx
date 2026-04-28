@@ -1,6 +1,6 @@
 "use client"
 
-import { Search,  Grid, List, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Grid, List, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { DoctorFilters } from "@/components/owner/DoctorFilters"
 import { DoctorCard } from "@/components/owner/DoctorCard"
 import { cn } from "@/lib/utils/utils"
@@ -19,8 +19,7 @@ export default function DoctorServicesPage() {
     const [doctors, setDoctors] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-    const [sortBy, setSortBy] = useState('Price (Low to High)')
-    
+
     // Initialize from URL
     const initialSearch = searchParams.get('search') || ''
     const initialPage = parseInt(searchParams.get('page') || '1')
@@ -29,13 +28,15 @@ export default function DoctorServicesPage() {
     const initialExperience = searchParams.get('experienceYears') || ''
     const initialCity = searchParams.get('city') || ''
     const initialMinRating = searchParams.get('minRating') || ''
+    const initialSortBy = searchParams.get('sortBy') || 'Price (Low to High)'
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [totalPages, setTotalPages] = useState(1)
     const [totalDoctors, setTotalDoctors] = useState(0)
-    
+    const [sortBy, setSortBy] = useState(initialSortBy)
+
     const [filters, setFilters] = useState({
         specialty: initialSpecialty,
         gender: initialGender,
@@ -57,21 +58,18 @@ export default function DoctorServicesPage() {
         loadSpecialties()
     }, [])
 
-    const loadDoctors = useCallback(async (page: number, search: string, activeFilters: any) => {
+    const loadDoctors = useCallback(async (page: number, search: string, activeFilters: any, sort: string) => {
         setIsLoading(true)
-        console.log("🔍 Fetching doctors with:", { page, search, activeFilters })
-        const response = await doctorApi.getAllDoctors(page, 3, search, true, undefined, activeFilters)
-        
+        console.log("🔍 Fetching doctors with:", { page, search, activeFilters, sort })
+        const response = await doctorApi.getAllDoctors(page, 9, search, true, undefined, activeFilters, sort)
+
         console.log("📦 API Response:", response)
         if (response.success) {
-            console.log("✅ Filtered Doctors count:", response.data?.length || 0)
-            console.log("🏥 Doctor Cities:", response.data?.map((d: any) => d.clinicInfo?.address?.city))
             setDoctors(response.data || [])
-            setTotalPages(Math.ceil((response.total || 0) / (response.limit || 3)))
+            setTotalPages(Math.ceil((response.total || 0) / (response.limit || 9)))
             setTotalDoctors(response.total || 0)
         } else {
             console.error("❌ Failed to load doctors:", response.error)
-            // toast.error(response.error || "Failed to load doctors")
         }
         setIsLoading(false)
     }, [])
@@ -98,20 +96,21 @@ export default function DoctorServicesPage() {
         if (filters.experienceYears) params.set('experienceYears', filters.experienceYears)
         if (filters.city) params.set('city', filters.city)
         if (filters.minRating) params.set('minRating', filters.minRating)
-        
+        if (sortBy !== 'Price (Low to High)') params.set('sortBy', sortBy)
+
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
-    }, [debouncedSearchTerm, currentPage, filters, pathname, router])
+    }, [debouncedSearchTerm, currentPage, filters, sortBy, pathname, router])
 
-    // Restore "Old" logic: Trigger load on debounced search/filters change
+    // Restore "Old" logic: Trigger load on debounced search/filters/sortBy change
     useEffect(() => {
         setCurrentPage(1)
-        loadDoctors(1, debouncedSearchTerm, filters)
-    }, [debouncedSearchTerm, filters, loadDoctors])
+        loadDoctors(1, debouncedSearchTerm, filters, sortBy)
+    }, [debouncedSearchTerm, filters, sortBy, loadDoctors])
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page)
-        loadDoctors(page, debouncedSearchTerm, filters)
+        loadDoctors(page, debouncedSearchTerm, filters, sortBy)
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
@@ -140,7 +139,7 @@ export default function DoctorServicesPage() {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
                 const data = await res.json()
                 const addr = data.address
-                
+
                 const city = addr.city || addr.town || addr.village || ""
 
                 if (city) {
@@ -187,12 +186,12 @@ export default function DoctorServicesPage() {
                                 className="w-full px-4 py-3 text-sm font-medium text-gray-700 focus:outline-none bg-transparent"
                             />
                         </div>
-                        <button 
+                        <button
                             onClick={() => loadDoctors(1, searchTerm, filters)}
                             className="bg-yellow-400 hover:bg-yellow-500 text-blue-950 font-bold px-8 py-3 rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
                         >
                             Search
-                        </button>                        <button 
+                        </button>                        <button
                             onClick={handleGetLocation}
                             className="ml-2 px-4 py-3 bg-blue-50 text-blue-600 rounded-md font-bold text-[10px] uppercase tracking-widest hover:bg-blue-100 transition active:scale-95 flex items-center gap-2 whitespace-nowrap"
                         >
@@ -206,7 +205,7 @@ export default function DoctorServicesPage() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Sidebar Filters */}
                 <div className="lg:col-span-1">
-                    <DoctorFilters 
+                    <DoctorFilters
                         activeFilters={filters}
                         onFilterChange={handleFilterChange}
                         onClear={clearFilters}
@@ -245,6 +244,7 @@ export default function DoctorServicesPage() {
                                         onChange={(e) => setSortBy(e.target.value)}
                                         className="appearance-none bg-transparent pr-8 text-xs font-bold text-blue-950 uppercase tracking-widest focus:outline-none cursor-pointer"
                                     >
+                                        <option value="">Default</option>
                                         <option>Price (Low to High)</option>
                                         <option>Price (High to Low)</option>
                                         <option>Rating</option>
@@ -287,13 +287,13 @@ export default function DoctorServicesPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             {doctors.map(doctor => (
-                                <DoctorCard 
-                                    key={doctor._id} 
+                                <DoctorCard
+                                    key={doctor._id}
                                     id={doctor._id}
                                     name={doctor.userId?.username || "N/A"}
                                     specialty={doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"}
                                     rating={doctor.averageRating || 0}
-                                    reviewsCount={doctor.totalAppointments || 0}
+                                    reviewsCount={doctor.reviewCount || 0}
                                     location={doctor.clinicInfo?.address?.city || "N/A"}
                                     duration={`${doctor.appointmentDuration || 30} Min`}
                                     fee={String(doctor.profile?.consultationFees || 0)}

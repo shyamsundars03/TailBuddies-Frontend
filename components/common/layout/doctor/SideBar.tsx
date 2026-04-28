@@ -9,6 +9,7 @@ import { uploadToCloudinary } from "../../../../lib/utils/cloudinary"
 import { userApi } from "../../../../lib/api/user"
 import { setUser } from "../../../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
+import Swal from "sweetalert2"
 import {
   LayoutDashboard,
   ClipboardList,
@@ -53,10 +54,10 @@ const menuItems: DoctorSidebarMenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: "/doctor/dashboard" },
   { icon: ClipboardList, label: "Requests", id: "requests", href: "/doctor/requests", badge: true },
   { icon: Calendar, label: "Appointments", id: "appointments", href: "/doctor/appointments" },
-  { icon: Clock, label: "Available Timings", id: "timings", href: "/doctor/slots" },
+  // { icon: Clock, label: "Available Timings", id: "timings", href: "/doctor/slots" },
   { icon: Calendar, label: "Calendar", id: "calendar", href: "/doctor/calendar" },
   { icon: Users, label: "My Patients", id: "patients", href: "/doctor/patients" },
-  { icon: CreditCard, label: "Subscription", id: "subscription", href: "#" },
+  // { icon: CreditCard, label: "Subscription", id: "subscription", href: "#" },
   { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/doctor/reviews" },
   // { icon: FileText, label: "Invoices", id: "invoices", href: "/doctor/invoices" },
   // { icon: Bell, label: "Notifications", id: "notifications", href: "#", badge: true },
@@ -139,6 +140,22 @@ export function DoctorSidebar({
         setIsUploading(false)
       }
     }
+  }
+
+  const handleLogout = () => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You will be logged out of your account.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, logout!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        logout()
+      }
+    })
   }
 
   return (
@@ -307,7 +324,7 @@ export function DoctorSidebar({
 
           {/* Logout button at the bottom */}
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-red-50 transition group mt-2 border-t border-gray-100"
           >
             <div className="flex items-center gap-3">

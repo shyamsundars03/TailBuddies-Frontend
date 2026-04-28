@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { doctorApi } from "../../../../lib/api/doctor/doctor.api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils/utils"
+import Link from "next/link"
 
 // Tab Components
 import { BasicDetailsTab } from "../../../../components/doctor/profile/BasicDetailsTab"
@@ -37,7 +38,6 @@ function DoctorProfileInner() {
                 return
             }
             
-            // If user exists but role is temporarily missing (during sync), don't redirect yet
             if (userRole === "doctor") {
                 fetchDoctorProfile()
             }
@@ -77,8 +77,6 @@ function DoctorProfileInner() {
         if (!doctorData?.clinicInfo?.clinicName || !doctorData?.clinicInfo?.address || !doctorData?.clinicInfo?.clinicPic) {
             errors.push("Clinic name, address, and image are required");
         }
-        
-        // Note: Business hours are intentionally excluded as per user request
         
         return errors;
     };
@@ -135,7 +133,7 @@ function DoctorProfileInner() {
         }
     }
 
-    const isEditable = true; // Always allow editing, backend will handle status resets
+    const isEditable = true;
 
     const renderTabContent = () => {
         if (loading) return (
@@ -171,75 +169,86 @@ function DoctorProfileInner() {
     const statusConfig = getStatusConfig(doctorData?.profileStatus || 'incomplete')
 
     return (
-        
-        <div className="flex-1 bg-white shadow-md border border-gray-200 rounded-2xl ">
-              <h1 className="text-2xl font-bold  p-6 text-lr  text-gray-900">Profile:</h1>
-            <div className="w-full max-w-5xl mx-auto px-2 sm:px-6 lg:px-2 py-2">
-                {/* Status Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl">
-                    <div className="flex items-center gap-4">
-                        <div className={cn("flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold", statusConfig.color)}>
-                            {statusConfig.icon}
-                            {statusConfig.label.toUpperCase()}
-                        </div>
-                        {doctorData?.profileStatus === 'rejected' && doctorData?.rejectionReason && (
-                            <p className="text-xs text-red-500 font-bold max-w-xs line-clamp-2">
-                                Reason: {doctorData.rejectionReason}
-                            </p>
-                        )}
-                    </div>
-                    {statusConfig.canVerify && (
-                        <button
-                            onClick={handleRequestVerification}
-                            disabled={verifying}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {verifying ? (
-                                <>
-                                    <Loader2 size={18} className="animate-spin" />
-                                    SUBMITTING...
-                                </>
-                            ) : (
-                                <>
-                                    <Shield size={18} />
-                                    GET VERIFIED
-                                </>
-                            )}
-                        </button>
-                    )}
+        <div className="space-y-6">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-blue-950 mb-1">Doctor Profile</h1>
+                    <nav className="flex items-center gap-2 text-sm text-gray-400">
+                        <Link href="/doctor/dashboard" className="hover:text-blue-600 transition">Dashboard</Link>
+                        <span>/</span>
+                        <span className="text-blue-600/60 font-medium">Professional Profile</span>
+                    </nav>
                 </div>
+            </div>
 
-                {/* Tab Navigation */}
-                <div className="flex overflow-x-auto gap-1 mb-8 bg-gray-200/50 p-1.5 rounded-2xl no-scrollbar">
-                    {tabs.map((tab) => {
-                        const sectionKey = tab.toLowerCase().replace(" ", "") === "clinicinfo" ? "clinic" : tab.toLowerCase().replace(" ", "")
-                        const isSectionVerified = doctorData?.verificationStatus?.[sectionKey]
-                        
-                        return (
+            <div className="flex-1 bg-white shadow-xl shadow-gray-100 border border-gray-100 rounded-3xl overflow-hidden">
+                <div className="w-full max-w-5xl mx-auto px-2 sm:px-6 lg:px-2 py-2">
+                    {/* Status Section */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl">
+                        <div className="flex items-center gap-4">
+                            <div className={cn("flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold", statusConfig.color)}>
+                                {statusConfig.icon}
+                                {statusConfig.label.toUpperCase()}
+                            </div>
+                            {doctorData?.profileStatus === 'rejected' && doctorData?.rejectionReason && (
+                                <p className="text-xs text-red-500 font-bold max-w-xs line-clamp-2">
+                                    Reason: {doctorData.rejectionReason}
+                                </p>
+                            )}
+                        </div>
+                        {statusConfig.canVerify && (
                             <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={cn(
-                                    "relative px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 flex items-center justify-center gap-2",
-                                    activeTab === tab
-                                        ? "bg-white text-blue-600 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900"
-                                )}
+                                onClick={handleRequestVerification}
+                                disabled={verifying}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {tab}
-                                {isSectionVerified && (
-                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                                {verifying ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" />
+                                        SUBMITTING...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Shield size={18} />
+                                        GET VERIFIED
+                                    </>
                                 )}
                             </button>
-                        )
-                    })}
-                </div>
+                        )}
+                    </div>
 
-                {/* Content Card */}
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-10">
-                    <Suspense fallback={<div className="py-10 text-center text-gray-400">Loading Tab...</div>}>
-                        {renderTabContent()}
-                    </Suspense>
+                    {/* Tab Navigation */}
+                    <div className="flex overflow-x-auto gap-1 mb-8 bg-gray-200/50 p-1.5 rounded-2xl no-scrollbar">
+                        {tabs.map((tab) => {
+                            const sectionKey = tab.toLowerCase().replace(" ", "") === "clinicinfo" ? "clinic" : tab.toLowerCase().replace(" ", "")
+                            const isSectionVerified = doctorData?.verificationStatus?.[sectionKey]
+                            
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={cn(
+                                        "relative px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 flex items-center justify-center gap-2",
+                                        activeTab === tab
+                                            ? "bg-white text-blue-600 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900"
+                                    )}
+                                >
+                                    {tab}
+                                    {isSectionVerified && (
+                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                                    )}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* Content Card */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-10">
+                        <Suspense fallback={<div className="py-10 text-center text-gray-400">Loading Tab...</div>}>
+                            {renderTabContent()}
+                        </Suspense>
+                    </div>
                 </div>
             </div>
         </div>

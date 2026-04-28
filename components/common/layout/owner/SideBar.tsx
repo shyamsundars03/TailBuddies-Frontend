@@ -25,6 +25,7 @@ import { userApi } from "../../../../lib/api/user"
 import { setUser } from "../../../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
 import Image from "next/image"
+import Swal from "sweetalert2"
 
 export interface SidebarMenuItem {
     icon: LucideIcon
@@ -55,7 +56,7 @@ const defaultMenuItems: SidebarMenuItem[] = [
     // { icon: MessageSquare, label: "AI Assistant", id: "ai", href: "/owner/ai-assistant" },
     // { icon: Bell, label: "Notifications", id: "notifications", href: "#" },
     { icon: Wallet, label: "Wallet", id: "wallet", href: "/owner/wallet" },
-    { icon: FileText, label: "Subscription", id: "subscription", href: "/owner/subscriptions" },
+    // { icon: FileText, label: "Subscription", id: "subscription", href: "/owner/subscriptions" },
     { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/owner/reviews" },
 ]
 
@@ -127,6 +128,22 @@ export function OwnerSidebar({
                 setIsUploading(false)
             }
         }
+    }
+
+    const handleLogout = () => {
+        Swal.fire({
+            title: "Are you sure?",
+            text: "You will be logged out of your account.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, logout!",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logout()
+            }
+        })
     }
 
     return (
@@ -219,7 +236,7 @@ export function OwnerSidebar({
 
                     {/* Logout button at the bottom */}
                     <button
-                        onClick={logout}
+                        onClick={handleLogout}
                         className="w-full flex items-center justify-between px-6 py-3 text-left hover:bg-red-50 transition group mt-2 border-t border-gray-100"
                     >
                         <div className="flex items-center gap-3">

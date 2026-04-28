@@ -9,6 +9,7 @@ import { appointmentApi } from "@/lib/api/appointment.api"
 import { format, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils/utils"
 import Image from "next/image"
+import Link from "next/link"
 
 export default function OwnerCalendarPage() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -116,12 +117,15 @@ export default function OwnerCalendarPage() {
                                             </div>
                                         </div>
                                         
-                                        <div className="flex-1 bg-gray-50/50 hover:bg-white hover:shadow-xl hover:shadow-gray-100 border border-transparent hover:border-indigo-50 rounded-2xl p-5 transition-all cursor-pointer group/card">
+                                        <Link 
+                                            href={`/owner/bookings/${appt._id}`}
+                                            className="flex-1 bg-gray-50/50 hover:bg-white hover:shadow-xl hover:shadow-gray-100 border border-transparent hover:border-indigo-50 rounded-2xl p-5 transition-all cursor-pointer group/card"
+                                        >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md">
                                                         <Image 
-                                                            src={appt.petId?.image || "/placeholder-pet.png"} 
+                                                            src={appt.petId?.picture || "/placeholder.svg?height=48&width=48"} 
                                                             alt="Pet" 
                                                             width={48} 
                                                             height={48} 
@@ -152,12 +156,12 @@ export default function OwnerCalendarPage() {
                                                     <Stethoscope size={12} className="text-gray-400" />
                                                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Dr. {appt.doctorId?.userId?.username || "Doctor"}</span>
                                                 </div>
-                                                <button className="flex items-center gap-1 text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                                <div className="flex items-center gap-1 text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover/card:opacity-100 transition-opacity">
                                                     View Details
                                                     <ChevronRight size={12} />
-                                                </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </Link>
                                     </div>
                                 ))
                             ) : (

@@ -141,7 +141,7 @@ export function DoctorFilters({ activeFilters, onFilterChange, onClear, specialt
                     {activeFilters.minRating && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                             <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 uppercase tracking-widest">
-                                {activeFilters.minRating}+ Stars
+                                {activeFilters.minRating} Stars
                             </span>
                             <button 
                                 onClick={() => onFilterChange('minRating', '')}

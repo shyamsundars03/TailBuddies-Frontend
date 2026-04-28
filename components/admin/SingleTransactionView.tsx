@@ -42,7 +42,7 @@ export function SingleTransactionView({ id }: { id: string }) {
                             <p className="text-sm font-black text-gray-600">Dr. Arun</p>
                         </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-black text-[#002B49]">Status:</span>
                         <span className="text-sm font-bold text-gray-500">Completed</span>

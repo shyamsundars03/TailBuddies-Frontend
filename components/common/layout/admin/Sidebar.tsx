@@ -46,7 +46,7 @@ const menuItems: SidebarMenuItem[] = [
     { icon: UserCheck, label: "Doctors Verifications", id: "doctors", href: "/admin/doctorVerifications" },
     { icon: PawPrint, label: "Pets", id: "pets", href: "/admin/petsManagement" },
     { icon: Stethoscope, label: "Speacilities", id: "specialities", href: "/admin/specialitiesManagement" },
-    { icon: Receipt, label: "Subscription", id: "subscriptions", href: "#" },
+    // { icon: Receipt, label: "Subscription", id: "subscriptions", href: "#" },
     { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "/admin/appointmentManagement" },
     { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "/admin/transactionManagement" },
     { icon: CreditCard, label: "Payment Approvals", id: "payments", href: "/admin/paymentApprovals" },

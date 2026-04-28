@@ -7,7 +7,9 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils/utils"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { userPetApi } from "@/lib/api/user/pet.api"
+import { prescriptionApi } from "@/lib/api/prescription.api"
 import { Pagination } from "@/components/common/ui/Pagination"
+import { toast } from "sonner"
 
 export default function MedicalRecordsPage() {
     const router = useRouter()
@@ -25,11 +27,13 @@ export default function MedicalRecordsPage() {
     const [selectedTimeframe, setSelectedTimeframe] = useState(initialTimeframe)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [isLoading, setIsLoading] = useState(false)
-    const [records, setRecords] = useState<any[]>([]) 
+    const [records, setRecords] = useState<any[]>([])
     const [pets, setPets] = useState<any[]>([])
     const [totalEntries, setTotalEntries] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
     const entriesPerPage = 3
+
+    const [isDownloading, setIsDownloading] = useState<string | null>(null)
 
     const fetchPets = useCallback(async () => {
         const response = await userPetApi.getOwnerPets(1, 100)
@@ -38,13 +42,26 @@ export default function MedicalRecordsPage() {
         }
     }, [])
 
+    const handleDownload = async (prescriptionId: string) => {
+        if (!prescriptionId) {
+            toast.error("No prescription found for this record")
+            return
+        }
+        setIsDownloading(prescriptionId)
+        const response = await prescriptionApi.downloadPdf(prescriptionId)
+        if (!response.success) {
+            toast.error(response.message || "Failed to download PDF")
+        }
+        setIsDownloading(null)
+    }
+
     const fetchRecords = useCallback(async (page: number, search: string, pet: string, timeframe: string) => {
         setIsLoading(true)
         const response = await appointmentApi.getOwnerAppointments(page, entriesPerPage, search, 'completed', timeframe)
-        
+
         if (response.success) {
             let data = response.data || []
-            
+
             // Client-side pet filter if needed
             if (pet !== "All Pets") {
                 data = data.filter((appt: any) => appt.petId?.name === pet)
@@ -52,6 +69,7 @@ export default function MedicalRecordsPage() {
 
             const formattedRecords = data.map((appt: any) => ({
                 id: appt._id,
+                prescriptionId: appt.prescriptionId?._id || appt.prescriptionId,
                 petName: appt.petId?.name || "Unknown",
                 species: appt.petId?.species || "Unknown",
                 breed: appt.petId?.breed || "",
@@ -66,7 +84,7 @@ export default function MedicalRecordsPage() {
                 recommendedTests: appt.prescriptionId?.recommendedTests || "None",
                 petImage: appt.petId?.picture || "/placeholder-pet.png"
             }))
-            
+
             setRecords(formattedRecords)
             setTotalEntries(response.total || formattedRecords.length)
             setTotalPages(Math.ceil((response.total || formattedRecords.length) / entriesPerPage) || 1)
@@ -84,7 +102,7 @@ export default function MedicalRecordsPage() {
         if (currentPage > 1) params.set('page', currentPage.toString())
         if (selectedPet !== "All Pets") params.set('pet', selectedPet)
         if (selectedTimeframe !== "Lifetime") params.set('timeframe', selectedTimeframe)
-        
+
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
     }, [debouncedSearchTerm, currentPage, selectedPet, pathname, router])
@@ -118,7 +136,7 @@ export default function MedicalRecordsPage() {
                         <span className="text-blue-600/60 font-medium">Medical Records</span>
                     </nav>
                 </div>
-                
+
                 <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
@@ -170,7 +188,7 @@ export default function MedicalRecordsPage() {
                                 <Filter size={14} className="text-blue-600" />
                                 {selectedTimeframe === 'Lifetime' ? 'Filter By' : selectedTimeframe} <ChevronDown size={12} className={cn("transition-transform", "group-hover/filter:rotate-180")} />
                             </button>
-                            
+
                             {/* Filter Dropdown */}
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl shadow-blue-950/5 opacity-0 invisible group-hover/filter:opacity-100 group-hover/filter:visible transition-all z-50 overflow-hidden">
                                 {['Lifetime', 'Today', 'This Week', 'This Month'].map((time) => (
@@ -182,8 +200,8 @@ export default function MedicalRecordsPage() {
                                         }}
                                         className={cn(
                                             "w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors",
-                                            selectedTimeframe === time 
-                                                ? "bg-blue-600 text-white" 
+                                            selectedTimeframe === time
+                                                ? "bg-blue-600 text-white"
                                                 : "text-gray-500 hover:bg-blue-50 hover:text-blue-600"
                                         )}
                                     >
@@ -212,18 +230,18 @@ export default function MedicalRecordsPage() {
                         <div key={record.id} className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
                             {/* Blue Accent Strip */}
                             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-100 group-hover:bg-blue-600 transition-colors" />
-                            
+
                             <div className="flex flex-col gap-8">
                                 {/* Record Header Row */}
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                     <div className="flex items-center gap-6">
                                         <div className="w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-gray-50 shadow-sm shrink-0">
-                                            <Image 
-                                                src={record.petImage} 
-                                                alt={record.petName} 
-                                                width={64} 
-                                                height={64} 
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                            <Image
+                                                src={record.petImage}
+                                                alt={record.petName || "Pet Image"}
+                                                width={64}
+                                                height={64}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                             />
                                         </div>
                                         <div>
@@ -252,7 +270,7 @@ export default function MedicalRecordsPage() {
                                 {/* Report Content Area */}
                                 <div className="space-y-6">
                                     <h4 className="text-xl font-bold text-[#002B49] border-b border-gray-100 pb-2 inline-block">Report</h4>
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="bg-blue-50/30 rounded-2xl p-4 border border-blue-50/50">
                                             <p className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-1.5">Clinical Findings</p>
@@ -275,14 +293,19 @@ export default function MedicalRecordsPage() {
 
                                 {/* Actions */}
                                 <div className="flex items-center justify-end gap-4 pt-4 border-t border-dashed border-gray-100">
-                                    <Link 
-                                        href={`/owner/medical-records/${record.id}`}
+                                    <Link
+                                        href={`/owner/medical-records/${record.prescriptionId || record.id}`}
                                         className="px-8 py-2.5 bg-white border border-blue-200 text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition shadow-sm active:scale-95 flex items-center gap-2"
                                     >
                                         <Eye size={16} /> View
                                     </Link>
-                                    <button className="px-8 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-black rounded-xl text-xs font-black uppercase tracking-widest transition shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2">
-                                        <Download size={16} /> Download Summary
+                                    <button
+                                        onClick={() => handleDownload(record.prescriptionId)}
+                                        disabled={isDownloading === record.prescriptionId}
+                                        className="px-8 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-black rounded-xl text-xs font-black uppercase tracking-widest transition shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isDownloading === record.prescriptionId ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                                        {isDownloading === record.prescriptionId ? "Downloading..." : "Download Summary"}
                                     </button>
                                 </div>
                             </div>

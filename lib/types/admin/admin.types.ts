@@ -15,6 +15,7 @@ export interface AdminUser {
     role: "owner" | "doctor"
     isBlocked: boolean
     profilePic?: string
+    specialty?: string
 }
 
 export interface Pet {

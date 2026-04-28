@@ -376,7 +376,7 @@ function WalletPageContent() {
                                     placeholder="Enter Amount"
                                     value={topUpAmount}
                                     onChange={(e) => setTopUpAmount(e.target.value)}
-                                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg"
+                                    className="w-full px-6 py-4   text-gray-700 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg"
                                 />
                             </div>
 

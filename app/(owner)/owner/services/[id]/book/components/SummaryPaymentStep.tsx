@@ -18,6 +18,12 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
     const [walletBalance, setWalletBalance] = useState<number>(0)
 
     useEffect(() => {
+        if (data.mode === 'online' && paymentMethod === 'COD') {
+            setPaymentMethod('Razorpay')
+        }
+    }, [data.mode, paymentMethod])
+
+    useEffect(() => {
         const fetchDetails = async () => {
             setIsLoading(true)
             try {
@@ -25,10 +31,10 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                     doctorApi.getById(doctorId),
                     data.petId ? userPetApi.getPetById(data.petId) : Promise.resolve({ success: false })
                 ])
-                
+
                 if (docRes.success) setDoctor(docRes.data)
                 if (petRes.success) setPet(petRes.data)
-                
+
                 // Fetch wallet balance
                 const walletRes = await paymentApi.getWallet()
                 if (walletRes.success) setWalletBalance(walletRes.wallet.balance)
@@ -62,7 +68,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
         }
         sessionStorage.setItem("bookingData", JSON.stringify(summaryData))
         sessionStorage.setItem(`booking_completed_${doctorId}`, 'true')
-        
+
         sessionStorage.removeItem(`booking_${doctorId}`)
         sessionStorage.removeItem(`booking_step_${doctorId}`)
         router.push(`/owner/services/${doctorId}/book/success?id=${appointment._id}&appId=${appointment.appointmentId}`)
@@ -197,7 +203,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
             const appointment = response.data
 
             if (paymentMethod === "COD") {
-                 finalizeBooking(appointment)
+                finalizeBooking(appointment)
             } else if (paymentMethod === "Razorpay") {
                 await handleRazorpayPayment(appointment, amount)
             } else if (paymentMethod === "Wallet") {
@@ -236,34 +242,34 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                         <h3 className="text-sm font-bold text-blue-950 uppercase tracking-widest border-b border-gray-100 pb-4">Summary</h3>
                         <div className="space-y-2 text-xs font-semibold text-gray-500">
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Vet:</span> 
+                                <span className="uppercase text-[10px]">Vet:</span>
                                 <span className="text-blue-900 font-bold">{doctor?.userId?.username || "N/A"}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Pet:</span> 
+                                <span className="uppercase text-[10px]">Pet:</span>
                                 <span className="text-blue-900 font-bold">{pet?.name || "N/A"} ({pet?.species || "Species N/A"})</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Date:</span> 
+                                <span className="uppercase text-[10px]">Date:</span>
                                 <span className="text-blue-900 font-bold">{data.date}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Time:</span> 
+                                <span className="uppercase text-[10px]">Time:</span>
                                 <span className="text-blue-900 font-bold">{data.time}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Mode:</span> 
+                                <span className="uppercase text-[10px]">Mode:</span>
                                 <span className="text-blue-900 font-bold capitalize">{data.mode || "offline"}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Service:</span> 
+                                <span className="uppercase text-[10px]">Service:</span>
                                 <span className="text-blue-900 font-bold">{data.type}</span>
                             </div>
                             <div className="flex justify-between items-start gap-4">
                                 <span className="uppercase text-[10px] shrink-0">Location:</span>
                                 <span className="text-blue-900 font-bold text-right">
-                                    {doctor?.clinicInfo?.clinicName}<br/>
-                                    {doctor?.clinicInfo?.address?.doorNo} {doctor?.clinicInfo?.address?.street},<br/>
+                                    {doctor?.clinicInfo?.clinicName}<br />
+                                    {doctor?.clinicInfo?.address?.doorNo} {doctor?.clinicInfo?.address?.street},<br />
                                     {doctor?.clinicInfo?.address?.city}, {doctor?.clinicInfo?.address?.state} - {doctor?.clinicInfo?.address?.pincode}
                                 </span>
                             </div>
@@ -312,11 +318,12 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                     />
                     <PaymentOption
                         id="COD"
-                        icon={<Banknote className="text-emerald-500" size={20} />}
+                        icon={<Banknote className={cn("text-emerald-500", data.mode === 'online' && "text-gray-400")} size={20} />}
                         label="Cash on Consultation"
-                        subLabel="Proceed with booking and pay at clinic"
+                        subLabel={data.mode === 'online' ? "Not available for online consultations" : "Proceed with booking and pay at clinic"}
                         selected={paymentMethod === "COD"}
                         onClick={() => setPaymentMethod("COD")}
+                        disabled={data.mode === 'online'}
                     />
                 </div>
             </div>
@@ -325,15 +332,15 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                     <div className="bg-white p-12 rounded-[3rem] shadow-2xl shadow-blue-900/20 border border-blue-50 flex flex-col items-center max-w-sm w-full mx-4 relative overflow-hidden">
                         {/* Decorative Background for Loader */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl opacity-50" />
-                        
+
                         <div className="relative mb-8">
                             <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
                             <Check className="absolute inset-0 m-auto text-blue-600 opacity-20" size={32} />
                         </div>
-                        
+
                         <h3 className="text-sm font-black text-blue-950 uppercase tracking-[0.3em] mb-3">Processing</h3>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center leading-relaxed">
-                            Securing your appointment slot. <br/> Please do not refresh the page.
+                            Securing your appointment slot. <br /> Please do not refresh the page.
                         </p>
                     </div>
                 </div>
@@ -342,7 +349,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
     )
 }
 
-function PaymentOption({ id, icon, label, subLabel, selected, onClick , disabled, showWarning}: any) {
+function PaymentOption({ id, icon, label, subLabel, selected, onClick, disabled, showWarning }: any) {
     return (
         <button
             onClick={onClick}
@@ -351,7 +358,7 @@ function PaymentOption({ id, icon, label, subLabel, selected, onClick , disabled
                 "w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-300",
                 selected
                     ? "border-blue-500 bg-blue-50/10 shadow-sm"
-                    : disabled 
+                    : disabled
                         ? "border-gray-50 bg-gray-50/50 cursor-not-allowed opacity-60"
                         : "border-gray-50 bg-white hover:border-blue-100"
             )}

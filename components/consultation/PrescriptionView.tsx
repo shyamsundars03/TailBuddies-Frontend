@@ -51,11 +51,25 @@ console.log("reoer", prescription)
 
                 {/* Observations */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div>
-                        <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Clinical Findings</h3>
-                        <p className="text-xs font-medium text-gray-600 leading-relaxed bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-                            {prescription.clinicalFindings}
-                        </p>
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Clinical Findings</h3>
+                            <p className="text-xs font-medium text-gray-600 leading-relaxed bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                                {prescription.clinicalFindings}
+                            </p>
+                        </div>
+                        {prescription.symptoms?.length > 0 && (
+                            <div>
+                                <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Reported Symptoms</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {prescription.symptoms.map((s: string, i: number) => (
+                                        <span key={i} className="px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase rounded-lg border border-amber-100">
+                                            {s}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div>
                         <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Diagnosis</h3>

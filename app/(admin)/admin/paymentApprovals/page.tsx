@@ -26,7 +26,7 @@ export default function AdminPaymentApprovalsPage() {
 
     const statuses = ["All", "Pending", "Completed", "Rejected"]
 
-    const fetchRequests = useCallback(async (page: number, search: string, status: string) => {
+    const fetchRequests = useCallback(async (page: number = currentPage, search: string = debouncedSearch, status: string = statusTab) => {
         setIsLoading(true)
         try {
             // If status is 'All', we pass empty string or handle it
@@ -112,9 +112,9 @@ export default function AdminPaymentApprovalsPage() {
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-100 shadow-sm shrink-0 bg-gray-50 flex items-center justify-center">
                         {tx.walletID?.userId?.profilePic ? (
-                            <Image 
-                                src={tx.walletID.userId.profilePic} 
-                                alt="Doctor" width={40} height={40} className="w-full h-full object-cover" 
+                            <Image
+                                src={tx.walletID.userId.profilePic}
+                                alt="Doctor" width={40} height={40} className="w-full h-full object-cover"
                             />
                         ) : (
                             <span className="text-sm font-black text-gray-300">{tx.walletID?.userId?.username?.[0] || 'D'}</span>
@@ -174,8 +174,8 @@ export default function AdminPaymentApprovalsPage() {
                 <span className={cn(
                     "px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest shadow-xs",
                     tx.status === 'PENDING' ? "bg-amber-100 text-amber-600" :
-                    tx.status === 'COMPLETED' ? "bg-emerald-100 text-emerald-600" :
-                    "bg-rose-100 text-rose-600"
+                        tx.status === 'COMPLETED' ? "bg-emerald-100 text-emerald-600" :
+                            "bg-rose-100 text-rose-600"
                 )}>
                     {tx.status}
                 </span>
@@ -187,14 +187,14 @@ export default function AdminPaymentApprovalsPage() {
                 <div className="flex items-center justify-end gap-2">
                     {tx.status === 'PENDING' && (
                         <>
-                            <button 
+                            <button
                                 onClick={() => handleApprove(tx._id, tx.amount)}
                                 className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
                                 title="Approve"
                             >
                                 <CheckCircle size={18} />
                             </button>
-                            <button 
+                            <button
                                 onClick={() => handleReject(tx._id)}
                                 className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm group"
                                 title="Reject"
@@ -203,7 +203,7 @@ export default function AdminPaymentApprovalsPage() {
                             </button>
                         </>
                     )}
-                    <Link 
+                    <Link
                         href={`/admin/transactionManagement/${tx._id}`}
                         className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 hover:text-gray-600 transition-all shadow-sm"
                         title="View Details"
@@ -231,15 +231,15 @@ export default function AdminPaymentApprovalsPage() {
                 </div>
 
                 {/* Status Tabs */}
-                <div className="flex items-center gap-3 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
                     {statuses.map((status) => (
                         <button
                             key={status}
                             onClick={() => setStatusTab(status)}
                             className={cn(
                                 "px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                                statusTab === status 
-                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-100 scale-105" 
+                                statusTab === status
+                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-100 scale-105"
                                     : "bg-white text-gray-400 hover:text-blue-600 border border-gray-100 hover:border-blue-100"
                             )}
                         >

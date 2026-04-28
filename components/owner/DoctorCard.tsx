@@ -64,8 +64,10 @@ export function DoctorCard({
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-rose-500 font-bold text-[10px] uppercase tracking-widest">{specialty}</span>
-                            {rating === 0 && (
+                            {rating === 0 ? (
                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter italic">Yet to be rated</span>
+                            ) : (
+                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">{reviewsCount} Reviews</span>
                             )}
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -101,7 +103,7 @@ export function DoctorCard({
                 <div className="pt-2 flex items-center justify-between border-t border-gray-50 mt-4">
                     <div className="space-y-0.5">
                         <p className="text-[10px] text-gray-400 font-bold uppercase">Consultation Fee</p>
-                        <p className="text-lg font-bold text-blue-900">${fee}</p>
+                        <p className="text-lg font-bold text-blue-900">₹{fee}</p>
                     </div>
                     <Link
                         href={`/owner/services/${id}`}

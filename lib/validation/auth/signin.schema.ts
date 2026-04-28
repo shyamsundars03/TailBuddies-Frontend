@@ -6,7 +6,15 @@ export const signinSchema = z.object({
         .string()
         .min(1, 'Email is required'),
         // .regex(/^[a-zA-Z0-9._%+-]+@gmail\.com$/, 'Please enter a valid Gmail address (@gmail.com)'),
-    password: z.string().min(1, 'Password is required'),
+
+    password: z
+        .string()
+        .min(1, 'Password is required'),
+        // .regex(
+        //     /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/,
+        //     'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character'
+        // ),
+
     role: z.enum(['owner', 'doctor', 'admin']),
 });
 

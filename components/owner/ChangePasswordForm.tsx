@@ -24,8 +24,18 @@ export function ChangePasswordForm() {
         setFormData({ ...formData, [e.target.name]: e.target.value })
     }
 
+    const validatePassword = (password: string) => {
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+        return regex.test(password);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        
+        if (!validatePassword(formData.newPassword)) {
+            return toast.error("Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.");
+        }
+
         if (formData.newPassword !== formData.confirmPassword) {
             return toast.error("Passwords do not match")
         }
@@ -39,7 +49,8 @@ export function ChangePasswordForm() {
 
             if (response.success) {
                 toast.success("Password changed successfully")
-                router.push("/owner/account")
+                const redirectPath = isDoctor ? "/doctor/profile" : "/owner/account";
+                router.push(redirectPath)
             } else {
                 toast.error(response.error || "Failed to change password")
             }

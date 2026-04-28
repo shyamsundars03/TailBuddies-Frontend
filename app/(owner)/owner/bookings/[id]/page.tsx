@@ -332,7 +332,7 @@ export default function SingleBookingViewPage() {
                 {/* Tab Navigation */}
                 <div className="px-10 mt-8 flex gap-8 border-b border-gray-50">
                     <TabButton active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={<Calendar size={14} />} label="Overview" />
-                    {canViewChat && appointment.mode !== 'online' && (
+                    {canViewChat && (
                         <TabButton 
                             active={activeTab === 'chat'} 
                             onClick={() => setActiveTab('chat')} 
