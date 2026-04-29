@@ -157,5 +157,4 @@ export function SingleTransactionView({ id }: { id: string }) {
             </div>
         </div>
     )
-}    )
 }

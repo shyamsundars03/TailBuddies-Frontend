@@ -44,8 +44,16 @@ export const prescriptionApi = {
                 responseType: 'blob'
             });
             
+            // Check if it's actually JSON (error)
+            if (response.data.type === 'application/json') {
+                const text = await response.data.text();
+                const errorData = JSON.parse(text);
+                return { success: false, message: errorData.message || 'Failed to download prescription' };
+            }
+
             // Create a blob URL and trigger download
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `prescription-${id}.pdf`);
@@ -57,6 +65,15 @@ export const prescriptionApi = {
             return { success: true };
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
+                if (error.response?.data instanceof Blob) {
+                    const text = await error.response.data.text();
+                    try {
+                        const errorData = JSON.parse(text);
+                        return { success: false, message: errorData.message || 'Failed to download prescription' };
+                    } catch {
+                        return { success: false, message: 'Failed to download prescription' };
+                    }
+                }
                 return { success: false, message: error.response?.data?.message || 'Failed to download prescription' };
             }
             return { success: false, message: 'An unknown error occurred' };

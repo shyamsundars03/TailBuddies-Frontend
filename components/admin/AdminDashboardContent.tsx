@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { User, FileText, ChevronDown, TrendingUp, PieChart as PieIcon, BarChart3, Loader2, IndianRupee } from "lucide-react"
 import { adminAnalyticsApi } from "@/lib/api/admin-analytics.api"
+import { toast } from "sonner"
 import { Line, Bar, Pie } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -32,24 +33,49 @@ ChartJS.register(
 )
 
 export function AdminDashboardContent() {
+    const [filters, setFilters] = useState({
+        from: "",
+        to: "",
+        grouping: "month"
+    })
     const [stats, setStats] = useState<any>(null)
     const [specialtyStats, setSpecialtyStats] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [isDataLoading, setIsDataLoading] = useState(false)
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true)
+    const fetchData = async (currentFilters = filters) => {
+        setIsDataLoading(true)
+        try {
             const [statsRes, specRes] = await Promise.all([
-                adminAnalyticsApi.getDashboardStats(),
-                adminAnalyticsApi.getSpecialtyStats({})
+                adminAnalyticsApi.getDashboardStats(currentFilters),
+                adminAnalyticsApi.getSpecialtyStats({ from: currentFilters.from, to: currentFilters.to })
             ])
 
             if (statsRes.success) setStats(statsRes)
             if (specRes.success) setSpecialtyStats(specRes.stats || [])
-            setIsLoading(false)
+        } catch (error) {
+            console.error("Failed to fetch dashboard data:", error)
         }
+        setIsDataLoading(false)
+        setIsLoading(false)
+    }
+
+    useEffect(() => {
         fetchData()
     }, [])
+
+    const handleApplyFilters = () => {
+        if (filters.from && filters.to) {
+            const fromDate = new Date(filters.from)
+            const toDate = new Date(filters.to)
+            if (toDate < fromDate) {
+                toast.error("End date cannot be before start date")
+                return
+            }
+        }
+        fetchData()
+    }
+
 
     if (isLoading) {
         return (
@@ -61,14 +87,15 @@ export function AdminDashboardContent() {
     }
 
     const cards = stats?.cards || { totalDoctors: 0, totalPets: 0, totalOwners: 0, totalRevenue: 0 }
-    const graphData = stats?.graphData || []
+    const graphData = stats?.graphData || { labels: [], revenue: [], appointments: [] }
 
     const lineChartData = {
-        labels: graphData.map((d: any) => d.month),
+        labels: graphData.labels,
+
         datasets: [
             {
                 label: 'Revenue (₹)',
-                data: graphData.map((d: any) => d.revenue),
+                data: graphData.revenue,
                 borderColor: 'rgb(59, 130, 246)',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 fill: true,
@@ -77,7 +104,7 @@ export function AdminDashboardContent() {
             },
             {
                 label: 'Appointments',
-                data: graphData.map((d: any) => d.appointments),
+                data: graphData.appointments,
                 borderColor: 'rgb(244, 63, 94)',
                 backgroundColor: 'rgba(244, 63, 94, 0.1)',
                 fill: false,
@@ -142,24 +169,63 @@ export function AdminDashboardContent() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Revenue & Appointments Chart */}
                 <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex flex-wrap items-center justify-between gap-6 mb-8 bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-50 rounded-xl">
-                                <TrendingUp className="text-blue-600" size={20} />
+                            <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-100">
+                                <TrendingUp className="text-white" size={20} />
                             </div>
-                            <h3 className="text-lg font-black text-[#002B49] uppercase tracking-widest">Platform Growth</h3>
+                            <div>
+                                <h3 className="text-lg font-black text-[#002B49] uppercase tracking-tight">Platform Performance</h3>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Revenue & Appointment Trends</p>
+                            </div>
                         </div>
-                        <div className="flex gap-4">
+
+                        <div className="flex flex-wrap items-center gap-4">
                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                                <span className="text-[10px] font-black uppercase text-gray-400">Revenue</span>
+                                <div className="relative">
+                                    <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black uppercase text-blue-600 z-10">From</span>
+                                    <input 
+                                        type="date" 
+                                        value={filters.from}
+                                        onChange={(e) => setFilters({...filters, from: e.target.value})}
+                                        className="pl-4 pr-4 py-2 border border-gray-100 bg-white rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-36"
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black uppercase text-blue-600 z-10">To</span>
+                                    <input 
+                                        type="date" 
+                                        value={filters.to}
+                                        onChange={(e) => setFilters({...filters, to: e.target.value})}
+                                        className="pl-4 pr-4 py-2 border border-gray-100 bg-white rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-36"
+                                    />
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-rose-500" />
-                                <span className="text-[10px] font-black uppercase text-gray-400">Appointments</span>
+
+                            <div className="relative">
+                                <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black uppercase text-blue-600 z-10">Interval</span>
+                                <select 
+                                    value={filters.grouping}
+                                    onChange={(e) => setFilters({...filters, grouping: e.target.value})}
+                                    className="pl-4 pr-10 py-2 border border-gray-100 bg-white rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none min-w-[120px]"
+                                >
+                                    <option value="day">Day-wise</option>
+                                    <option value="month">Month-wise</option>
+                                    <option value="year">Year-wise</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={12} />
                             </div>
+
+                            <button 
+                                onClick={handleApplyFilters}
+                                disabled={isDataLoading}
+                                className="px-6 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 active:scale-95"
+                            >
+                                {isDataLoading ? "Updating..." : "Apply"}
+                            </button>
                         </div>
                     </div>
+
                     <div className="h-[350px]">
                         <Line data={lineChartData} options={lineOptions as any} />
                     </div>

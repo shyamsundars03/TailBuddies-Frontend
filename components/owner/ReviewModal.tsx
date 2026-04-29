@@ -50,7 +50,7 @@ export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, on
         }
 
         setIsSubmitting(true)
-        const response = existingReview 
+        const response = existingReview
             ? await reviewApi.update(existingReview._id, { rating, comment })
             : await reviewApi.create({ appointmentId, rating, comment })
 
@@ -74,7 +74,7 @@ export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, on
                         </h3>
                         <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest mt-1">Share your feedback about the consultation</p>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm group border border-transparent hover:border-gray-100"
                     >
@@ -99,8 +99,8 @@ export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, on
                                         size={42}
                                         className={cn(
                                             "transition-all duration-300",
-                                            (hoverRating || rating) >= star 
-                                                ? "fill-[#FFD700] text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.4)]" 
+                                            (hoverRating || rating) >= star
+                                                ? "fill-[#FFD700] text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.4)]"
                                                 : "text-gray-200"
                                         )}
                                     />
@@ -129,8 +129,8 @@ export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, on
                             placeholder="Tell us about your consultation experience..."
                             className={cn(
                                 "w-full h-40 bg-gray-50 border-2 rounded-3xl p-6 text-sm font-medium focus:outline-none transition-all resize-none placeholder:text-gray-300",
-                                wordCount > 100 
-                                    ? "border-red-100 focus:border-red-200 text-red-600" 
+                                wordCount > 100
+                                    ? "border-red-100 focus:border-red-200 text-red-600"
                                     : "border-gray-50 focus:border-blue-100 focus:bg-white text-gray-700"
                             )}
                         />

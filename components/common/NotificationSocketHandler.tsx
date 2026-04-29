@@ -9,7 +9,7 @@ import React from "react";
 
 export function NotificationSocketHandler() {
     const { user } = useAppSelector((state) => state.auth);
-    const socket = useSocket(user?.id);
+    const socket = useSocket(user?.id ?? undefined);
 
     useEffect(() => {
         if (socket) {

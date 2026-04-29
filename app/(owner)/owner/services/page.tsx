@@ -187,7 +187,7 @@ export default function DoctorServicesPage() {
                             />
                         </div>
                         <button
-                            onClick={() => loadDoctors(1, searchTerm, filters)}
+                            onClick={() => loadDoctors(1, searchTerm, filters, sortBy)}
                             className="bg-yellow-400 hover:bg-yellow-500 text-blue-950 font-bold px-8 py-3 rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
                         >
                             Search

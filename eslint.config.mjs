@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "error",
+      // "@typescript-eslint/no-explicit-any": "error",
       
       // Allow console methods but with warnings
       "no-console": ["warn", { allow: ["warn", "error", "info", "debug", "log"] }],

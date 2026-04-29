@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteUser } from "agora-rtc-sdk-ng"
+import AgoraRTC from "agora-rtc-sdk-ng"
+import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng"
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2, Settings, Users, MessageSquare, XCircle, Activity, Play, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 import { toast } from "sonner"
@@ -28,7 +29,7 @@ interface CallLog {
 
 export function VideoCall({ appId, channelName, token, uid, localName = "You", remoteName = "Participant", onEndCall, minimized = false, onExpand }: VideoCallProps) {
     const [hasStarted, setHasStarted] = useState(false)
-    const [remoteUsers, setRemoteUsers] = useState<IRemoteUser[]>([])
+    const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([])
     const [isMuted, setIsMuted] = useState(false)
     const [isVideoOff, setIsVideoOff] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
@@ -433,7 +434,7 @@ function ControlButton({ onClick, active, icon, label }: { onClick: () => void, 
     )
 }
 
-function RemoteVideoPlayer({ user, name, isMinimized = false }: { user: IRemoteUser, name: string, isMinimized?: boolean }) {
+function RemoteVideoPlayer({ user, name, isMinimized = false }: { user: IAgoraRTCRemoteUser, name: string, isMinimized?: boolean }) {
     const videoRef = useRef<HTMLDivElement>(null)
     useEffect(() => {
         if (user.videoTrack && videoRef.current) {

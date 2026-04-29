@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   description: "Your pet care companion",
 };
 
+import ErrorBoundary from "../components/error/ErrorBoundary";
+import ErrorFallback from "../components/error/ErrorFallback";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,9 +36,11 @@ export default function RootLayout({
       >
         <ReduxProvider>
           <AuthLoader>
-            <NotificationSocketHandler />
-            {children}
-            <Toaster richColors position="top-right" />
+            <ErrorBoundary fallback={<ErrorFallback />}>
+              <NotificationSocketHandler />
+              {children}
+              <Toaster richColors position="top-right" />
+            </ErrorBoundary>
           </AuthLoader>
         </ReduxProvider>
       </body>

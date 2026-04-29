@@ -59,7 +59,7 @@ export default function AdminReviewsListingPage() {
             const response = await reviewApi.delete(id)
             if (response.success) {
                 toast.success("Review deleted")
-                fetchReviews()
+                fetchReviews(currentPage, debouncedSearch)
             } else {
                 toast.error(response.message || "Failed to delete review")
             }

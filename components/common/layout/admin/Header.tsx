@@ -6,7 +6,11 @@ import { useSignin } from "../../../../lib/hooks/auth/useSignin"
 import Swal from "sweetalert2"
 import Image from "next/image"
 
-export function AdminHeader() {
+interface AdminHeaderProps {
+    title?: string
+}
+
+export function AdminHeader({ title }: AdminHeaderProps) {
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
 

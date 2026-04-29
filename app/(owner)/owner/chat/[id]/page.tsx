@@ -107,7 +107,7 @@ export default function ChatDetailPage() {
                             isUser ? "ml-auto flex-row-reverse" : "mr-auto"
                         )}>
                             <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 shadow-sm border border-white">
-                                <Image src={msg.senderAvatar} alt={msg.senderName} width={40} height={40} className="w-full h-full object-cover" />
+                                <Image src={msg.senderAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100&h=100"} alt={msg.senderName || "User"} width={40} height={40} className="w-full h-full object-cover" />
                             </div>
                             
                             <div className={cn(
@@ -115,7 +115,7 @@ export default function ChatDetailPage() {
                                 isUser ? "items-end" : "items-start"
                             )}>
                                 <div className="flex items-center gap-3 mb-0.5">
-                                    <span className="text-[11px] font-black text-[#002B49]">{msg.senderName}</span>
+                                    <span className="text-[11px] font-black text-[#002B49]">{msg.senderName || "User"}</span>
                                     <span className="text-[10px] font-bold text-gray-400 uppercase">{msg.time}</span>
                                 </div>
 
@@ -140,17 +140,17 @@ export default function ChatDetailPage() {
                                         </div>
                                     ) : msg.type === 'link' ? (
                                         <div className="space-y-3 max-w-[300px]">
-                                            <p className="text-[11px] font-bold text-blue-600 underline truncate">{msg.url}</p>
+                                            <p className="text-[11px] font-bold text-blue-600 underline truncate">{msg.url || "#"}</p>
                                             <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm transition hover:shadow-md cursor-pointer group/link">
                                                 <div className="relative aspect-video">
-                                                    <Image src={msg.thumbnail} alt={msg.title} fill className="object-cover group-hover/link:scale-110 transition-transform duration-700" />
+                                                    <Image src={msg.thumbnail || "https://images.unsplash.com/photo-1490818387583-1baba5e638af?auto=format&fit=crop&q=80&w=400&h=200"} alt={msg.title || "Link"} fill className="object-cover group-hover/link:scale-110 transition-transform duration-700" />
                                                     <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover/link:opacity-100 transition-opacity">
                                                         <Play size={32} className="text-white fill-white shadow-2xl" />
                                                     </div>
                                                 </div>
                                                 <div className="p-3 bg-blue-50/50">
-                                                    <h5 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">{msg.title}</h5>
-                                                    <p className="text-sm font-black text-[#002B49] leading-tight">{msg.description}</p>
+                                                    <h5 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">{msg.title || "Link"}</h5>
+                                                    <p className="text-sm font-black text-[#002B49] leading-tight">{msg.description || "Link description"}</p>
                                                 </div>
                                             </div>
                                         </div>

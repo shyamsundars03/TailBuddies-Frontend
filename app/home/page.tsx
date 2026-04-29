@@ -191,46 +191,46 @@ export default function HomePage() {
           </div>
 
           {/* Feature Cards */}
-                    <div className="text-center mb-12 mt-12">
+          <div className="text-center mb-12 mt-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Quick Actions</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-<Link href={user ? "/owner/services" : "/signup"}>
-  <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
-    <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <Calendar className="text-pink-600" size={28} />
-    </div>
-    <h3 className="font-bold text-gray-900 mb-2">Book Appointment</h3>
-    <p className="text-gray-600 text-sm">
-      Schedule vet visits quickly and easily
-    </p>
-  </div>
-</Link>
+            <Link href={user ? "/owner/services" : "/signup"}>
+              <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
+                <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="text-pink-600" size={28} />
+                </div>
+                <h3 className="font-bold text-gray-900 mb-2">Book Appointment</h3>
+                <p className="text-gray-600 text-sm">
+                  Schedule vet visits quickly and easily
+                </p>
+              </div>
+            </Link>
 
-<Link href={user ? "/owner/services" : "/signup"}>
-  <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
-    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <Phone className="text-red-600" size={28} />
-    </div>
-    <h3 className="font-bold text-gray-900 mb-2">Emergency Care</h3>
-    <p className="text-gray-600 text-sm">
-      Immediate help for urgent pet situations
-    </p>
-  </div>
-</Link>
+            <Link href={user ? "/owner/services" : "/signup"}>
+              <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Phone className="text-red-600" size={28} />
+                </div>
+                <h3 className="font-bold text-gray-900 mb-2">Emergency Care</h3>
+                <p className="text-gray-600 text-sm">
+                  Immediate help for urgent pet situations
+                </p>
+              </div>
+            </Link>
 
-<div 
-  onClick={() => setIsAiChatOpen(true)}
-  className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer"
->
-  <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-    <Stethoscope className="text-teal-600" size={28} />
-  </div>
-  <h3 className="font-bold text-gray-900 mb-2">Chat with AI</h3>
-  <p className="text-gray-600 text-sm">
-    Get instant pet care advice anytime
-  </p>
-</div>
+            <div
+              onClick={() => setIsAiChatOpen(true)}
+              className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer"
+            >
+              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Stethoscope className="text-teal-600" size={28} />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Chat with AI</h3>
+              <p className="text-gray-600 text-sm">
+                Get instant pet care advice anytime
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -583,16 +583,16 @@ export default function HomePage() {
       </footer>
       {/* AI Assistant Popup */}
       {isAiChatOpen && !isAiChatMinimized && (
-        <AiAssistant 
-          isPopup 
-          onMinimize={() => setIsAiChatMinimized(true)} 
-          onClose={() => setIsAiChatOpen(false)} 
+        <AiAssistant
+          isPopup
+          onMinimize={() => setIsAiChatMinimized(true)}
+          onClose={() => setIsAiChatOpen(false)}
         />
       )}
 
       {/* Minimized AI Chat Bubble */}
       {isAiChatOpen && isAiChatMinimized && (
-        <button 
+        <button
           onClick={() => setIsAiChatMinimized(false)}
           className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 animate-bounce"
         >

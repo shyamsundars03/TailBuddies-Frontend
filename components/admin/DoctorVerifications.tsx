@@ -57,7 +57,7 @@ export function DoctorVerifications() {
     useEffect(() => {
         fetchDoctors()
     }, [currentPage, searchTerm, statusFilter])
-    
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'verified': return 'text-green-600 bg-green-50 border-green-200';
@@ -159,7 +159,7 @@ export function DoctorVerifications() {
                         Showing {(currentPage - 1) * 10 + 1} to {Math.min(currentPage * 10, totalEntries)} of {totalEntries} entries
                     </span>
                     <div className="flex gap-2">
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
                             className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-400 disabled:opacity-50"
@@ -167,7 +167,7 @@ export function DoctorVerifications() {
                             Previous
                         </button>
                         <button className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold shadow-md">{currentPage}</button>
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(prev => prev + 1)}
                             disabled={currentPage * 10 >= totalEntries}
                             className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
