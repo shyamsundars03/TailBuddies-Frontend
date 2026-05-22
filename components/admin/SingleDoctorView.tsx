@@ -1,37 +1,79 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, CheckCircle, XCircle, Clock, MapPin, Calendar } from 'lucide-react'
+import { FileText, CheckCircle, XCircle, Clock, MapPin } from 'lucide-react'
 import { doctorApi } from '../../lib/api/doctor/doctor.api'
 import { toast } from 'sonner'
 import Swal from 'sweetalert2'
-import { cn } from '@/lib/utils/utils'
+import { cn, getSpecialtyLabel } from '@/lib/utils/utils'
+import Image from 'next/image'
+import { DoctorDetail } from '@/lib/types/admin/admin.types'
+
+type VerificationSection = string;
+
+function DoctorSectionHeader({
+    title,
+    section,
+    doctor,
+    onVerify,
+}: {
+    title: string;
+    section: VerificationSection;
+    doctor: DoctorDetail;
+    onVerify: (section: VerificationSection, status: boolean) => void | Promise<void>;
+}) {
+    const isVerified = doctor.verificationStatus[section];
+    return (
+        <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+            <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-3">
+                <span className="w-1.5 h-8 bg-blue-600 rounded-full"></span>
+                {title}
+            </h3>
+            {doctor.profileStatus !== 'verified' && (
+                <button
+                    onClick={() => onVerify(section, !isVerified)}
+                    className={cn(
+                        "flex items-center gap-2.5 px-6 py-2 rounded-2xl text-[10px] font-black tracking-widest transition-all shadow-sm border",
+                        isVerified
+                            ? "bg-green-600 text-white border-green-700 hover:bg-green-700"
+                            : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50"
+                    )}
+                >
+                    {isVerified ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                    {isVerified ? "VERIFIED" : "MARK VERIFIED"}
+                </button>
+            )}
+        </div>
+    );
+}
 
 export function SingleDoctorView({ id }: { id: string }) {
     const router = useRouter()
-    const [doctor, setDoctor] = useState<any>(null)
+    const [doctor, setDoctor] = useState<DoctorDetail | null>(null)
     const [loading, setLoading] = useState(true)
+
+
+
+    const fetchDoctor = useCallback(async () => {
+        setLoading(true)
+        const response = await doctorApi.getAdminById(id)
+        
+        if (response.success && response.data) {
+            setDoctor(response.data ?? null)
+        } else {
+            toast.error(response.error || "Failed to load doctor details")
+        }
+        setLoading(false)
+    }, [id])
 
     useEffect(() => {
         fetchDoctor()
-    }, [id])
-
-    const fetchDoctor = async () => {
-        setLoading(true)
-        const response = await (doctorApi as any).getAdminById(id)
-        
-        if (response.success) {
-            setDoctor(response.data)
-        } else {
-            toast.error("Failed to load doctor details")
-        }
-        setLoading(false)
-    }
-
-    const handleSectionVerify = async (section: string, status: boolean) => {
+    }, [fetchDoctor])
+    
+    const handleSectionVerify = async (section: VerificationSection, status: boolean) => {
+        if (!doctor) return;
         const response = await doctorApi.verifyDoctor(id, { 
-            isVerified: doctor.isVerified, // Keep current overall status
             verificationStatus: { [section]: status } 
         })
         if (response.success) {
@@ -43,6 +85,7 @@ export function SingleDoctorView({ id }: { id: string }) {
     }
 
     const handleVerify = async (status: boolean) => {
+        if (!doctor) return;
         // Check if all sections are verified before approving
         if (status) {
             const sections = ['clinic', 'education', 'experience', 'certificates']
@@ -86,40 +129,14 @@ export function SingleDoctorView({ id }: { id: string }) {
         }
     }
 
-    const SectionHeader = ({ title, section }: { title: string, section: string }) => {
-        const isVerified = (doctor.verificationStatus as any)?.[section];
-        return (
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
-                <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-3">
-                    <span className="w-1.5 h-8 bg-blue-600 rounded-full"></span> 
-                    {title}
-                </h3>
-                {(doctor.profileStatus !== 'verified') && (
-                    <button
-                        onClick={() => handleSectionVerify(section, !isVerified)}
-                        className={cn(
-                            "flex items-center gap-2.5 px-6 py-2 rounded-2xl text-[10px] font-black tracking-widest transition-all shadow-sm border",
-                            isVerified 
-                                ? "bg-green-600 text-white border-green-700 hover:bg-green-700" 
-                                : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50"
-                        )}
-                    >
-                        {isVerified ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                        {isVerified ? "VERIFIED" : "MARK VERIFIED"}
-                    </button>
-                )}
-            </div>
-        );
-    }
-
     if (loading) return <div className="p-20 text-center text-gray-500">Loading doctor details...</div>
     if (!doctor) return <div className="p-20 text-center text-gray-500">Doctor not found.</div>
 
     const doctorName = doctor.userId?.username || "ID: " + id
 
     return (
-        <div className="bg-gray-50/50 min-h-screen p-6">
-            <div className="max-w-6xl mx-auto">
+        <div className="font-inter">
+            <div className="mx-auto">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Doctor Verification</h1>
@@ -160,7 +177,7 @@ export function SingleDoctorView({ id }: { id: string }) {
                                 <div className="relative">
                                     <div className="w-32 h-32 rounded-3xl bg-blue-50 flex items-center justify-center overflow-hidden border-4 border-white shadow-xl">
                                         {doctor.userId?.profilePic ? (
-                                            <img src={doctor.userId.profilePic} alt="Doctor" className="w-full h-full object-cover" />
+                                            <Image src={doctor.userId.profilePic} alt="Doctor" width={128} height={128} className="w-full h-full object-cover" />
                                         ) : (
                                             <MapPin className="text-blue-200" size={50} />
                                         )}
@@ -194,7 +211,7 @@ export function SingleDoctorView({ id }: { id: string }) {
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5">Specialty</p>
-                                        <p className="text-sm font-bold text-gray-700">{doctor.profile?.specialtyId?.name || 'Not Selected'}</p>
+                                        <p className="text-sm font-bold text-gray-700">{getSpecialtyLabel(doctor.profile?.specialtyId, 'Not Selected')}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5">Experience</p>
@@ -255,11 +272,11 @@ export function SingleDoctorView({ id }: { id: string }) {
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10 space-y-12">
                     {/* Clinic Details Section */}
                     <div>
-                        <SectionHeader title="Clinic Details" section="clinic" />
+                        <DoctorSectionHeader title="Clinic Details" section="clinic" doctor={doctor} onVerify={handleSectionVerify} />
                         <div className="flex flex-col md:flex-row gap-10 p-6 bg-gray-50 rounded-3xl border border-gray-100">
                             <div className="w-full md:w-64 h-48 rounded-2xl bg-white overflow-hidden border border-gray-200 shadow-sm">
                                 {doctor.clinicInfo?.clinicPic ? (
-                                    <img src={doctor.clinicInfo.clinicPic} alt="Clinic" className="w-full h-full object-cover" />
+                                    <Image src={doctor.clinicInfo.clinicPic} alt="Clinic" width={400} height={200} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-300">
                                         <MapPin size={40} />
@@ -296,9 +313,9 @@ export function SingleDoctorView({ id }: { id: string }) {
                     {/* Education & Experience */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                         <div>
-                            <SectionHeader title="Education" section="education" />
+                            <DoctorSectionHeader doctor={doctor} onVerify={handleSectionVerify} title="Education" section="education" />
                             <div className="space-y-6">
-                                {doctor.education?.length > 0 ? doctor.education.map((edu: any, idx: number) => (
+                                {(doctor.education && doctor.education.length > 0) ? doctor.education.map((edu: { degree: string; institute: string; startDate: string; endDate: string; educationFile?: string }, idx: number) => (
                                     <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
                                         <h4 className="font-bold text-gray-800">{edu.degree}</h4>
                                         <p className="text-sm text-gray-500">{edu.institute}</p>
@@ -323,9 +340,9 @@ export function SingleDoctorView({ id }: { id: string }) {
                         </div>
 
                         <div>
-                            <SectionHeader title="Experience" section="experience" />
+                            <DoctorSectionHeader doctor={doctor} onVerify={handleSectionVerify} title="Experience" section="experience" />
                             <div className="space-y-6">
-                                {doctor.experience?.length > 0 ? doctor.experience.map((exp: any, idx: number) => (
+                                {(doctor.experience && doctor.experience.length > 0) ? doctor.experience.map((exp: { role: string; organization: string; startDate: string; endDate?: string; isCurrent: boolean; experienceFile?: string }, idx: number) => (
                                     <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
                                         <h4 className="font-bold text-gray-800">{exp.role}</h4>
                                         <p className="text-sm text-gray-500">{exp.organization}</p>
@@ -352,9 +369,9 @@ export function SingleDoctorView({ id }: { id: string }) {
 
                     {/* Business Hours */}
                     <div>
-                        <SectionHeader title="Consultation Availability" section="businessHours" />
+                        <DoctorSectionHeader doctor={doctor} onVerify={handleSectionVerify} title="Consultation Availability" section="businessHours" />
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {doctor.businessHours?.map((day: any, idx: number) => (
+                            {doctor.businessHours?.map((day, idx) => (
                                 <div key={idx} className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
                                     <div className="flex justify-between items-center mb-3">
                                         <span className="font-bold text-gray-800 text-sm">{day.day}</span>
@@ -363,13 +380,13 @@ export function SingleDoctorView({ id }: { id: string }) {
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
-                                        {day.isWorking ? day.slots.slice(0, 4).map((slot: string, sIdx: number) => (
+                                        {day.isWorking ? (day.slots ?? []).slice(0, 4).map((slot: string, sIdx: number) => (
                                             <span key={sIdx} className="px-2 py-1 bg-white rounded-lg border border-gray-200 text-[10px] text-gray-500 font-medium">
                                                 {slot}
                                             </span>
                                         )) : <span className="text-[10px] text-gray-400 italic">Not available</span>}
-                                        {day.isWorking && day.slots.length > 4 && (
-                                            <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">+{day.slots.length - 4} more</span>
+                                        {day.isWorking && (day.slots ?? []).length > 4 && (
+                                            <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">+{(day.slots ?? []).length - 4} more</span>
                                         )}
                                     </div>
                                 </div>
@@ -379,9 +396,9 @@ export function SingleDoctorView({ id }: { id: string }) {
 
                     {/* Certificates */}
                     <div>
-                        <SectionHeader title="Professional Certificates" section="certificates" />
+                        <DoctorSectionHeader doctor={doctor} onVerify={handleSectionVerify} title="Professional Certificates" section="certificates" />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {doctor.certificates?.length > 0 ? doctor.certificates.map((cert: any, idx: number) => (
+                            {(doctor.certificates && doctor.certificates.length > 0) ? doctor.certificates.map((cert: { certificateName: string; issuedBy: string; issuedYear: string; certificateFile?: string }, idx: number) => (
                                 <div key={idx} className="flex items-center justify-between p-6 rounded-2xl bg-gray-50 border border-gray-100">
                                     <div>
                                         <h4 className="font-bold text-gray-800 text-sm mb-1">{cert.certificateName}</h4>

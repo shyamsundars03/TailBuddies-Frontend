@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
-import { Search, Filter, Calendar, Grid, List, Eye, Download, ChevronDown, Loader2 } from "lucide-react"
+import { Search, Filter, Calendar, Eye, Download, ChevronDown, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
@@ -10,6 +10,26 @@ import { userPetApi } from "@/lib/api/user/pet.api"
 import { prescriptionApi } from "@/lib/api/prescription.api"
 import { Pagination } from "@/components/common/ui/Pagination"
 import { toast } from "sonner"
+import { useDebounce } from "@/lib/hooks/useDebounce"
+import type { OwnerPet, OwnerAppointment } from "@/lib/types/owner/owner.types"
+
+interface MedicalRecordListItem {
+    id: string
+    prescriptionId?: string
+    petName: string
+    species: string
+    breed: string
+    date: string
+    type: string
+    mode: string
+    appointmentId: string
+    doctorName: string
+    clinicalFindings: string
+    diagnosis: string
+    vetNotes: string
+    recommendedTests: string
+    petImage: string
+}
 
 export default function MedicalRecordsPage() {
     const router = useRouter()
@@ -22,23 +42,24 @@ export default function MedicalRecordsPage() {
     const initialTimeframe = searchParams.get('timeframe') || "Lifetime"
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const debouncedSearchTerm = useDebounce(searchTerm, 1000)
     const [selectedPet, setSelectedPet] = useState(initialPet)
     const [selectedTimeframe, setSelectedTimeframe] = useState(initialTimeframe)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [isLoading, setIsLoading] = useState(false)
-    const [records, setRecords] = useState<any[]>([])
-    const [pets, setPets] = useState<any[]>([])
+    const [records, setRecords] = useState<MedicalRecordListItem[]>([])
+    const [pets, setPets] = useState<OwnerPet[]>([])
     const [totalEntries, setTotalEntries] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
-    const entriesPerPage = 3
+    const entriesPerPage = 2
 
     const [isDownloading, setIsDownloading] = useState<string | null>(null)
 
     const fetchPets = useCallback(async () => {
         const response = await userPetApi.getOwnerPets(1, 100)
-        if (response.success) {
-            setPets(response.data?.pets || response.data || [])
+        if (response.success && response.data) {
+            const petData = response.data.pets || response.data;
+            setPets(Array.isArray(petData) ? petData : [])
         }
     }, [])
 
@@ -57,19 +78,16 @@ export default function MedicalRecordsPage() {
 
     const fetchRecords = useCallback(async (page: number, search: string, pet: string, timeframe: string) => {
         setIsLoading(true)
-        const response = await appointmentApi.getOwnerAppointments(page, entriesPerPage, search, 'completed', timeframe)
+        const response = await appointmentApi.getOwnerAppointments(page, entriesPerPage, search, 'completed', timeframe, pet)
 
-        if (response.success) {
-            let data = response.data || []
+        if (response.success && response.data) {
+            const data = Array.isArray(response.data) ? response.data : (response.data.items || [])
 
-            // Client-side pet filter if needed
-            if (pet !== "All Pets") {
-                data = data.filter((appt: any) => appt.petId?.name === pet)
-            }
-
-            const formattedRecords = data.map((appt: any) => ({
+            const formattedRecords = data.map((appt: OwnerAppointment) => ({
                 id: appt._id,
-                prescriptionId: appt.prescriptionId?._id || appt.prescriptionId,
+                prescriptionId: typeof appt.prescriptionId === "string"
+                    ? appt.prescriptionId
+                    : appt.prescriptionId?._id,
                 petName: appt.petId?.name || "Unknown",
                 species: appt.petId?.species || "Unknown",
                 breed: appt.petId?.breed || "",
@@ -86,8 +104,9 @@ export default function MedicalRecordsPage() {
             }))
 
             setRecords(formattedRecords)
-            setTotalEntries(response.total || formattedRecords.length)
-            setTotalPages(Math.ceil((response.total || formattedRecords.length) / entriesPerPage) || 1)
+            const total = response.data.total || formattedRecords.length
+            setTotalEntries(total)
+            setTotalPages(Math.ceil(total / entriesPerPage) || 1)
         }
         setIsLoading(false)
     }, [entriesPerPage])
@@ -105,19 +124,11 @@ export default function MedicalRecordsPage() {
 
         const query = params.toString()
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
-    }, [debouncedSearchTerm, currentPage, selectedPet, pathname, router])
+    }, [debouncedSearchTerm, currentPage, selectedPet, selectedTimeframe, pathname, router])
 
     useEffect(() => {
         fetchRecords(currentPage, debouncedSearchTerm, selectedPet, selectedTimeframe)
     }, [currentPage, debouncedSearchTerm, selectedPet, selectedTimeframe, fetchRecords])
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm)
-            setCurrentPage(1)
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [searchTerm])
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page)
@@ -143,8 +154,11 @@ export default function MedicalRecordsPage() {
                         type="text"
                         placeholder="Search"
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all"
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value)
+                            setCurrentPage(1)
+                        }}
+                        className="w-full pl-10 pr-4 py-2 text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all"
                     />
                 </div>
             </div>
@@ -157,10 +171,15 @@ export default function MedicalRecordsPage() {
                         <div className="relative">
                             <select
                                 value={selectedPet}
-                                onChange={(e) => setSelectedPet(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedPet(e.target.value)
+                                    setCurrentPage(1)
+                                }}
                                 className="appearance-none pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[160px] text-gray-700"
                             >
                                 <option>All Pets</option>
+                                <option>Cat</option>
+                                <option>Dog</option>
                                 {pets.map(p => (
                                     <option key={p._id}>{p.name}</option>
                                 ))}
@@ -300,12 +319,12 @@ export default function MedicalRecordsPage() {
                                         <Eye size={16} /> View
                                     </Link>
                                     <button
-                                        onClick={() => handleDownload(record.prescriptionId)}
-                                        disabled={isDownloading === record.prescriptionId}
+                                        onClick={() => handleDownload(record.prescriptionId ?? record.id)}
+                                        disabled={isDownloading === (record.prescriptionId ?? record.id)}
                                         className="px-8 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-black rounded-xl text-xs font-black uppercase tracking-widest transition shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2 disabled:opacity-50"
                                     >
-                                        {isDownloading === record.prescriptionId ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                                        {isDownloading === record.prescriptionId ? "Downloading..." : "Download Summary"}
+                                        {isDownloading === (record.prescriptionId ?? record.id) ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                                        {isDownloading === (record.prescriptionId ?? record.id) ? "Downloading..." : "Download Summary"}
                                     </button>
                                 </div>
                             </div>

@@ -1,35 +1,53 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Plus, Upload, Calendar, AlertCircle } from "lucide-react"
+import { X, Plus, Calendar, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
-import { petFormSchema } from "../../lib/validation/owner/pet.schema"
+import { petFormSchema, PetFormValues } from "../../lib/validation/owner/pet.schema"
 import { toast } from "sonner"
+import { OwnerPet, PetVaccination } from "../../lib/types/owner/owner.types"
 
 interface AddPetModalProps {
     isOpen: boolean
     onClose: () => void
-    onSave: (data: any, picture: File | null) => void
+    onSave: (data: PetFormValues, picture: File | null) => void
     isSubmitting?: boolean
-    initialData?: any
+    initialData?: OwnerPet
+}
+
+interface FormState {
+    name: string;
+    species: string;
+    breed: string;
+    gender: "Male" | "Female";
+    age: string;
+    dob: string;
+    weight: string;
+    vaccinated: "YES" | "NO";
+    vaccinations: {
+        vaccinationName: string;
+        takenDate: string;
+        dueDate: string;
+        certificate: File | null;
+    }[];
+}
+
+const DEFAULT_FORM_STATE: FormState = {
+    name: "",
+    species: "",
+    breed: "",
+    gender: "Male",
+    age: "",
+    dob: "",
+    weight: "",
+    vaccinated: "NO",
+    vaccinations: [
+        { vaccinationName: "", takenDate: "", dueDate: "", certificate: null }
+    ]
 }
 
 export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, initialData }: AddPetModalProps) {
-    const defaultState = {
-        name: "",
-        species: "",
-        breed: "",
-        gender: "Male",
-        age: "",
-        dob: "",
-        weight: "",
-        vaccinated: "NO",
-        vaccinations: [
-            { vaccinationName: "", takenDate: "", dueDate: "", certificate: null as File | null }
-        ]
-    }
-
-    const [formData, setFormData] = useState(defaultState)
+    const [formData, setFormData] = useState<FormState>(DEFAULT_FORM_STATE)
     const [pictureFile, setPictureFile] = useState<File | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -58,22 +76,22 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                     name: initialData.name || "",
                     species: initialData.species || "",
                     breed: initialData.breed || "",
-                    gender: initialData.gender || "",
+                    gender: initialData.gender || "Male",
                     age: initialData.age || "",
                     dob: initialData.dob || "",
                     weight: initialData.weight || "",
-                    vaccinated: initialData.isVaccinated || (initialData.vaccinations?.length > 0 ? "YES" : "NO"),
-                    vaccinations: initialData.vaccinations?.length > 0 
-                        ? initialData.vaccinations.map((v: any) => ({
-                            vaccinationName: v.vaccinationName || v.name || "",
+                    vaccinated: initialData.vaccinated || (initialData.vaccinations && initialData.vaccinations.length > 0 ? "YES" : "NO"),
+                    vaccinations: initialData.vaccinations && initialData.vaccinations.length > 0 
+                        ? initialData.vaccinations.map((v: PetVaccination) => ({
+                            vaccinationName: v.vaccinationName || "",
                             takenDate: v.takenDate || "",
                             dueDate: v.dueDate || "",
                             certificate: null
                           }))
-                        : defaultState.vaccinations
+                        : DEFAULT_FORM_STATE.vaccinations
                 })
             } else {
-                setFormData(defaultState)
+                setFormData(DEFAULT_FORM_STATE)
             }
             setPictureFile(null)
             setErrors({})
@@ -83,13 +101,13 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
 
     if (!isOpen) return null
 
-    const validateField = (name: string, value: any, updatedFormData: any) => {
+    const validateField = (name: string, updatedFormData: FormState) => {
         const result = petFormSchema.safeParse(updatedFormData);
 
         if (!result.success) {
-            const zError = result.error as any;
-            const error = zError.issues.find((err: any) => err.path.join('.') === name) ||
-                zError.issues.find((err: any) => err.path[0] === name);
+            const zError = result.error;
+            const error = zError.issues.find((err) => err.path.join('.') === name) ||
+                zError.issues.find((err) => err.path[0] === name);
             setErrors(prev => ({ ...prev, [name]: error ? error.message : "" }));
         } else {
             setErrors(prev => ({ ...prev, [name]: "" }));
@@ -98,7 +116,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
 
     const handleBlur = (name: string) => {
         setTouched(prev => ({ ...prev, [name]: true }));
-        validateField(name, (formData as any)[name], formData);
+        validateField(name, formData);
     }
 
     const handleSave = () => {
@@ -115,16 +133,16 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
         }
         setTouched(newTouched);
 
-        const dataToValidate = { ...formData };
+        const dataToValidate: Partial<FormState> = { ...formData };
         if (dataToValidate.vaccinated === "NO") {
-            delete (dataToValidate as any).vaccinations;
+            delete dataToValidate.vaccinations;
         }
 
         const result = petFormSchema.safeParse(dataToValidate)
         if (!result.success) {
             const newErrors: Record<string, string> = {};
-            const zError = result.error as any;
-            zError.issues.forEach((err: any) => {
+            const zError = result.error;
+            zError.issues.forEach((err) => {
                 newErrors[err.path.join('.')] = err.message;
             });
             setErrors(newErrors);
@@ -132,13 +150,14 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
             return
         }
 
-        onSave(dataToValidate, pictureFile)
+        // We can safely cast because validation succeeded
+        onSave(dataToValidate as PetFormValues, pictureFile)
     }
 
     const addVaccination = () => {
         setFormData(prev => ({
             ...prev,
-            vaccinations: [...prev.vaccinations, { vaccinationName: "", takenDate: "", dueDate: "", certificate: null as File | null }]
+            vaccinations: [...prev.vaccinations, { vaccinationName: "", takenDate: "", dueDate: "", certificate: null }]
         }))
     }
 
@@ -151,13 +170,19 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
         }
     }
 
-    const updateVaccination = (index: number, field: string, value: string | File | null) => {
+    const updateVaccination = (index: number, field: 'vaccinationName' | 'takenDate' | 'dueDate' | 'certificate', value: string | File | null) => {
         const newVaccinations = [...formData.vaccinations];
-        (newVaccinations[index] as any)[field] = value;
+        const vaccine = { ...newVaccinations[index] };
+        if (field === 'certificate') {
+            vaccine.certificate = value as File | null;
+        } else {
+            vaccine[field] = value as string;
+        }
+        newVaccinations[index] = vaccine;
         const newFormData = { ...formData, vaccinations: newVaccinations }
         setFormData(newFormData)
         if (typeof value === 'string' && touched[`vaccinations.${index}.${field}`]) {
-            validateField(`vaccinations.${index}.${field}`, value, newFormData);
+            validateField(`vaccinations.${index}.${field}`, newFormData);
         }
     }
 
@@ -200,7 +225,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 onChange={(e) => {
                                     const newData = { ...formData, name: e.target.value }
                                     setFormData(newData)
-                                    if (touched.name) validateField('name', e.target.value, newData)
+                                    if (touched.name) validateField('name', newData)
                                 }}
                                 onBlur={() => handleBlur('name')}
                             />
@@ -219,7 +244,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 onChange={(e) => {
                                     const newData = { ...formData, species: e.target.value, breed: "" }
                                     setFormData(newData)
-                                    if (touched.species) validateField('species', e.target.value, newData)
+                                    if (touched.species) validateField('species', newData)
                                 }}
                                 onBlur={() => handleBlur('species')}
                             >
@@ -243,7 +268,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 onChange={(e) => {
                                     const newData = { ...formData, breed: e.target.value }
                                     setFormData(newData)
-                                    if (touched.breed) validateField('breed', e.target.value, newData)
+                                    if (touched.breed) validateField('breed', newData)
                                 }}
                                 onBlur={() => handleBlur('breed')}
                             >
@@ -299,7 +324,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 onChange={(e) => {
                                     const newData = { ...formData, age: e.target.value }
                                     setFormData(newData)
-                                    if (touched.age) validateField('age', e.target.value, newData)
+                                    if (touched.age) validateField('age', newData)
                                 }}
                                 onBlur={() => handleBlur('age')}
                             />
@@ -320,7 +345,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                     onChange={(e) => {
                                         const newData = { ...formData, dob: e.target.value }
                                         setFormData(newData)
-                                        if (touched.dob) validateField('dob', e.target.value, newData)
+                                        if (touched.dob) validateField('dob', newData)
                                     }}
                                     onBlur={() => handleBlur('dob')}
                                 />
@@ -343,7 +368,7 @@ export function AddPetModal({ isOpen, onClose, onSave, isSubmitting = false, ini
                                 onChange={(e) => {
                                     const newData = { ...formData, weight: e.target.value }
                                     setFormData(newData)
-                                    if (touched.weight) validateField('weight', e.target.value, newData)
+                                    if (touched.weight) validateField('weight', newData)
                                 }}
                                 onBlur={() => handleBlur('weight')}
                             />

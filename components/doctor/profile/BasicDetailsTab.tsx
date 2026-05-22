@@ -4,18 +4,18 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { doctorApi } from '../../../lib/api/doctor/doctor.api'
 import { toast } from 'sonner'
-import { User, Mail, Phone, Clock, AlertCircle, Briefcase, Award, Stethoscope, Info, Check, Shield, TrendingUp } from 'lucide-react'
+import { User, Mail, Clock, AlertCircle, Briefcase, Award, Stethoscope, Info, Check, Shield, TrendingUp } from 'lucide-react'
 import { basicDetailsSchema } from '../../../lib/validation/doctor/doctor.schema'
-import { cn } from '@/lib/utils/utils'
+import { cn, getSpecialtyId } from '@/lib/utils/utils'
+import type { DoctorProfileTabProps, DoctorProfileUpdate, SpecialtyOption } from '@/lib/types/doctor/doctor-profile.types'
 
-interface BasicDetailsProps {
-    user: any;
-    doctor: any;
-    onUpdate: (data: any) => void;
-    isEditable?: boolean;
-}
+type PersonalData = {
+    username: string;
+    gender: string;
+    phone: string;
+};
 
-export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: BasicDetailsProps) => {
+export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: DoctorProfileTabProps) => {
     // PERSONAL INFO STATE
     const [personalData, setPersonalData] = useState({
         username: doctor?.userId?.username || user?.username || "",
@@ -25,7 +25,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
 
     // PROFESSIONAL INFO STATE
     const [profData, setProfData] = useState({
-        specialtyId: doctor?.profile?.specialtyId?._id || doctor?.profile?.specialtyId || "",
+        specialtyId: getSpecialtyId(doctor?.profile?.specialtyId),
         designation: doctor?.profile?.designation || "",
         keywords: doctor?.profile?.keywords || [],
         consultationFees: doctor?.profile?.consultationFees || 0,
@@ -33,8 +33,8 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
         experienceYears: doctor?.profile?.experienceYears || 0
     })
 
-    const [specialties, setSpecialties] = useState<any[]>([])
-    const [selectedSpecialty, setSelectedSpecialty] = useState<any>(null)
+    const [specialties, setSpecialties] = useState<SpecialtyOption[]>([])
+    const [selectedSpecialty, setSelectedSpecialty] = useState<SpecialtyOption | null>(null)
     
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -42,38 +42,33 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
     const [isSubmittingProf, setIsSubmittingProf] = useState(false)
     const router = useRouter()
 
+    const doctorId = doctor?._id
+
     useEffect(() => {
         const loadSpecialties = async () => {
-            console.log("[BasicDetailsTab] Fetching specialties...");
             const response = await doctorApi.getSpecialties()
-            console.log("[BasicDetailsTab] Specialties response:", response);
-            
+
             if (response.success && response.data) {
-                console.log(`[BasicDetailsTab] Loaded ${response.data.length} specialties`);
-                setSpecialties(response.data)
-                
-                // Set initial selected specialty based on doctor's current data
-                const currentSpId = doctor?.profile?.specialtyId?._id || doctor?.profile?.specialtyId;
+                setSpecialties((response.data ?? []) as unknown as SpecialtyOption[])
+
+                const currentSpId = getSpecialtyId(doctor?.profile?.specialtyId)
                 if (currentSpId) {
-                    const match = response.data.find((s: any) => s._id === currentSpId);
+                    const match = ((response.data ?? []) as unknown as SpecialtyOption[]).find((s) => s._id === currentSpId)
                     if (match) {
-                        console.log("[BasicDetailsTab] Auto-selected specialty:", match.name);
-                        setSelectedSpecialty(match);
+                        setSelectedSpecialty(match)
                     }
                 } else if (doctor?.profile?.designation) {
-                    // Fallback to finding by designation if ID isn't set yet
-                    const match = response.data.find((s: any) => 
-                        s.commonDesignation.includes(doctor.profile.designation)
+                    const match = ((response.data ?? []) as unknown as SpecialtyOption[]).find((s) =>
+                        s.commonDesignation?.includes(doctor.profile?.designation ?? "")
                     )
-                    if (match) setSelectedSpecialty(match)
+                    if (match) setSelectedSpecialty(match ?? null)
                 }
             } else {
-                console.error("[BasicDetailsTab] Failed to load specialties:", response.error);
                 toast.error("Specialties could not be loaded. Please check if the server is running.")
             }
         }
         loadSpecialties()
-    }, [doctor])
+    }, [doctorId, doctor?.profile?.specialtyId, doctor?.profile?.designation])
 
     useEffect(() => {
         if (doctor) {
@@ -83,7 +78,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
                 phone: doctor.userId?.phone || user?.phone || "",
             })
             setProfData({
-                specialtyId: doctor.profile?.specialtyId?._id || doctor.profile?.specialtyId || "",
+                specialtyId: getSpecialtyId(doctor.profile?.specialtyId),
                 designation: doctor.profile?.designation || "",
                 keywords: doctor.profile?.keywords || [],
                 consultationFees: doctor.profile?.consultationFees || 0,
@@ -93,27 +88,27 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
         }
     }, [doctor, user])
 
-    const validateField = (name: string, value: any) => {
+    const validateField = (name: keyof PersonalData, value: string) => {
         const fieldData = { ...personalData, [name]: value };
         const result = basicDetailsSchema.safeParse(fieldData);
         
         if (!result.success) {
-            const error = (result.error as any).errors.find((err: any) => err.path[0] === name);
+            const error = result.error.issues.find((err) => err.path[0] === name);
             setErrors(prev => ({ ...prev, [name]: error ? error.message : "" }));
         } else {
             setErrors(prev => ({ ...prev, [name]: "" }));
         }
     }
 
-    const handleBlur = (name: string) => {
+    const handleBlur = (name: keyof PersonalData) => {
         setTouched(prev => ({ ...prev, [name]: true }));
-        validateField(name, (personalData as any)[name]);
+        validateField(name, personalData[name]);
     }
 
     const handlePersonalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setPersonalData(prev => ({ ...prev, [name]: value }))
-        if (touched[name]) validateField(name, value);
+        if (touched[name as keyof PersonalData]) validateField(name as keyof PersonalData, value);
     }
 
     const handleProfChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -124,7 +119,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
     const handleSpecialtyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const specialtyId = e.target.value
         const found = specialties.find(s => s._id === specialtyId)
-        setSelectedSpecialty(found)
+        setSelectedSpecialty(found ?? null)
         setProfData(prev => ({
             ...prev,
             specialtyId: specialtyId,
@@ -158,8 +153,11 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
         const result = basicDetailsSchema.safeParse(personalData)
         if (!result.success) {
             const newErrors: Record<string, string> = {};
-            (result.error as any).errors.forEach((err: any) => {
-                newErrors[err.path[0] as string] = err.message;
+            result.error.issues.forEach((err) => {
+                const field = err.path[0];
+                if (typeof field === 'string') {
+                    newErrors[field] = err.message;
+                }
             });
             setErrors(newErrors);
             setTouched({ username: true, gender: true, phone: true });
@@ -169,13 +167,14 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
 
         setIsSubmittingPersonal(true)
         const response = await doctorApi.updateProfile({
-            ...personalData,
-            profile: { ...doctor?.profile }
+            username: personalData.username,
+            gender: personalData.gender,
+            phone: personalData.phone,
         })
 
         if (response.success) {
             toast.success("Personal information updated successfully")
-            onUpdate(response.data)
+            if (response.data) onUpdate(response.data as DoctorProfileUpdate)
         } else {
             toast.error(response.error || "Update failed")
         }
@@ -183,8 +182,16 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
     }
 
     const handleSaveProfessional = async () => {
+        if (!profData.specialtyId) {
+            toast.error("Specialty is required")
+            return
+        }
         if (!profData.designation) {
             toast.error("Designation is required")
+            return
+        }
+        if (!profData.keywords.length) {
+            toast.error("Select at least one focus area")
             return
         }
         if (profData.about.length < 10 || profData.about.length > 200) {
@@ -196,20 +203,40 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
             return
         }
 
+        const specialtyId = getSpecialtyId(
+            typeof profData.specialtyId === "string"
+                ? profData.specialtyId
+                : (profData.specialtyId as { _id?: string })
+        )
+        const consultationFees = Number(profData.consultationFees)
+        const experienceYears = Number(profData.experienceYears)
+
+        if (!Number.isFinite(consultationFees) || consultationFees <= 0) {
+            toast.error("Enter a valid consultation fee")
+            return
+        }
+        if (!Number.isFinite(experienceYears) || experienceYears < 0) {
+            toast.error("Enter valid years of experience")
+            return
+        }
+
         setIsSubmittingProf(true)
         const response = await doctorApi.updateProfile({
-            ...personalData, // Keep personal data synchronized
             profile: {
-                ...doctor?.profile,
-                ...profData
-            }
+                specialtyId,
+                designation: profData.designation,
+                keywords: profData.keywords,
+                about: profData.about.trim(),
+                consultationFees,
+                experienceYears,
+            },
         })
 
         if (response.success) {
             toast.success("Professional details updated successfully")
-            onUpdate(response.data)
+            if (response.data) onUpdate(response.data as DoctorProfileUpdate)
         } else {
-            toast.error(response.error || "Update failed")
+            toast.error(response.message || response.error || "Update failed")
         }
         setIsSubmittingProf(false)
     }
@@ -352,7 +379,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
                         </label>
                         <select
                             name="specialtyId"
-                            value={profData.specialtyId}
+                            value={typeof profData.specialtyId === "string" ? profData.specialtyId : (profData.specialtyId as { _id?: string })?._id ?? ""}
                             onChange={handleSpecialtyChange}
                             className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm text-black outline-none font-bold"
                         >
@@ -480,7 +507,7 @@ export const BasicDetailsTab = ({ user, doctor, onUpdate, isEditable = true }: B
                 <div className="space-y-1">
                     <h4 className="text-sm font-black text-blue-900 uppercase tracking-tight">Smart Status Management</h4>
                     <p className="text-[11px] text-blue-700 leading-relaxed font-bold opacity-80 uppercase tracking-tighter">
-                        We've improved verification flow. Once verified, your status is locked. Professional details can be updated independently without triggering a re-verification cycle.
+                        We&apos;ve improved verification flow. Once verified, your status is locked. Professional details can be updated independently without triggering a re-verification cycle.
                     </p>
                 </div>
             </div>

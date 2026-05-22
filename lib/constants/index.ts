@@ -1,6 +1,7 @@
 
 
 export * from './httpStatus';
+export * from './routes';
 
 export const StorageKeys = {
   TOKEN: 'token',

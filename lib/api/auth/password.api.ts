@@ -1,43 +1,24 @@
-
 import apiClient from '../apiClient';
-import { AxiosError } from 'axios';
-import { AuthApiResponse } from '../../types/auth';
+import { ForgotPasswordParams, AuthApiResponse, ResetPasswordParams } from '../../types/auth/auth.types';
 import { AUTH_ENDPOINTS } from '../../endpoints/auth';
+import { handleApiError } from '../../utils/api-error.handler';
+
 export const passwordApi = {
-
-
-
-
-    forgot: async (email: string): Promise<AuthApiResponse> => {
+    forgot: async (params: ForgotPasswordParams): Promise<AuthApiResponse> => {
         try {
-            const response = await apiClient.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, { email });
+            const response = await apiClient.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, params);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Request failed' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error);
         }
     },
 
-
-
-
-
-
-
-
-
-    
-    reset: async (data: unknown): Promise<AuthApiResponse> => {
+    reset: async (params: ResetPasswordParams): Promise<AuthApiResponse> => {
         try {
-            const response = await apiClient.post(AUTH_ENDPOINTS.RESET_PASSWORD, data);
+            const response = await apiClient.post(AUTH_ENDPOINTS.RESET_PASSWORD, params);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Reset failed' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error);
         }
     }
 };

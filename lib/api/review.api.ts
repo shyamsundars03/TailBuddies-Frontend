@@ -1,156 +1,115 @@
 import apiClient from './apiClient';
-import { AxiosError } from 'axios';
+import { REVIEW_ENDPOINTS } from '../endpoints/review';
+import { handleApiError } from '../utils/api-error.handler';
+import { ApiResponse, PaginatedResponse } from '../types/api.types';
+import type { Review } from '../types/owner/owner.types';
 
 export const reviewApi = {
-    create: async (data: { appointmentId: string, rating: number, comment?: string }) => {
+    create: async (data: { appointmentId: string, rating: number, comment?: string }): Promise<ApiResponse<Review>> => {
         try {
-            const response = await apiClient.post('/reviews', data);
+            const response = await apiClient.post(REVIEW_ENDPOINTS.CREATE, data);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to submit review' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to submit review');
         }
     },
 
-    update: async (id: string, data: { rating?: number, comment?: string }) => {
+    update: async (id: string, data: { rating?: number, comment?: string }): Promise<ApiResponse<Review>> => {
         try {
-            const response = await apiClient.patch(`/reviews/${id}`, data);
+            const response = await apiClient.patch(REVIEW_ENDPOINTS.BY_ID(id), data);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to update review' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to update review');
         }
     },
 
-    delete: async (id: string) => {
+    delete: async (id: string): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.delete(`/reviews/${id}`);
+            const response = await apiClient.delete(REVIEW_ENDPOINTS.BY_ID(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to delete review' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to delete review');
         }
     },
 
-    reply: async (id: string, comment: string) => {
+    reply: async (id: string, comment: string): Promise<ApiResponse<Review>> => {
         try {
-            const response = await apiClient.post(`/reviews/${id}/reply`, { comment });
+            const response = await apiClient.post(REVIEW_ENDPOINTS.REPLY(id), { comment });
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to post reply' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to post reply');
         }
     },
 
-    updateReply: async (id: string, comment: string) => {
+    updateReply: async (id: string, comment: string): Promise<ApiResponse<Review>> => {
         try {
-            const response = await apiClient.patch(`/reviews/${id}/reply`, { comment });
+            const response = await apiClient.patch(REVIEW_ENDPOINTS.REPLY(id), { comment });
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to update reply' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to update reply');
         }
     },
 
-    deleteReply: async (id: string) => {
+    deleteReply: async (id: string): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.delete(`/reviews/${id}/reply`);
+            const response = await apiClient.delete(REVIEW_ENDPOINTS.REPLY(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to delete reply' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to delete reply');
         }
     },
 
-    getDoctorReviews: async (page: number = 1, limit: number = 4, search: string = '') => {
+    getDoctorReviews: async (page: number = 1, limit: number = 4, search: string = ''): Promise<ApiResponse<PaginatedResponse<Review>>> => {
         try {
-            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-            if (search) params.append('search', search);
-            const response = await apiClient.get(`/reviews/doctor/me?${params.toString()}`);
+            const response = await apiClient.get(REVIEW_ENDPOINTS.DOCTOR_REVIEWS(page, limit, search));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch reviews' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch reviews');
         }
     },
 
-    getOwnerReviews: async (page: number = 1, limit: number = 4, search: string = '') => {
+    getOwnerReviews: async (page: number = 1, limit: number = 4, search: string = ''): Promise<ApiResponse<PaginatedResponse<Review>>> => {
         try {
-            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-            if (search) params.append('search', search);
-            const response = await apiClient.get(`/reviews/owner/me?${params.toString()}`);
+            const response = await apiClient.get(REVIEW_ENDPOINTS.OWNER_REVIEWS(page, limit, search));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch your reviews' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch your reviews');
         }
     },
 
-    getAllReviews: async (page: number = 1, limit: number = 4, search: string = '') => {
+    getAllReviews: async (page: number = 1, limit: number = 4, search: string = ''): Promise<ApiResponse<PaginatedResponse<Review>>> => {
         try {
-            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-            if (search) params.append('search', search);
-            const response = await apiClient.get(`/reviews/all?${params.toString()}`);
+            const response = await apiClient.get(REVIEW_ENDPOINTS.ALL_REVIEWS(page, limit, search));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch all reviews' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch all reviews');
         }
     },
 
-    getById: async (id: string) => {
+    getById: async (id: string): Promise<ApiResponse<Review>> => {
         try {
-            const response = await apiClient.get(`/reviews/${id}`);
+            const response = await apiClient.get(REVIEW_ENDPOINTS.BY_ID(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch review' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch review');
         }
     },
 
-    getByAppointment: async (appointmentId: string) => {
+    getByAppointment: async (appointmentId: string): Promise<ApiResponse<Review>> => {
         try {
-            const response = await apiClient.get(`/reviews/appointment/${appointmentId}`);
+            const response = await apiClient.get(REVIEW_ENDPOINTS.BY_APPOINTMENT(appointmentId));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch appointment review' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch appointment review');
         }
     },
 
-    getByDoctorId: async (doctorId: string, page: number = 1, limit: number = 10, search: string = '') => {
+    getByDoctorId: async (doctorId: string, page: number = 1, limit: number = 10, search: string = ''): Promise<ApiResponse<PaginatedResponse<Review>>> => {
         try {
-            const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-            if (search) params.append('search', search);
-            const response = await apiClient.get(`/reviews/doctor/${doctorId}?${params.toString()}`);
+            const response = await apiClient.get(REVIEW_ENDPOINTS.BY_DOCTOR_ID(doctorId, page, limit, search));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch doctor reviews' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch doctor reviews');
         }
     }
 };

@@ -2,20 +2,94 @@ import { useEffect, useState, useCallback } from "react"
 import { Check, Wallet, CreditCard, Banknote, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 import { useRouter } from "next/navigation"
-import { doctorApi } from "@/lib/api/doctor/doctor.api"
-import { userPetApi } from "@/lib/api/user/pet.api"
-import { appointmentApi } from "@/lib/api/appointment.api"
-import { paymentApi } from "@/lib/api/payment.api"
+import { useOwnerServices } from "@/lib/hooks/owner/useOwnerServices"
+import { useOwnerPets } from "@/lib/hooks/owner/useOwnerPets"
+import { useOwnerWallet } from "@/lib/hooks/owner/useOwnerWallet"
+import { useOwnerBookings } from "@/lib/hooks/owner/useOwnerBookings"
+import { useRazorpay } from "@/lib/hooks/useRazorpay"
+import { OWNER_ROUTES } from "@/lib/constants/routes"
 import { toast } from "sonner"
 
-export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: string }) {
+interface BookingData {
+    type: string;
+    petId: string;
+    problemDescription: string;
+    symptoms: string[];
+    date: string;
+    rawDate: string;
+    time: string;
+    slotId: string;
+    mode: string;
+    paymentMethod: string;
+}
+
+interface DoctorSummary {
+    _id: string;
+    userId?: { username?: string; profilePic?: string };
+    profile?: {
+        specialtyId?: { name?: string };
+        designation?: string;
+        consultationFees?: number;
+        experienceYears?: number;
+    };
+    clinicInfo?: {
+        clinicName?: string;
+        address?: {
+            doorNo?: string;
+            street?: string;
+            city?: string;
+            state?: string;
+            pincode?: string;
+        };
+    };
+    isActive?: boolean;
+    isVerified?: boolean;
+}
+
+interface PetSummary {
+    _id: string;
+    name?: string;
+    species?: string;
+    ownerName?: string;
+}
+
+interface AppointmentResult {
+    _id: string;
+    appointmentId: string;
+}
+
+interface SummaryPaymentStepProps {
+    data: BookingData;
+    doctorId: string;
+    onRegisterTrigger?: (fn: () => void) => void;
+}
+
+interface PaymentOptionProps {
+    id: string;
+    icon: React.ReactNode;
+    label: string;
+    subLabel?: string;
+    selected: boolean;
+    onClick: () => void;
+    disabled?: boolean;
+    showWarning?: boolean;
+}
+
+export function SummaryPaymentStep({ data, doctorId, onRegisterTrigger }: SummaryPaymentStepProps) {
     const router = useRouter()
-    const [doctor, setDoctor] = useState<any>(null)
-    const [pet, setPet] = useState<any>(null)
+    const [doctor, setDoctor] = useState<DoctorSummary | null>(null)
+    const [pet, setPet] = useState<PetSummary | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isBooking, setIsBooking] = useState(false)
     const [paymentMethod, setPaymentMethod] = useState<"COD" | "Razorpay" | "Wallet">("COD")
-    const [walletBalance, setWalletBalance] = useState<number>(0)
+
+    const { getDoctorById } = useOwnerServices()
+    const { getPetDetails } = useOwnerPets()
+    const { wallet, getWalletBalance } = useOwnerWallet()
+    const { createAppointment, payWithWallet, createRazorpayOrder, verifyRazorpayPayment } = useOwnerBookings()
+    const { openRazorpay } = useRazorpay()
+
+    const walletBalance = wallet?.balance || 0
 
     useEffect(() => {
         if (data.mode === 'online' && paymentMethod === 'COD') {
@@ -28,16 +102,15 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
             setIsLoading(true)
             try {
                 const [docRes, petRes] = await Promise.all([
-                    doctorApi.getById(doctorId),
-                    data.petId ? userPetApi.getPetById(data.petId) : Promise.resolve({ success: false })
+                    getDoctorById(doctorId),
+                    data.petId ? getPetDetails(data.petId) : Promise.resolve(null)
                 ])
 
-                if (docRes.success) setDoctor(docRes.data)
-                if (petRes.success) setPet(petRes.data)
+                if (docRes) setDoctor(docRes as DoctorSummary)
+                if (petRes) setPet(petRes)
 
                 // Fetch wallet balance
-                const walletRes = await paymentApi.getWallet()
-                if (walletRes.success) setWalletBalance(walletRes.wallet.balance)
+                await getWalletBalance()
             } catch (error) {
                 console.error("Error fetching details:", error)
             } finally {
@@ -45,21 +118,9 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
             }
         }
         fetchDetails()
+    }, [doctorId, data.petId, getDoctorById, getPetDetails, getWalletBalance])
 
-        // Load Razorpay Script
-        const script = document.createElement("script")
-        script.src = "https://checkout.razorpay.com/v1/checkout.js"
-        script.async = true
-        document.body.appendChild(script)
-
-        return () => {
-            if (document.body.contains(script)) {
-                document.body.removeChild(script)
-            }
-        }
-    }, [doctorId, data.petId])
-
-    const finalizeBooking = useCallback((appointment: any) => {
+    const finalizeBooking = useCallback((appointment: AppointmentResult) => {
         const summaryData = {
             date: data.date,
             timeSlot: data.time,
@@ -71,15 +132,12 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
 
         sessionStorage.removeItem(`booking_${doctorId}`)
         sessionStorage.removeItem(`booking_step_${doctorId}`)
-        router.push(`/owner/services/${doctorId}/book/success?id=${appointment._id}&appId=${appointment.appointmentId}`)
+        router.push(OWNER_ROUTES.BOOKING_SUCCESS(doctorId, appointment._id, appointment.appointmentId))
     }, [data, doctorId, pet, router])
 
-    const handleRazorpayPayment = useCallback(async (appointment: any, amount: number) => {
+    const handleRazorpayPayment = useCallback(async (appointment: AppointmentResult, amount: number) => {
         try {
-            const orderRes = await paymentApi.createRazorpayOrder({
-                amount,
-                appointmentId: appointment._id
-            })
+            const orderRes = await createRazorpayOrder(amount, appointment._id)
 
             if (!orderRes.success) {
                 toast.error(orderRes.message || "Failed to create payment order")
@@ -87,16 +145,22 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                 return
             }
 
-            const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: orderRes.order.amount,
-                currency: orderRes.order.currency,
+            const order = orderRes.data?.order
+            if (!order) {
+                toast.error("Failed to create payment order")
+                setIsBooking(false)
+                return
+            }
+
+            openRazorpay({
+                amount: order.amount,
+                currency: order.currency,
                 name: "TailBuddies",
                 description: "Appointment Consultation Fee",
-                order_id: orderRes.order.id,
-                handler: async (response: any) => {
+                order_id: order.id,
+                onSuccess: async (response) => {
                     try {
-                        const verifyRes = await paymentApi.verifyRazorpayPayment({
+                        const verifyRes = await verifyRazorpayPayment({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
@@ -108,12 +172,12 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                             finalizeBooking(appointment)
                         } else {
                             toast.error(verifyRes.message || "Payment verification failed")
-                            router.push(`/owner/payment/failure?id=${appointment._id}`)
+                            router.push(OWNER_ROUTES.PAYMENT_FAILURE(appointment._id))
                         }
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                         console.error("Verification error:", err)
                         toast.error("An error occurred during verification")
-                        router.push(`/owner/payment/failure?id=${appointment._id}`)
+                        router.push(OWNER_ROUTES.PAYMENT_FAILURE(appointment._id))
                     }
                 },
                 prefill: {
@@ -125,24 +189,21 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                     color: "#2563eb"
                 },
                 modal: {
-                    ondismiss: async () => {
+                    ondismiss: () => {
                         toast.error("Payment cancelled")
                         setIsBooking(false)
-                        router.push(`/owner/payment/failure?id=${appointment._id}`)
+                        router.push(OWNER_ROUTES.PAYMENT_FAILURE(appointment._id))
                     }
                 }
-            }
-
-            const rzp = new (window as any).Razorpay(options)
-            rzp.open()
+            })
         } catch (error) {
             console.error("Razorpay error:", error)
             toast.error("Razorpay integration failed")
             setIsBooking(false)
         }
-    }, [finalizeBooking, pet, router])
+    }, [createRazorpayOrder, openRazorpay, verifyRazorpayPayment, finalizeBooking, pet, router])
 
-    const handleWalletPayment = useCallback(async (appointment: any, amount: number) => {
+    const handleWalletPayment = useCallback(async (appointment: AppointmentResult, amount: number) => {
         try {
             if (walletBalance < amount) {
                 toast.error("Insufficient wallet balance")
@@ -150,24 +211,19 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                 return
             }
 
-            const response = await paymentApi.payWithWallet({
-                amount,
-                appointmentId: appointment._id
-            })
+            const response = await payWithWallet(amount, appointment._id)
 
             if (response.success) {
-                toast.success("Payment successful from wallet!")
                 finalizeBooking(appointment)
             } else {
-                toast.error(response.message || "Wallet payment failed")
-                router.push(`/owner/payment/failure?id=${appointment._id}`)
+                router.push(OWNER_ROUTES.PAYMENT_FAILURE(appointment._id))
             }
         } catch (error) {
             console.error("Wallet payment error:", error)
             toast.error("Wallet payment failed")
             setIsBooking(false)
         }
-    }, [finalizeBooking, walletBalance, router])
+    }, [finalizeBooking, walletBalance, payWithWallet, router])
 
     const handleBooking = useCallback(async () => {
         if (!data.slotId || !data.petId) {
@@ -193,14 +249,14 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                 totalAmount: amount
             }
 
-            const response = await appointmentApi.create(bookingPayload)
-            if (!response.success) {
-                toast.error(response.message || "Failed to initiate booking")
+            const response = await createAppointment(bookingPayload, { silent: paymentMethod === 'Razorpay' })
+
+            if (!response) {
                 setIsBooking(false)
                 return
             }
 
-            const appointment = response.data
+            const appointment = response as AppointmentResult
 
             if (paymentMethod === "COD") {
                 finalizeBooking(appointment)
@@ -210,20 +266,19 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                 await handleWalletPayment(appointment, amount)
             }
 
-        } catch (error: any) {
-            console.error("Booking error:", error)
+        } catch (error: unknown) {
+            console.error("Booking error caught:", error)
             toast.error("An unexpected error occurred. Please try again.")
             setIsBooking(false)
         }
-    }, [data, doctor, doctorId, paymentMethod, finalizeBooking, handleRazorpayPayment, handleWalletPayment])
+    }, [data, doctor, doctorId, paymentMethod, finalizeBooking, handleRazorpayPayment, handleWalletPayment, createAppointment])
 
+    // Register the booking trigger callback with the parent stepper
     useEffect(() => {
-        const handleBookingTrigger = (e: any) => {
-            if (e.detail === 'trigger-booking') handleBooking()
+        if (onRegisterTrigger) {
+            onRegisterTrigger(handleBooking)
         }
-        window.addEventListener('trigger-booking', handleBookingTrigger)
-        return () => window.removeEventListener('trigger-booking', handleBookingTrigger)
-    }, [handleBooking])
+    }, [handleBooking, onRegisterTrigger])
 
     if (isLoading) {
         return (
@@ -242,7 +297,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
                         <h3 className="text-sm font-bold text-blue-950 uppercase tracking-widest border-b border-gray-100 pb-4">Summary</h3>
                         <div className="space-y-2 text-xs font-semibold text-gray-500">
                             <div className="flex justify-between">
-                                <span className="uppercase text-[10px]">Vet:</span>
+                                <span className="uppercase text-[10px]">Context:</span>
                                 <span className="text-blue-900 font-bold">{doctor?.userId?.username || "N/A"}</span>
                             </div>
                             <div className="flex justify-between">
@@ -349,7 +404,7 @@ export function SummaryPaymentStep({ data, doctorId }: { data: any, doctorId: st
     )
 }
 
-function PaymentOption({ id, icon, label, subLabel, selected, onClick, disabled, showWarning }: any) {
+function PaymentOption({ id: _id, icon, label, subLabel, selected, onClick, disabled, showWarning }: PaymentOptionProps) {
     return (
         <button
             onClick={onClick}

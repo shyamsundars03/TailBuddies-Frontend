@@ -6,11 +6,9 @@ import { Input } from "../common/forms/Input"
 import { Select } from "../common/forms/Select"
 import { Button } from "../common/ui/Button"
 import { usePathname } from "next/navigation"
-import { userApi } from "../../lib/api/user/user.api"
-import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
-import { setUser } from "../../lib/redux/slices/authSlice"
+import { useOwnerProfile } from "../../lib/hooks/owner/useOwnerProfile"
+import { accountDetailsSchema, addressDetailsSchema } from "../../lib/validation/owner/account.schema"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils/utils"
 
 export interface AccountData {
     username: string
@@ -36,8 +34,7 @@ const GENDER_OPTIONS = [
 ]
 
 export function AccountForm({ initialData, isReadOnly = false }: AccountFormProps) {
-    const dispatch = useAppDispatch()
-    const { user } = useAppSelector((state) => state.auth)
+    const { user, getFreshProfile, updateProfileDetails, updateProfileAddress } = useOwnerProfile()
     const isGoogleUser = !!user?.googleId
 
     const [userData, setUserData] = useState<AccountData>({
@@ -56,31 +53,27 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
 
     // Fetch fresh profile data on mount to ensure database values are shown
     useEffect(() => {
-        const fetchFreshProfile = async () => {
-            try {
-                const response = await userApi.getProfile()
-                if (response.success && response.data) {
-                    dispatch(setUser(response.data))
-                }
-            } catch (error) {
-                console.error("Failed to fetch fresh profile:", error)
-            }
-        }
-        fetchFreshProfile()
-    }, [dispatch])
+        getFreshProfile()
+    }, [getFreshProfile])
 
     const validateField = (name: string, value: string) => {
         let error = ""
-        if (!value.trim()) {
-            error = "Field is required"
-        } else if (name === 'pincode' && !/^\d{6}$/.test(value)) {
-            error = "Pincode must be exactly 6 digits"
-        } else if (['city', 'state', 'country'].includes(name) && !/^[A-Za-z\s]+$/.test(value)) {
-            error = "Only letters and spaces allowed"
-        } else if (name === 'address' && value.trim().length < 5) {
-            error = "Address is too short"
-        } else if (!['pincode', 'city', 'state', 'country', 'address'].includes(name) && !/^[A-Za-z0-9\s,.-]+$/.test(value)) {
-            error = "Invalid format"
+        if (["username", "gender", "phone"].includes(name)) {
+            const schema = accountDetailsSchema.shape[name as keyof typeof accountDetailsSchema.shape]
+            if (schema) {
+                const res = schema.safeParse(value)
+                if (!res.success) {
+                    error = res.error.issues[0].message
+                }
+            }
+        } else {
+            const schema = addressDetailsSchema.shape[name as keyof typeof addressDetailsSchema.shape]
+            if (schema) {
+                const res = schema.safeParse(value)
+                if (!res.success) {
+                    error = res.error.issues[0].message
+                }
+            }
         }
         
         setErrors(prev => ({ ...prev, [name]: error }))
@@ -117,62 +110,59 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     }
 
     const handleSaveDetails = async () => {
-        try {
-            const response = await userApi.updateProfile({
-                username: userData.username,
-                gender: userData.gender,
-                phone: userData.phone
-            })
-            if (response.success) {
-                // Merge new data with existing user object to preserve other fields (like role, googleId, etc)
-                const updatedUser = { ...user, ...response.data }
-                dispatch(setUser(updatedUser))
-                // Sync to localStorage
-                localStorage.setItem('user', JSON.stringify(updatedUser))
-                toast.success("Profile details updated successfully")
-            } else {
-                toast.error(response.error || "Failed to update profile")
-            }
-        } catch {
-            toast.error("An error occurred while saving profile")
-        }
-    }
-
-    const handleSaveAddress = async () => {
-        // Validate all fields first
-        const fieldsToValidate = ['address', 'city', 'state', 'country', 'pincode']
-        let isValid = true
-        fieldsToValidate.forEach(field => {
-            if (!validateField(field, (userData as any)[field] || "")) {
-                isValid = false
-            }
+        const validationResult = accountDetailsSchema.safeParse({
+            username: userData.username,
+            gender: userData.gender,
+            phone: userData.phone
         })
 
-        if (!isValid) {
-            toast.error("Please fix validation errors")
+        if (!validationResult.success) {
+            const fieldErrors: Record<string, string> = {}
+            validationResult.error.issues.forEach(issue => {
+                if (issue.path[0]) {
+                    fieldErrors[issue.path[0] as string] = issue.message
+                }
+            })
+            setErrors(prev => ({ ...prev, ...fieldErrors }))
+            toast.error("Please fix profile validation errors")
             return
         }
 
-        try {
-            // Reusing updateProfile for address fields as well
-            const response = await userApi.updateProfile({
-                address: userData.address,
-                city: userData.city,
-                state: userData.state,
-                country: userData.country,
-                pincode: userData.pincode
+        await updateProfileDetails({
+            username: userData.username,
+            gender: userData.gender,
+            phone: userData.phone
+        })
+    }
+
+    const handleSaveAddress = async () => {
+        const validationResult = addressDetailsSchema.safeParse({
+            address: userData.address,
+            city: userData.city,
+            state: userData.state,
+            country: userData.country,
+            pincode: userData.pincode
+        })
+
+        if (!validationResult.success) {
+            const fieldErrors: Record<string, string> = {}
+            validationResult.error.issues.forEach(issue => {
+                if (issue.path[0]) {
+                    fieldErrors[issue.path[0] as string] = issue.message
+                }
             })
-            if (response.success) {
-                const updatedUser = { ...user, ...response.data }
-                dispatch(setUser(updatedUser))
-                localStorage.setItem('user', JSON.stringify(updatedUser))
-                toast.success("Address updated successfully")
-            } else {
-                toast.error(response.error || "Failed to update address")
-            }
-        } catch {
-            toast.error("An error occurred while saving address")
+            setErrors(prev => ({ ...prev, ...fieldErrors }))
+            toast.error("Please fix address validation errors")
+            return
         }
+
+        await updateProfileAddress({
+            address: userData.address || "",
+            city: userData.city || "",
+            state: userData.state || "",
+            country: userData.country || "",
+            pincode: userData.pincode || ""
+        })
     }
 
     const pathname = usePathname()
@@ -290,3 +280,4 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
         </div>
     )
 }
+

@@ -1,42 +1,43 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Edit2, Trash2, Calendar, ShieldCheck, FileText, ChevronLeft, AlertCircle } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Edit2, Trash2, ShieldCheck, FileText, ChevronLeft, AlertCircle } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { AddPetModal } from "../../../../../components/owner/AddPetModal"
 import { cn, formatDate } from "@/lib/utils/utils"
-import { userPetApi } from "../../../../../lib/api/user/pet.api"
-import { toast } from "sonner"
+import { useOwnerPets } from "@/lib/hooks/owner/useOwnerPets"
+import { OWNER_ROUTES } from "@/lib/constants/routes"
+import type { PetVaccination } from "@/lib/types/owner/owner.types"
 import Swal from 'sweetalert2'
 
 export default function SinglePetViewPage() {
     const params = useParams()
     const router = useRouter()
-    const [pet, setPet] = useState<any>(null)
-    const [isLoading, setIsLoading] = useState(true)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const fetchPetData = async () => {
-        setIsLoading(true)
-        const response = await userPetApi.getPetById(params.id as string)
-        if (response.success) {
-            setPet(response.data)
-        } else {
-            toast.error(response.error || "Failed to load pet details")
+    const { 
+        pet, 
+        isLoading, 
+        isSubmitting, 
+        getPetDetails, 
+        togglePetStatus, 
+        deletePet, 
+        updatePet 
+    } = useOwnerPets()
+
+    const fetchPetData = useCallback(async () => {
+        if (params.id) {
+            await getPetDetails(params.id as string)
         }
-        setIsLoading(false)
-    }
+    }, [params.id, getPetDetails])
 
     useEffect(() => {
-        if (params.id) {
-            fetchPetData()
-        }
-    }, [params.id])
+        fetchPetData()
+    }, [fetchPetData])
 
-    const toggleStatus = async () => {
+    const handleToggleStatus = async () => {
         if (!pet) return
         
         const action = pet.isActive ? "deactivate" : "activate"
@@ -51,18 +52,12 @@ export default function SinglePetViewPage() {
         })
 
         if (result.isConfirmed) {
-            const response = await userPetApi.togglePetStatus(pet._id, !pet.isActive)
-            if (response.success) {
-                toast.success(`Pet ${action}d successfully`)
-                setPet({ ...pet, isActive: !pet.isActive })
-            } else {
-                toast.error(response.error || `Failed to ${action} pet`)
-            }
+            await togglePetStatus(pet._id, pet.isActive)
         }
     }
 
     const handleDelete = async () => {
-        if (!pet) return;
+        if (!pet) return
 
         const result = await Swal.fire({
             title: 'Delete Pet?',
@@ -75,12 +70,9 @@ export default function SinglePetViewPage() {
         })
 
         if (result.isConfirmed) {
-            const response = await userPetApi.deletePet(pet._id)
-            if (response.success) {
-                toast.success(`Pet deleted successfully`)
-                router.push('/owner/pets')
-            } else {
-                toast.error(response.error || `Failed to delete pet`)
+            const success = await deletePet(pet._id)
+            if (success) {
+                router.push(OWNER_ROUTES.PETS)
             }
         }
     }
@@ -93,7 +85,7 @@ export default function SinglePetViewPage() {
         return <div className="p-12 text-center text-red-500 font-medium flex flex-col items-center gap-4">
             <AlertCircle size={48} className="text-red-300" />
             <p>Pet not found</p>
-            <Link href="/owner/pets" className="text-blue-600 hover:underline">Go back</Link>
+            <Link href={OWNER_ROUTES.PETS} className="text-blue-600 hover:underline">Go back</Link>
         </div>
     }
 
@@ -103,13 +95,13 @@ export default function SinglePetViewPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-blue-950 mb-1">My Pets</h1>
                     <nav className="flex items-center gap-2 text-sm text-gray-400">
-                        <Link href="/owner/pets" className="hover:text-blue-600 transition">MY PETS</Link>
+                        <Link href={OWNER_ROUTES.PETS} className="hover:text-blue-600 transition">MY PETS</Link>
                         <span>/</span>
                         <span className="text-blue-600/60 font-medium">{pet.name}</span>
                     </nav>
                 </div>
                 <Link
-                    href="/owner/pets"
+                    href={OWNER_ROUTES.PETS}
                     className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition font-medium"
                 >
                     <ChevronLeft size={20} />
@@ -133,7 +125,7 @@ export default function SinglePetViewPage() {
                         <div className="space-y-1">
                             <div className="flex items-center gap-3">
                                 <h2 className="text-2xl font-bold text-blue-950 uppercase">{pet.name}</h2>
-                                {(pet.isVaccinated === "YES" || pet.vaccinated === true) && (
+                                {pet.vaccinated === "YES" && (
                                     <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase rounded-md tracking-wider">
                                         Vaccinated
                                     </span>
@@ -146,7 +138,7 @@ export default function SinglePetViewPage() {
                         <div className="flex items-center gap-3">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Deactivate</span>
                             <button
-                                onClick={toggleStatus}
+                                onClick={handleToggleStatus}
                                 className={cn(
                                     "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300",
                                     pet.isActive ? "bg-emerald-500" : "bg-gray-300"
@@ -194,11 +186,11 @@ export default function SinglePetViewPage() {
                             </div>
                             
                             <div className="grid gap-4">
-                                {pet.vaccinations.map((vaccine: any, index: number) => (
+                                {pet.vaccinations.map((vaccine: PetVaccination, index: number) => (
                                     <div key={index} className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-8">
                                         <div>
                                             <p className="text-sm font-medium text-gray-400 mb-1">Vaccination Name</p>
-                                            <p className="text-blue-900 font-bold">{vaccine.vaccinationName || vaccine.name || "N/A"}</p>
+                                            <p className="text-blue-900 font-bold">{vaccine.vaccinationName || "N/A"}</p>
                                         </div>
                                         <div>
                                             <p className="text-sm font-medium text-gray-400 mb-1">Taken Date</p>
@@ -224,16 +216,6 @@ export default function SinglePetViewPage() {
                             </div>
                         </section>
                     )}
-
-                    {/* Others Section */}
-                    {/* <section className="space-y-6">
-                        <h3 className="text-xl font-bold text-blue-950 uppercase tracking-tight">Analytics:</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <InfoBox label="Status" value={pet.isActive ? "Active" : "Inactive"} />
-                            <InfoBox label="Creation Date" value={new Date(pet.createdAt).toLocaleDateString()} />
-                            <InfoBox label="Owner Context" value={"Managed by you"} />
-                        </div>
-                    </section> */}
                 </div>
             </div>
 
@@ -243,37 +225,11 @@ export default function SinglePetViewPage() {
                 isSubmitting={isSubmitting}
                 onClose={() => setIsEditModalOpen(false)}
                 onSave={async (data, pictureFile) => {
-                    setIsSubmitting(true)
-                    const formData = new FormData()
-                    
-                    Object.keys(data).forEach(key => {
-                        if (key !== 'vaccinations' && key !== 'picture') {
-                            formData.append(key, String(data[key]))
-                        }
-                    });
-
-                    if (pictureFile) {
-                        formData.append('picture', pictureFile)
-                    }
-
-                    if (data.vaccinations && data.vaccinations.length > 0) {
-                        formData.append('vaccinations', JSON.stringify(data.vaccinations))
-                        data.vaccinations.forEach((v: any) => {
-                            if (v.certificate && v.certificate instanceof File) {
-                                formData.append('certificates', v.certificate);
-                            }
-                        });
-                    }
-
-                    const response = await userPetApi.updatePet(pet._id, formData)
-                    if (response.success) {
-                        toast.success("Pet updated successfully")
+                    const success = await updatePet(pet._id, data, pictureFile)
+                    if (success) {
                         setIsEditModalOpen(false)
                         fetchPetData()
-                    } else {
-                        toast.error(response.error || "Failed to update pet")
                     }
-                    setIsSubmitting(false)
                 }}
                 initialData={pet} 
             />
@@ -289,3 +245,4 @@ function InfoBox({ label, value }: { label: string; value: string }) {
         </div>
     )
 }
+

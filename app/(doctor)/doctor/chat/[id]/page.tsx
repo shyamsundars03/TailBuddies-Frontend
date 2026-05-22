@@ -1,15 +1,12 @@
 "use client"
-import { useState, useRef, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Search, MoreVertical, Mic, Paperclip, Send, Play, Video, ChevronLeft } from "lucide-react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Search, MoreVertical, Mic, Send, ChevronLeft } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
 
 export default function DoctorChatDetailPage() {
-    const params = useParams()
     const router = useRouter()
-    const id = params.id as string
     const [message, setMessage] = useState("")
 
     const messages = [

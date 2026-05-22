@@ -3,12 +3,13 @@ import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Clock, Video, User, Info, ChevronDown, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { Clock, User, Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { Pagination } from "../../../../components/common/ui/Pagination"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils/utils"
 import Swal from 'sweetalert2'
+import { DOCTOR_ROUTES } from "@/lib/constants/routes"
+import type { Appointment } from "@/lib/types/admin/admin.types"
 
 export default function RequestsPage() {
     const searchParams = useSearchParams()
@@ -17,7 +18,7 @@ export default function RequestsPage() {
 
     const initialPage = parseInt(searchParams.get('page') || "1")
 
-    const [requests, setRequests] = useState<any[]>([])
+    const [requests, setRequests] = useState<Appointment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [totalEntries, setTotalEntries] = useState(0)
@@ -27,10 +28,10 @@ export default function RequestsPage() {
     const fetchRequestsData = useCallback(async (page: number) => {
         setIsLoading(true)
         const response = await appointmentApi.getDoctorAppointments('booked', page, entriesPerPage)
-        if (response.success) {
-            setRequests(response.data || [])
-            setTotalEntries(response.total || 0)
-            setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
+        if (response.success && response.data) {
+            setRequests(response.data.items || [])
+            setTotalEntries(response.data.total || 0)
+            setTotalPages(Math.ceil((response.data.total || 0) / entriesPerPage) || 1)
         } else {
             // toast.error(response.error || "Failed to fetch requests")
         }
@@ -145,7 +146,7 @@ export default function RequestsPage() {
                                             <span className="text-[10px] font-bold text-blue-600 uppercase">AptID: {request.appointmentId || request._id.slice(-8).toUpperCase()}</span>
                                             {/* <span className="px-2 py-0.5 bg-blue-600 text-[8px] text-white font-black rounded-full uppercase tracking-tighter">New</span> */}
                                         </div>
-                                        <Link href={`/doctor/requests/${request._id}`} className="text-base font-bold text-gray-900 hover:text-blue-600 transition truncate block leading-tight">
+                                        <Link href={DOCTOR_ROUTES.REQUEST_DETAILS(request._id)} className="text-base font-bold text-gray-900 hover:text-blue-600 transition truncate block leading-tight">
                                             {request.petId?.name || "Unknown Pet"}
                                         </Link>
                                         <p className="text-[10px] font-bold text-gray-400 uppercase truncate">Owner: {request.ownerId?.username || "N/A"}</p>

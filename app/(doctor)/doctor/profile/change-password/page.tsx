@@ -1,6 +1,5 @@
 "use client"
 
-import { DoctorHeader } from "../../../../../components/common/layout/doctor/Header"
 import { ChangePasswordForm } from "../../../../../components/owner/ChangePasswordForm"
 
 export default function DoctorChangePasswordPage() {

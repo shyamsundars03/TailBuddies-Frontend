@@ -1,11 +1,8 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect } from "react"
 import { useAppSelector } from "../../../../lib/redux/hooks"
 import { useRouter } from "next/navigation"
-import { OwnerHeader } from "../../../../components/common/layout/owner/Header"
-import { OwnerSidebar } from "../../../../components/common/layout/owner/SideBar"
-import { PageContainer } from "../../../../components/common/layout/owner/PageContainer"
 import { AccountForm } from "../../../../components/owner/AccountForm"
 
 import Link from "next/link"

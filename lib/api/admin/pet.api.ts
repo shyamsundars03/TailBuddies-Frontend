@@ -1,38 +1,26 @@
 import apiClient from '../apiClient';
-import { AxiosError } from 'axios';
-import { PET_ENDPOINTS } from '../../endpoints/pet';
+import { ADMIN_ENDPOINTS } from '../../endpoints/admin';
+import { ApiResponse, PaginatedResponse } from '../../types/api.types';
+import { Pet, GetSpecialtiesParams as GetPetsParams } from '../../types/admin/admin.types';
+import { handleApiError } from '../../utils/api-error.handler';
 
 export const adminPetApi = {
-
-
-
-    getAllPets: async (page = 1, limit = 10, search?: string) => {
+    getAllPets: async (params: GetPetsParams): Promise<ApiResponse<PaginatedResponse<Pet>>> => {
         try {
-            const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-            if (search) {
-                params.append('search', search);
-            }
-            const response = await apiClient.get(`${PET_ENDPOINTS.ADMIN_GET_ALL_PETS}?${params.toString()}`);
+            const { page = 1, limit = 10, search } = params;
+            const response = await apiClient.get(ADMIN_ENDPOINTS.PETS_LIST(page, limit, search));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch pets' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch pets');
         }
     },
 
-
-    
-    getPetById: async (id: string) => {
+    getPetById: async (id: string): Promise<ApiResponse<Pet>> => {
         try {
-            const response = await apiClient.get(PET_ENDPOINTS.ADMIN_GET_PET_BY_ID(id));
+            const response = await apiClient.get(ADMIN_ENDPOINTS.PET_BY_ID(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch pet details' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch pet details');
         }
     }
 };

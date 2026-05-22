@@ -1,35 +1,35 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import { Clock, Video, User, ChevronLeft, Loader2, CheckCircle2, XCircle, Info } from "lucide-react"
+import { Clock, User, ChevronLeft, Loader2, CheckCircle2, XCircle, Info } from "lucide-react"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils/utils"
 import Swal from 'sweetalert2'
+import type { Appointment } from "@/lib/types/admin/admin.types"
 
 export default function RequestDetailPage() {
     const router = useRouter()
     const params = useParams()
-    const [request, setRequest] = useState<any>(null)
+    const [request, setRequest] = useState<Appointment | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    const fetchRequest = async () => {
+    const fetchRequest = useCallback(async () => {
         if (!params?.id) return
         setIsLoading(true)
         const response = await appointmentApi.getAppointmentById(params.id as string)
         if (response.success) {
-            setRequest(response.data)
+            setRequest(response.data ?? null)
         } else {
             toast.error(response.error || "Failed to fetch request details")
         }
         setIsLoading(false)
-    }
+    }, [params])
 
     useEffect(() => {
         fetchRequest()
-    }, [params?.id])
+    }, [fetchRequest])
 
     const handleStatusUpdate = async (status: string) => {
         if (!request?._id) return;

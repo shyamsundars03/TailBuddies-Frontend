@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils/utils"
 import { useAdmin } from "../../lib/hooks/useAdmin"
 import { toast } from "sonner"
 import { Users, UserCheck } from "lucide-react"
+import { ADMIN_ROUTES } from "../../lib/constants"
 // import logger from "../../lib/logger/index"
 interface UsersManagementProps {
     initialUsers?: AdminUser[]
@@ -20,29 +21,30 @@ export function UsersManagement({ initialUsers: _initialUsers = [] }: UsersManag
     const { getUsers, toggleUserBlock, users, stats, isLoading: apiLoading } = useAdmin()
     const [currentPage, setCurrentPage] = useState(1)
     const [searchTerm, setSearchTerm] = useState("")
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
     const [filterRole, setFilterRole] = useState("all")
 
-    const fetchUsers = useCallback(async (search?: string) => {
+    const fetchUsers = useCallback(async (search = debouncedSearchTerm) => {
         try {
             await getUsers(currentPage, 10, filterRole, search)
         } catch {
             // Error handled in hook
         }
-    }, [getUsers, filterRole, currentPage])
+    }, [getUsers, filterRole, currentPage, debouncedSearchTerm])
 
-useEffect(() => {
-  if (!searchTerm) {
-    fetchUsers("");
-    return;
-  }
+    // Load data when page, debounced search, or filter changes
+    useEffect(() => {
+        fetchUsers(debouncedSearchTerm)
+    }, [currentPage, debouncedSearchTerm, filterRole, fetchUsers])
 
-  const timer = setTimeout(() => {
-    setCurrentPage(1);
-    fetchUsers(searchTerm);
-  }, 500);
-
-  return () => clearTimeout(timer);
-}, [searchTerm, fetchUsers, setCurrentPage]);
+    // Debounce search term only
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm)
+            setCurrentPage(1)
+        }, 1000)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
 
 
     const handleToggleBlock = async (id: string) => {
@@ -73,17 +75,17 @@ useEffect(() => {
             accessor: (user) => <span className="text-gray-500 ">{user.email}</span>,
             sortable: true
         },
-        {
-            header: "Specialty",
-            accessor: (user) => (
-                user.role === "doctor" ? (
-                    <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-tighter">
-                        {user.specialty || 'N/A'}
-                    </span>
-                ) : <span className="text-gray-300">---</span>
-            ),
-            sortable: true
-        },
+        // {
+        //     header: "Specialty",
+        //     accessor: (user) => (
+        //         user.role === "doctor" ? (
+        //             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-tighter">
+        //                 {user.specialty || 'N/A'}
+        //             </span>
+        //         ) : <span className="text-gray-300">---</span>
+        //     ),
+        //     sortable: true
+        // },
         {
             header: "Role",
             accessor: (user) => (
@@ -124,7 +126,7 @@ useEffect(() => {
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-[#333333] mb-1">List of Users</h1>
                 <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                    <Link href="/admin/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
+                    <Link href={ADMIN_ROUTES.DASHBOARD} className="text-blue-600 hover:underline">Dashboard</Link>
                     <span>/</span>
                     <span className="text-gray-400">List of Users</span>
                 </div>

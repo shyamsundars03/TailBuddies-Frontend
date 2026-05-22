@@ -1,47 +1,50 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Phone, Video, Star, MapPin, ChevronLeft, ShieldCheck, Award, MessageSquare } from "lucide-react"
+import { Phone, Video, Star, MapPin, ShieldCheck, Award, MessageSquare } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { cn } from "@/lib/utils/utils"
+import { cn, getSpecialtyLabel } from "@/lib/utils/utils"
 import { Overview } from "@/components/owner/DoctorTabs/Overview"
 import { Reviews } from "@/components/owner/DoctorTabs/Reviews"
 import { BusinessHours } from "@/components/owner/DoctorTabs/BusinessHours"
-import { doctorApi } from "@/lib/api/doctor/doctor.api"
-import { appointmentApi } from "@/lib/api/appointment.api"
+import { useOwnerServices } from "@/lib/hooks/owner/useOwnerServices"
+import { OWNER_ROUTES } from "@/lib/constants/routes"
 import { toast } from "sonner"
 
 export default function DoctorProfilePage() {
     const params = useParams()
     const router = useRouter()
-    const [doctor, setDoctor] = useState<any>(null)
-    const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'Overview' | 'Reviews' | 'BusinessHours'>('Overview')
     const [isCheckingAvailability, setIsCheckingAvailability] = useState(true)
     const [hasAvailability, setHasAvailability] = useState(false)
 
-    useEffect(() => {
-        const fetchDoctor = async () => {
-            if (!params.id) return
-            setIsLoading(true)
-            const response = await doctorApi.getById(params.id as string)
-            if (response.success) {
-                const doc = response.data
-                if (!doc.isActive || !doc.isVerified) {
-                    toast.error("This doctor is currently unavailable")
-                    router.push('/owner/services')
-                    return
-                }
-                setDoctor(doc)
-            } else {
-                toast.error(response.error || "Failed to load doctor profile")
+    const {
+        doctor,
+        isLoading: _isLoading,
+        getDoctorById,
+        getAvailableSlots,
+    } = useOwnerServices()
+
+    const [isDoctorLoading, setIsDoctorLoading] = useState(true)
+
+    const fetchDoctor = useCallback(async () => {
+        if (!params.id) return
+        setIsDoctorLoading(true)
+        const doc = await getDoctorById(params.id as string, { silent: true })
+        if (doc) {
+            if (!doc.isActive || !doc.isVerified) {
+                toast.error("This doctor is currently unavailable")
+                router.push(OWNER_ROUTES.SERVICES)
             }
-            setIsLoading(false)
         }
+        setIsDoctorLoading(false)
+    }, [params.id, getDoctorById, router])
+
+    useEffect(() => {
         fetchDoctor()
-    }, [params.id])
+    }, [fetchDoctor])
 
     useEffect(() => {
         const checkAvailability = async () => {
@@ -60,7 +63,7 @@ export default function DoctorProfilePage() {
                     
                     // Optimization: Only check if it's a working day
                     const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
-                    const businessDay = doctor.businessHours?.find((bh: any) => bh.day === dayOfWeek)
+                    const businessDay = doctor.businessHours?.find((bh: { day: string; isWorking: boolean }) => bh.day === dayOfWeek)
                     
                     if (businessDay?.isWorking) {
                         const y = date.getFullYear()
@@ -68,13 +71,13 @@ export default function DoctorProfilePage() {
                         const d = String(date.getDate()).padStart(2, '0')
                         const rawDate = `${y}-${m}-${d}`
                         
-                        const response = await appointmentApi.getAvailableSlots(params.id as string, rawDate)
-                        if (response.success && response.data && response.data.length > 0) {
+                        const slots = await getAvailableSlots(params.id as string, rawDate, { silent: true })
+                        if (slots && slots.length > 0) {
                             // Also verify if at least one slot is NOT in the past if it's today
                             if (i === 0) {
                                 const currentHour = now.getHours()
                                 const currentMin = now.getMinutes()
-                                const hasFutureSlot = response.data.some((slot: any) => {
+                                const hasFutureSlot = slots.some((slot: { startTime: string }) => {
                                     const [sh, sm] = slot.startTime.split(':').map(Number)
                                     return sh > currentHour || (sh === currentHour && sm > currentMin)
                                 })
@@ -97,9 +100,9 @@ export default function DoctorProfilePage() {
             setIsCheckingAvailability(false)
         }
         checkAvailability()
-    }, [doctor, params.id])
+    }, [doctor, params.id, getAvailableSlots])
 
-    if (isLoading) {
+    if (isDoctorLoading && !doctor) {
         return <div className="min-h-screen bg-white flex items-center justify-center">
             <div className="text-blue-600 font-black animate-pulse uppercase tracking-widest text-xl">Loading Doctor Profile...</div>
         </div>
@@ -108,25 +111,21 @@ export default function DoctorProfilePage() {
     if (!doctor) {
         return <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-6">
             <h1 className="text-2xl font-black text-gray-900 uppercase">Doctor Not Found</h1>
-            <button onClick={() => router.push('/owner/services')} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg">Back to Services</button>
+            <button onClick={() => router.push(OWNER_ROUTES.SERVICES)} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg">Back to Services</button>
         </div>
     }
 
     const doctorName = doctor.userId?.username || "N/A"
     const doctorPic = doctor.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300&h=300"
-    const specialtyName = doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"
+    const specialtyName = getSpecialtyLabel(doctor.profile?.specialtyId, doctor.profile?.designation || "Specialist")
     const location = `${doctor.clinicInfo?.clinicName || "Clinic"}, ${doctor.clinicInfo?.address?.city || "N/A"}`
-    const clinicImages = [
-        doctor.clinicInfo?.clinicPic,
-        ...(doctor.certificates?.map((c: any) => c.certificateFile) || [])
-    ].filter(Boolean).slice(0, 4)
 
     return (
         <div className="min-h-screen bg-white">
             <div className="space-y-8">
                 {/* Back Button */}
                 <button
-                    onClick={() => router.push("/owner/services")}
+                    onClick={() => router.push(OWNER_ROUTES.SERVICES)}
                     className="
     px-5 py-2
     bg-blue-600
@@ -155,13 +154,6 @@ export default function DoctorProfilePage() {
                                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                                 />
                             </div>
-                            {/* <div className="grid grid-cols-4 gap-1.5">
-                                {clinicImages.map((img, i) => (
-                                    <div key={i} className="aspect-square rounded border border-gray-100 cursor-pointer hover:opacity-80 transition shadow-sm overflow-hidden">
-                                        <Image src={img} alt="clinic" width={60} height={60} className="w-full h-full object-cover" />
-                                    </div>
-                                ))}
-                            </div> */}
                         </div>
 
                         <div className="flex-1 space-y-6">
@@ -170,7 +162,7 @@ export default function DoctorProfilePage() {
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-3">
                                             <h2 className="text-2xl font-bold text-gray-900">{doctorName}</h2>
-                                            {doctor.averageRating > 0 ? (
+                                            {(doctor.averageRating ?? 0) > 0 ? (
                                                 <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
                                                     <Star size={10} className="fill-white" />
                                                     {doctor.averageRating}
@@ -275,7 +267,13 @@ export default function DoctorProfilePage() {
 
                     <div className="p-8">
                         {activeTab === 'Overview' && <Overview doctor={doctor} />}
-                        {activeTab === 'Reviews' && <Reviews doctorId={doctor._id} />}
+                        {activeTab === 'Reviews' && (
+                            <Reviews
+                                doctorId={doctor._id}
+                                averageRating={doctor.averageRating}
+                                reviewCount={doctor.reviewCount}
+                            />
+                        )}
                         {activeTab === 'BusinessHours' && <BusinessHours doctor={doctor} />}
                     </div>
                 </div>
@@ -305,7 +303,7 @@ function TabButton({ label, active, onClick }: { label: string, active: boolean,
             className={cn(
                 "px-8 py-4 text-xs font-bold uppercase tracking-widest transition-all relative border-b-2",
                 active
-                    ? "text-blue-600 border-blue-600 bg-white"
+                     ? "text-blue-600 border-blue-600 bg-white"
                     : "text-gray-400 border-transparent hover:text-gray-600"
             )}
         >
@@ -313,3 +311,4 @@ function TabButton({ label, active, onClick }: { label: string, active: boolean,
         </button>
     )
 }
+

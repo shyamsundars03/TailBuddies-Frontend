@@ -1,7 +1,7 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
-import { useAppSelector, useAppDispatch } from "../../../../lib/redux/hooks"
+import { Suspense, useEffect, useState, useCallback } from "react"
+import { useAppSelector } from "../../../../lib/redux/hooks"
 import { useRouter } from "next/navigation"
 import { doctorApi } from "../../../../lib/api/doctor/doctor.api"
 import { toast } from "sonner"
@@ -17,6 +17,7 @@ import { BusinessHoursTab } from "../../../../components/doctor/profile/Business
 import { ClinicDetailsTab } from "../../../../components/doctor/profile/ClinicDetailsTab"
 
 import { Shield, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2 } from "lucide-react"
+import type { DoctorProfile, DoctorProfileUpdate } from "@/lib/types/doctor/doctor-profile.types"
 
 const tabs = ["Basic Details", "Clinic Info", "Experience", "Education", "Certificates", "Business Hours"]
 
@@ -24,43 +25,59 @@ function DoctorProfileInner() {
     const { user } = useAppSelector((state) => state.auth)
     const router = useRouter()
     const [activeTab, setActiveTab] = useState("Basic Details")
-    const [doctorData, setDoctorData] = useState<any>(null)
+    const [doctorData, setDoctorData] = useState<DoctorProfile | null>(null)
     const [loading, setLoading] = useState(true)
     const [verifying, setVerifying] = useState(false)
 
-    useEffect(() => {
-        if (user) {
-            const userRole = user.role?.toLowerCase()
-            
-            if (userRole && userRole !== "doctor") {
-                console.log(`[DoctorProfile] Role mismatch: ${userRole}. Redirecting to signin.`, user);
-                router.replace("/signin")
-                return
-            }
-            
-            if (userRole === "doctor") {
-                fetchDoctorProfile()
-            }
-        }
-    }, [user?.id, user?.role, router])
-
-    const fetchDoctorProfile = async () => {
+    const fetchDoctorProfile = useCallback(async () => {
         setLoading(true)
         const response = await doctorApi.getProfile()
         if (response.success) {
-            setDoctorData(response.data)
+            setDoctorData(response.data ?? null)
         } else {
             toast.error("Failed to load doctor profile")
         }
         setLoading(false)
-    }
+    }, [])
 
-    const handleUpdate = (updatedData: any) => {
-        setDoctorData(updatedData)
+    const userId = user?.id
+    const userRole = user?.role?.toLowerCase()
+
+    useEffect(() => {
+        if (!userId) return
+
+        if (userRole && userRole !== "doctor") {
+            router.replace("/signin")
+            return
+        }
+
+        if (userRole === "doctor") {
+            fetchDoctorProfile()
+        }
+    }, [userId, userRole, router, fetchDoctorProfile])
+
+    const handleUpdate = (updatedData: DoctorProfileUpdate) => {
+        setDoctorData((prev) => (prev ? { ...prev, ...updatedData } : null))
     }
 
     const validateProfileCompletion = () => {
         const errors = [];
+
+        if (!doctorData?.profile?.designation) {
+            errors.push("Professional designation is required — save Professional Details first");
+        }
+        if (!doctorData?.profile?.specialtyId) {
+            errors.push("Specialty is required — save Professional Details first");
+        }
+        if (!doctorData?.profile?.about || doctorData.profile.about.trim().length < 10) {
+            errors.push("About section is required (min 10 characters) — save Professional Details first");
+        }
+        if (!doctorData?.profile?.consultationFees || doctorData.profile.consultationFees <= 0) {
+            errors.push("Consultation fee is required — save Professional Details first");
+        }
+        if (!doctorData?.profile?.keywords?.length) {
+            errors.push("At least one focus area is required — save Professional Details first");
+        }
         
         if (!doctorData?.experience || doctorData.experience.length === 0) {
             errors.push("At least one experience record is required");
@@ -93,7 +110,7 @@ function DoctorProfileInner() {
         const response = await doctorApi.requestVerification()
         if (response.success) {
             toast.success("Verification request submitted successfully")
-            setDoctorData(response.data)
+            setDoctorData((response.data as unknown as DoctorProfile) ?? null)
         } else {
             toast.error(response.error || "Failed to submit verification request")
         }

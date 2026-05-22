@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { User, FileText, ChevronDown, TrendingUp, PieChart as PieIcon, BarChart3, Loader2, IndianRupee } from "lucide-react"
-import { adminAnalyticsApi } from "@/lib/api/admin-analytics.api"
+import { adminAnalyticsApi } from "@/lib/api/admin"
+import { DashboardStats, SpecialtyStat } from "@/lib/types/admin/admin.types"
 import { toast } from "sonner"
-import { Line, Bar, Pie } from 'react-chartjs-2'
+import { Line, Pie } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -38,12 +39,12 @@ export function AdminDashboardContent() {
         to: "",
         grouping: "month"
     })
-    const [stats, setStats] = useState<any>(null)
-    const [specialtyStats, setSpecialtyStats] = useState<any[]>([])
+    const [stats, setStats] = useState<DashboardStats | null>(null)
+    const [specialtyStats, setSpecialtyStats] = useState<SpecialtyStat[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isDataLoading, setIsDataLoading] = useState(false)
 
-    const fetchData = async (currentFilters = filters) => {
+    const fetchData = useCallback(async (currentFilters = filters) => {
         setIsDataLoading(true)
         try {
             const [statsRes, specRes] = await Promise.all([
@@ -51,18 +52,25 @@ export function AdminDashboardContent() {
                 adminAnalyticsApi.getSpecialtyStats({ from: currentFilters.from, to: currentFilters.to })
             ])
 
-            if (statsRes.success) setStats(statsRes)
-            if (specRes.success) setSpecialtyStats(specRes.stats || [])
+            if (statsRes.success && statsRes.data) {
+                setStats({
+                    cards: statsRes.data.cards || { totalDoctors: 0, totalPets: 0, totalOwners: 0, totalRevenue: 0 },
+                    graphData: statsRes.data.graphData || { labels: [], revenue: [], appointments: [] }
+                })
+            }
+            if (specRes.success && specRes.data) {
+                setSpecialtyStats(specRes.data.stats || [])
+            }
         } catch (error) {
             console.error("Failed to fetch dashboard data:", error)
         }
         setIsDataLoading(false)
         setIsLoading(false)
-    }
+    }, [filters])
 
     useEffect(() => {
         fetchData()
-    }, [])
+    }, [fetchData])
 
     const handleApplyFilters = () => {
         if (filters.from && filters.to) {
@@ -188,7 +196,7 @@ export function AdminDashboardContent() {
                                         type="date" 
                                         value={filters.from}
                                         onChange={(e) => setFilters({...filters, from: e.target.value})}
-                                        className="pl-4 pr-4 py-2 border border-gray-100 bg-white rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-36"
+                                        className="pl-4 pr-4 py-2 border text-gray-700 border-gray-100 bg-white rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-36"
                                     />
                                 </div>
                                 <div className="relative">
@@ -197,7 +205,7 @@ export function AdminDashboardContent() {
                                         type="date" 
                                         value={filters.to}
                                         onChange={(e) => setFilters({...filters, to: e.target.value})}
-                                        className="pl-4 pr-4 py-2 border border-gray-100 bg-white rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-36"
+                                        className="pl-4 pr-4 py-2 border text-gray-700   border-gray-100 bg-white rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-36"
                                     />
                                 </div>
                             </div>
@@ -207,7 +215,7 @@ export function AdminDashboardContent() {
                                 <select 
                                     value={filters.grouping}
                                     onChange={(e) => setFilters({...filters, grouping: e.target.value})}
-                                    className="pl-4 pr-10 py-2 border border-gray-100 bg-white rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none min-w-[120px]"
+                                    className="pl-4 pr-10 py-2 border  text-gray-700 border-gray-100 bg-white rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none min-w-[120px]"
                                 >
                                     <option value="day">Day-wise</option>
                                     <option value="month">Month-wise</option>
@@ -227,7 +235,7 @@ export function AdminDashboardContent() {
                     </div>
 
                     <div className="h-[350px]">
-                        <Line data={lineChartData} options={lineOptions as any} />
+                        <Line data={lineChartData} options={lineOptions} />
                     </div>
                 </div>
 

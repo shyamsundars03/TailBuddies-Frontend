@@ -1,24 +1,23 @@
 "use client"
 
-import { Search, Grid, List, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { DoctorFilters } from "@/components/owner/DoctorFilters"
 import { DoctorCard } from "@/components/owner/DoctorCard"
-import { cn } from "@/lib/utils/utils"
 
-import { useEffect, useCallback, useState, useRef } from "react"
+import { useEffect, useCallback, useState } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { doctorApi } from "@/lib/api/doctor/doctor.api"
 import { toast } from "sonner"
 import { Pagination } from "@/components/common/ui/Pagination"
+import { SearchInput } from "@/components/common/ui/SearchInput"
+import { useOwnerServices } from "@/lib/hooks/owner/useOwnerServices"
+import { useDebounce } from "@/lib/hooks/useDebounce"
+import type { DoctorFilters as DoctorFilterParams } from "@/lib/types/doctor/doctor.api.types"
+import { getSpecialtyLabel } from "@/lib/utils/utils"
 
 export default function DoctorServicesPage() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const pathname = usePathname()
-
-    const [doctors, setDoctors] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
     // Initialize from URL
     const initialSearch = searchParams.get('search') || ''
@@ -31,10 +30,8 @@ export default function DoctorServicesPage() {
     const initialSortBy = searchParams.get('sortBy') || 'Price (Low to High)'
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const debouncedSearchTerm = useDebounce(searchTerm, 1000)
     const [currentPage, setCurrentPage] = useState(initialPage)
-    const [totalPages, setTotalPages] = useState(1)
-    const [totalDoctors, setTotalDoctors] = useState(0)
     const [sortBy, setSortBy] = useState(initialSortBy)
 
     const [filters, setFilters] = useState({
@@ -45,46 +42,25 @@ export default function DoctorServicesPage() {
         minRating: initialMinRating
     })
 
-    const [specialties, setSpecialties] = useState<any[]>([])
-
-    const loadSpecialties = async () => {
-        const response = await doctorApi.getSpecialties()
-        if (response.success) {
-            setSpecialties(response.data)
-        }
-    }
+    const {
+        doctors,
+        specialties,
+        totalPages,
+        totalDoctors,
+        // totalOwner,
+        isLoading,
+        getSpecialties,
+        getDoctorsList,
+    } = useOwnerServices()
 
     useEffect(() => {
-        loadSpecialties()
-    }, [])
+        getSpecialties()
+    }, [getSpecialties])
 
-    const loadDoctors = useCallback(async (page: number, search: string, activeFilters: any, sort: string) => {
-        setIsLoading(true)
+    const loadDoctors = useCallback(async (page: number, search: string, activeFilters: DoctorFilterParams, sort: string) => {
         console.log("🔍 Fetching doctors with:", { page, search, activeFilters, sort })
-        const response = await doctorApi.getAllDoctors(page, 9, search, true, undefined, activeFilters, sort)
-
-        console.log("📦 API Response:", response)
-        if (response.success) {
-            setDoctors(response.data || [])
-            setTotalPages(Math.ceil((response.total || 0) / (response.limit || 9)))
-            setTotalDoctors(response.total || 0)
-        } else {
-            console.error("❌ Failed to load doctors:", response.error)
-        }
-        setIsLoading(false)
-    }, [])
-
-
-
-
-
-    // Debounce search term
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm)
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [searchTerm])
+        await getDoctorsList(page, 9, search, true, undefined, activeFilters, sort)
+    }, [getDoctorsList])
 
     // Update URL when state changes
     useEffect(() => {
@@ -122,9 +98,7 @@ export default function DoctorServicesPage() {
     const clearFilters = () => {
         setFilters({ specialty: '', gender: '', experienceYears: '', city: '', minRating: '' })
         setSearchTerm('')
-        setDebouncedSearchTerm('')
     }
-
 
     const handleGetLocation = () => {
         if (!navigator.geolocation) {
@@ -132,7 +106,6 @@ export default function DoctorServicesPage() {
             return
         }
 
-        setIsLoading(true)
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords
             try {
@@ -151,17 +124,12 @@ export default function DoctorServicesPage() {
             } catch (err) {
                 console.error("Error fetching location details:", err)
                 toast.error("Failed to fetch location details")
-            } finally {
-                setIsLoading(false)
             }
         }, (error) => {
             console.error("Geolocation error:", error)
             toast.error("Unable to retrieve your location")
-            setIsLoading(false)
         })
     }
-
-
 
     return (
         <div className="min-h-screen bg-white p-4">
@@ -174,31 +142,27 @@ export default function DoctorServicesPage() {
                     </div>
                 </div>
 
-                <div className="relative group max-w-2xl">
-                    <div className="bg-white rounded-lg shadow-md p-1.5 flex items-center border border-gray-100 group-focus-within:border-blue-500 transition-all duration-300">
-                        <div className="flex-1 flex items-center px-4">
-                            <Search className="text-blue-500" size={20} />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search for Specialities , Doctors , etc..."
-                                className="w-full px-4 py-3 text-sm font-medium text-gray-700 focus:outline-none bg-transparent"
-                            />
-                        </div>
-                        <button
-                            onClick={() => loadDoctors(1, searchTerm, filters, sortBy)}
-                            className="bg-yellow-400 hover:bg-yellow-500 text-blue-950 font-bold px-8 py-3 rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
-                        >
-                            Search
-                        </button>                        <button
-                            onClick={handleGetLocation}
-                            className="ml-2 px-4 py-3 bg-blue-50 text-blue-600 rounded-md font-bold text-[10px] uppercase tracking-widest hover:bg-blue-100 transition active:scale-95 flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                            Near Me
-                        </button>
-                    </div>
+                <div className="relative group max-w-2xl flex items-center gap-2">
+                    <SearchInput 
+                        placeholder="Search for Specialities , Doctors , etc..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        containerClassName="flex-1"
+                        className="py-3 shadow-md"
+                    />
+                    <button
+                        onClick={() => loadDoctors(1, searchTerm, filters, sortBy)}
+                        className="bg-yellow-400 hover:bg-yellow-500 text-blue-950 font-bold px-8 py-3 rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
+                    >
+                        Search
+                    </button>
+                    <button
+                        onClick={handleGetLocation}
+                        className="px-4 py-3 bg-blue-50 text-blue-600 rounded-md font-bold text-[10px] uppercase tracking-widest hover:bg-blue-100 transition active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                        Near Me
+                    </button>
                 </div>
             </div>
 
@@ -209,7 +173,7 @@ export default function DoctorServicesPage() {
                         activeFilters={filters}
                         onFilterChange={handleFilterChange}
                         onClear={clearFilters}
-                        specialties={specialties}
+                        specialties={(specialties ?? []) as unknown as import("@/lib/types/admin/admin.types").Specialty[]}
                     />
                 </div>
 
@@ -226,15 +190,13 @@ export default function DoctorServicesPage() {
                             </div>
                             {debouncedSearchTerm && (
                                 <p className="text-xs font-medium text-gray-400">
-                                    Results for "<span className="text-blue-600 italic">{debouncedSearchTerm}</span>"
+                                    Results for &quot;<span className="text-blue-600 italic">{debouncedSearchTerm}</span>&quot;
                                 </p>
                             )}
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 group cursor-pointer">
-                                {/* <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Availability</span> */}
-                                {/* <ChevronDown size={14} className="text-gray-400 group-hover:text-blue-600 transition-colors" /> */}
+                            <div className="flex items-center gap-2 group cursor-pointer text-blue-950 font-bold">
                             </div>
 
                             <div className="flex items-center gap-4 border-l border-gray-100 pl-4">
@@ -251,27 +213,6 @@ export default function DoctorServicesPage() {
                                     </select>
                                     <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                 </div>
-
-                                {/* <div className="bg-gray-50 p-1 rounded-lg flex border border-gray-100">
-                                    <button
-                                        onClick={() => setViewMode('grid')}
-                                        className={cn(
-                                            "p-1.5 rounded transition-all duration-300",
-                                            viewMode === 'grid' ? "bg-white text-blue-600 shadow-sm border border-gray-100" : "text-gray-400 hover:text-gray-600"
-                                        )}
-                                    >
-                                        <Grid size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('list')}
-                                        className={cn(
-                                            "p-1.5 rounded transition-all duration-300",
-                                            viewMode === 'list' ? "bg-white text-blue-600 shadow-sm border border-gray-100" : "text-gray-400 hover:text-gray-600"
-                                        )}
-                                    >
-                                        <List size={16} />
-                                    </button>
-                                </div> */}
                             </div>
                         </div>
                     </div>
@@ -291,14 +232,15 @@ export default function DoctorServicesPage() {
                                     key={doctor._id}
                                     id={doctor._id}
                                     name={doctor.userId?.username || "N/A"}
-                                    specialty={doctor.profile?.specialtyId?.name || doctor.profile?.designation || "Specialist"}
+                                    specialty={getSpecialtyLabel(doctor.profile?.specialtyId, doctor.profile?.designation || "Specialist")}
                                     rating={doctor.averageRating || 0}
                                     reviewsCount={doctor.reviewCount || 0}
+                                    ownerCount ={doctor.ownerCount ||0}
                                     location={doctor.clinicInfo?.address?.city || "N/A"}
                                     duration={`${doctor.appointmentDuration || 30} Min`}
                                     fee={String(doctor.profile?.consultationFees || 0)}
                                     image={doctor.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300&h=300"}
-                                    available={doctor.isActive}
+                                    available={doctor.isActive ?? false}
                                     isVerified={doctor.isVerified}
                                 />
                             ))}
@@ -318,3 +260,4 @@ export default function DoctorServicesPage() {
         </div>
     )
 }
+

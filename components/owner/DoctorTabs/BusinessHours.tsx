@@ -2,6 +2,8 @@
 
 import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
+// import type { DoctorBusinessHourEntry } from "@/lib/types/doctor/doctor-profile.types"
+import type { DoctorResponse } from "@/lib/types/doctor/doctor.api.types"
 
 // Formats "09:00" → "9:00 AM", "17:30" → "5:30 PM"
 function formatTime(time: string): string {
@@ -16,13 +18,13 @@ function formatTime(time: string): string {
     }
 }
 
-export function BusinessHours({ doctor }: { doctor: any }) {
+export function BusinessHours({ doctor }: { doctor: DoctorResponse }) {
     const workingHours = doctor?.businessHours || []
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
     // Map each day to a display object derived from the slots array
     const hoursDisplay = days.map(day => {
-        const dayInfo = workingHours.find((h: any) => h.day === day)
+        const dayInfo = workingHours.find((h) => h.day === day)
         const slots: string[] = dayInfo?.slots ?? []
         const isWorking = !!dayInfo?.isWorking && slots.length > 0
 
@@ -65,7 +67,7 @@ export function BusinessHours({ doctor }: { doctor: any }) {
                 <div className="bg-blue-950 rounded-[2rem] p-8 text-white space-y-6 shadow-2xl shadow-blue-950/20 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                     <Clock size={48} className="text-blue-400/50 mb-4" />
-                    <h4 className="text-2xl font-black uppercase tracking-tight">Today's Schedule</h4>
+                    <h4 className="text-2xl font-black uppercase tracking-tight">Today&apos;s Schedule</h4>
                     <div className="space-y-1">
                         <p className="text-blue-200 font-bold text-xs uppercase tracking-widest">{todayDay}</p>
                         <p className="text-3xl font-black">{todayInfo?.time || "Closed"}</p>

@@ -1,7 +1,6 @@
 "use client"
 
 import { 
-    Search, 
     ChevronDown, 
     Star, 
     MapPin, 
@@ -131,8 +130,8 @@ export default function SubscriptionsPage() {
     )
 }
 
-function ActionButton({ icon, label, color, border }: any) {
-    const colorClasses: any = {
+function ActionButton({ icon: _icon, label, color, border }: { icon?: React.ReactNode; label: string; color: string; border?: boolean }) {
+    const colorClasses: Record<string, string> = {
         amber: "bg-amber-400 hover:bg-amber-500 text-white shadow-amber-100",
         blue: "bg-linear-to-br from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white shadow-blue-100",
         white: "bg-white hover:bg-gray-50 text-gray-600 shadow-sm"
@@ -149,7 +148,15 @@ function ActionButton({ icon, label, color, border }: any) {
     )
 }
 
-function DoctorSubscriptionCard({ image, name, specialty, rating, location, duration, fee }: any) {
+function DoctorSubscriptionCard({ image, name, specialty, rating, location, duration, fee }: {
+    image: string
+    name: string
+    specialty: string
+    rating: string
+    location: string
+    duration: string
+    fee: string
+}) {
     return (
         <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-500">
             <div className="relative aspect-[4/3] overflow-hidden">
@@ -196,7 +203,11 @@ function DoctorSubscriptionCard({ image, name, specialty, rating, location, dura
     )
 }
 
-function PaginationButton({ icon, label, active }: any) {
+function PaginationButton({ icon, label, active }: {
+    icon?: React.ReactNode
+    label: string
+    active?: boolean
+}) {
     return (
         <button className={cn(
             "h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 border",

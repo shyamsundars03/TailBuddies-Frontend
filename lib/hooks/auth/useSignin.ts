@@ -1,18 +1,15 @@
-
-'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch } from '../../redux/hooks';
 import { setUser, logout as logoutAction } from '../../redux/slices/authSlice';
 import { signinService } from '../../services/auth/signin.service';
-import type { SigninCredentials, SigninApiResponse } from '../../types/auth/signin.types';
+import { LoginParams, AuthApiResponse, GoogleLoginParams } from '../../types/auth/auth.types';
 import logger from '../../logger';
 import { toast } from 'sonner';
-
-import { signinSchema } from '../../validation/auth/signin.schema';
+import { signinSchema } from '../../validation/auth';
 import { z } from 'zod';
 import { clientCookies } from '../../utils/clientCookies';
+import { ADMIN_ROUTES, DOCTOR_ROUTES, PUBLIC_ROUTES, AUTH_ROUTES } from '../../constants/routes';
 
 export const useSignin = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -20,80 +17,56 @@ export const useSignin = () => {
     const router = useRouter();
     const dispatch = useAppDispatch();
 
-    const login = async (credentials: SigninCredentials): Promise<SigninApiResponse> => {
-
-
-
-        const validateForm = (data: SigninCredentials): boolean => {
-            try {
-                logger.debug('Validating signin form data', data);
-                signinSchema.parse(data);
-                setErrors({});
-                return true;
-            } catch (error) {
-                if (error instanceof z.ZodError) {
-                    const formattedErrors: Record<string, string> = {};
-                    error.issues.forEach((issue) => {
-                        if (issue.path[0]) {
-                            formattedErrors[issue.path[0] as string] = issue.message;
-                        }
-                    });
-                    setErrors(formattedErrors);
-                }
-                return false;
+    const validateForm = (data: LoginParams): boolean => {
+        try {
+            signinSchema.parse(data);
+            setErrors({});
+            return true;
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                const formattedErrors: Record<string, string> = {};
+                error.issues.forEach((issue) => {
+                    if (issue.path[0]) {
+                        formattedErrors[issue.path[0] as string] = issue.message;
+                    }
+                });
+                setErrors(formattedErrors);
             }
-        };
+            return false;
+        }
+    };
 
+    const login = async (credentials: LoginParams): Promise<AuthApiResponse> => {
         try {
             if (!validateForm(credentials)) {
-                logger.warn('Signin form validation failed');
                 return { success: false, error: 'Validation failed' };
             }
 
             setIsLoading(true);
             setErrors({});
 
-            logger.info('signinService.login called', { email: credentials.email });
-
             const response = await signinService.login(credentials);
             if (response.success && response.data?.user) {
-                const apiUser = response.data.user;
-                const userToStore = {
-                    id: apiUser.id,
-                    email: apiUser.email,
-                    role: apiUser.role,
-                    username: apiUser.username,
-                    googleId: apiUser.googleId,
-                    profilePic: apiUser.profilePic,
-                    phone: apiUser.phone,
-                    gender: apiUser.gender,
-                };
-                dispatch(setUser(userToStore));
+                const user = response.data.user;
+                dispatch(setUser(user));
 
                 const token = response.data.accessToken;
                 if (token) {
-                    clientCookies.set('token', token, 7 * 24 * 60 * 60); // 7 days
-                    localStorage.setItem('user', JSON.stringify(userToStore));
+                    clientCookies.set('token', token, 7 * 24 * 60 * 60);
+                    localStorage.setItem('user', JSON.stringify(user));
                 }
-                toast.success(`Welcome back, ${userToStore.username || 'User'}!`);
+                toast.success(`Welcome back, ${user.username || 'User'}!`);
 
-                const role = apiUser.role?.toLowerCase();
-
-                // Add a slight delay before redirecting to let the user see the success message
+                const role = user.role?.toLowerCase();
                 setTimeout(() => {
-                    if (role === 'admin') {
-                        router.push('/admin/dashboard');
-                    } else if (role === 'doctor') {
-                        router.push('/doctor/dashboard');
-                    } else {
-                        router.push('/home');
-                    }
+                    if (role === 'admin') router.push(ADMIN_ROUTES.HOME);
+                    else if (role === 'doctor') router.push(DOCTOR_ROUTES.DASHBOARD);
+                    else router.push(PUBLIC_ROUTES.HOME);
                 }, 500);
 
                 return response;
             } else {
-                logger.warn('Login failed or unexpected response shape', { response });
-                toast.error(response.error || 'Login failed - unexpected response from server');
+                toast.error(response.message || response.error || 'Login failed');
                 return response;
             }
         } catch (error: unknown) {
@@ -105,42 +78,29 @@ export const useSignin = () => {
         }
     };
 
-    const googleLogin = async (credential: string, role: string) => {
+    const googleLogin = async (params: GoogleLoginParams) => {
         setIsLoading(true);
-        logger.info('Google login attempt', { role });
-
         try {
-            const response = await signinService.googleLogin(credential, role);
+            const response = await signinService.googleLogin(params);
             if (response.success && response.data?.user) {
-                const apiUser = response.data.user;
-                const userToStore = {
-                    id: apiUser.id,
-                    email: apiUser.email,
-                    role: apiUser.role,
-                    username: apiUser.username,
-                    googleId: apiUser.googleId,
-                    profilePic: apiUser.profilePic,
-                    phone: apiUser.phone,
-                    gender: apiUser.gender,
-                };
-                dispatch(setUser(userToStore));
+                const user = response.data.user;
+                dispatch(setUser(user));
 
                 const token = response.data.accessToken;
                 if (token) {
                     clientCookies.set('token', token, 7 * 24 * 60 * 60);
-                    localStorage.setItem('user', JSON.stringify(userToStore));
+                    localStorage.setItem('user', JSON.stringify(user));
                 }
                 toast.success('Signed in with Google!');
 
-                const userRole = apiUser.role?.toLowerCase();
-                if (userRole === 'admin') router.push('/admin/dashboard');
-                else if (userRole === 'doctor') router.push('/doctor/dashboard');
-                else router.push('/home');
+                const userRole = user.role?.toLowerCase();
+                if (userRole === 'admin') router.push(ADMIN_ROUTES.HOME);
+                else if (userRole === 'doctor') router.push(DOCTOR_ROUTES.DASHBOARD);
+                else router.push(PUBLIC_ROUTES.HOME);
 
                 return response;
             } else {
-                logger.warn('Google login failed', { response });
-                toast.error(response.error || 'Google sign in failed');
+                toast.error(response.message || response.error || 'Google sign in failed');
                 return response;
             }
         } catch (error) {
@@ -153,8 +113,6 @@ export const useSignin = () => {
     };
 
     const logout = async () => {
-        logger.info('Logging out');
-
         const userStr = localStorage.getItem('user');
         let userRole = null;
 
@@ -168,23 +126,16 @@ export const useSignin = () => {
         }
 
         try {
-            // Call backend to clear refreshToken cookie
             await signinService.logout();
         } catch (error) {
             logger.error('Backend logout failed', error);
-            // Continue with client-side logout even if backend fails
         } finally {
-            // Client-side cleanup
             clientCookies.delete('token');
             localStorage.removeItem('user');
             dispatch(logoutAction());
 
-            // Redirect based on role
-            if (userRole === 'admin') {
-                router.push('/admin/signin');
-            } else {
-                router.push('/signin');
-            }
+            if (userRole === 'admin') router.push(ADMIN_ROUTES.SIGNIN);
+            else router.push(AUTH_ROUTES.SIGNIN);
 
             toast.success('Logged Out Successfully!!');
         }

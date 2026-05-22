@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Plus, Edit, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { useAdmin } from "../../lib/hooks/useAdmin"
-// import { specialtySchema } from "../../lib/utils/validators/admin.schema"
 import { specialtySchema } from "../../lib/validation/admin/admin.schema"
-// import type { Specialty } from "../../types/admin.types"
 import type { Specialty } from "../../lib/types/admin/admin.types"
 import { cn } from "@/lib/utils/utils"
 import { SearchInput } from "../common/ui/SearchInput"
@@ -14,6 +12,8 @@ import { DataTable, Column } from "../common/ui/DataTable"
 import { Pagination } from "../common/ui/Pagination"
 import { Dropdown } from "../common/ui/Dropdown"
 import Link from "next/link"
+import { AxiosError } from "axios"
+import { ADMIN_ROUTES } from "../../lib/constants"
 import Swal from "sweetalert2"
 
 
@@ -45,6 +45,7 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
     } = useAdmin()
 
     const [searchTerm, setSearchTerm] = useState("")
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
     const [showModal, setShowModal] = useState(false)
     const [formData, setFormData] = useState<Omit<Specialty, "id">>(INITIAL_FORM_STATE)
     const [editingId, setEditingId] = useState<string | null>(null)
@@ -58,12 +59,12 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
     const [keywordInput, setKeywordInput] = useState("")
 
 
-    const fetchSpecialties = useCallback(async (search?: string) => {
+    const fetchSpecialties = useCallback(async (search = debouncedSearchTerm) => {
         try {
             await getSpecialties(currentPage, 10, search)
         } catch {
         }
-    }, [getSpecialties, currentPage])
+    }, [getSpecialties, currentPage, debouncedSearchTerm])
 
 
 
@@ -71,8 +72,8 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
 
 
     useEffect(() => {
-        fetchSpecialties(searchTerm)
-    }, [currentPage])
+        fetchSpecialties(debouncedSearchTerm)
+    }, [currentPage, debouncedSearchTerm, fetchSpecialties])
 
 
 
@@ -80,9 +81,9 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
 
     useEffect(() => {
         const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm)
             setCurrentPage(1)
-            fetchSpecialties(searchTerm)
-        }, 500)
+        }, 1000)
         return () => clearTimeout(timer)
     }, [searchTerm])
 
@@ -202,14 +203,18 @@ export function SpecialitiesManagement({ initialSpecialties: _initialSpecialties
 
 
         } catch (e: unknown) {
-            const err = e as { response?: { data?: { message?: string } } };
-            const message =
-                err.response?.data?.message ||
-                (editingId
-                    ? "Failed to update specialty"
-                    : "Failed to add specialty");
+            let message = "Something went wrong";
+            if (e instanceof AxiosError) {
+                message = e.response?.data?.message || e.message;
+            } else if (e instanceof Error) {
+                message = e.message;
+            }
 
-            toast.error(message);
+            if (message.toLowerCase().includes("already exists")) {
+                setErrors({ name: message });
+            } else {
+                toast.error(message);
+            }
         }
     }
 
@@ -346,7 +351,7 @@ const handleDelete = async (id: string) => {
                     <div>
                         <h1 className="text-2xl font-bold text-[#333333] mb-1">Specialities Management</h1>
                         <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                            <Link href="/admin/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
+                            <Link href={ADMIN_ROUTES.DASHBOARD} className="text-blue-600 hover:underline">Dashboard</Link>
                             <span>/</span>
                             <span className="text-gray-400">Specialities</span>
                         </div>

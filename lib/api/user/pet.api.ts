@@ -11,7 +11,7 @@ export const userPetApi = {
 
 
 
-    addPet: async (data: FormData | Record<string, any>) => {
+    addPet: async (data: FormData | Record<string, unknown>) => {
         try {
             const response = await apiClient.post(PET_ENDPOINTS.OWNER_ADD_PET, data, {
                 headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
@@ -79,7 +79,7 @@ export const userPetApi = {
 
 
 
-    updatePet: async (id: string, data: FormData | Record<string, any>) => {
+    updatePet: async (id: string, data: FormData | Record<string, unknown>) => {
         try {
             const response = await apiClient.put(PET_ENDPOINTS.OWNER_UPDATE_PET(id), data, {
                 headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined

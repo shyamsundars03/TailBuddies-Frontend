@@ -3,164 +3,78 @@
 import { useEffect, useState, useCallback, Suspense } from "react"
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, History, Loader2, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
-import { paymentApi } from "@/lib/api/payment.api"
+import { useOwnerWallet } from "@/lib/hooks/owner/useOwnerWallet"
+import { useRazorpay } from "@/lib/hooks/useRazorpay"
+import { walletTopUpSchema } from "@/lib/validation/owner/wallet.schema"
 import { toast } from "sonner"
 import { Pagination } from "../../../../components/common/ui/Pagination"
 
-interface WalletData {
-    balance: number
-}
-
-interface Transaction {
-    transactionID?: string
-    _id?: string
-    humanReadableId?: string
-    source: string
-    type: 'credit' | 'debit'
-    createdAt: string
-    amount: number
-    appointmentID?: string
-    message?: string
-}
-
-interface RazorpayResponse {
-    razorpay_order_id: string
-    razorpay_payment_id: string
-    razorpay_signature: string
-}
-
-interface RazorpayWindow extends Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-        open: () => void
-    }
-}
-
 function WalletPageContent() {
-    const [wallet, setWallet] = useState<WalletData | null>(null)
-    const [transactions, setTransactions] = useState<Transaction[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [isTopUpLoading, setIsTopUpLoading] = useState(false)
+    const { 
+        wallet, 
+        transactions, 
+        totalEntries, 
+        totalPages, 
+        isLoading, 
+        isTopUpLoading, 
+        getWalletBalance, 
+        getTransactions, 
+        createTopUpOrder,
+        verifyTopUpPayment
+    } = useOwnerWallet()
+
+    const { openRazorpay } = useRazorpay()
+
     const [topUpAmount, setTopUpAmount] = useState<string>("")
     const [showTopUpModal, setShowTopUpModal] = useState(false)
-    
-    // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
-    const [totalPages, setTotalPages] = useState(1)
-    const [totalEntries, setTotalEntries] = useState(0)
     const entriesPerPage = 5
 
-    const fetchWalletData = useCallback(async () => {
-        try {
-            const res = await paymentApi.getWallet()
-            if (res.success) setWallet(res.wallet)
-        } catch (error) {
-            console.error("Error fetching wallet:", error)
-        }
-    }, [])
-
-    const fetchTransactions = useCallback(async (page: number) => {
-        setIsLoading(true)
-        try {
-            const res = await paymentApi.getTransactions(page, entriesPerPage)
-            if (res.success) {
-                setTransactions(res.transactions)
-                setTotalEntries(res.total)
-                setTotalPages(Math.ceil(res.total / entriesPerPage))
-            }
-        } catch (error) {
-            console.error("Error fetching transactions:", error)
-        } finally {
-            setIsLoading(false)
-        }
-    }, [entriesPerPage])
+    const loadData = useCallback(async (page: number) => {
+        await Promise.all([
+            getWalletBalance(),
+            getTransactions(page, entriesPerPage)
+        ])
+    }, [getWalletBalance, getTransactions])
 
     useEffect(() => {
-        fetchWalletData()
-        fetchTransactions(currentPage)
-
-        // Load Razorpay Script
-        const script = document.createElement("script")
-        script.src = "https://checkout.razorpay.com/v1/checkout.js"
-        script.async = true
-        document.body.appendChild(script)
-
-        return () => {
-            if (document.body.contains(script)) {
-                document.body.removeChild(script)
-            }
-        }
-    }, [currentPage, fetchWalletData, fetchTransactions])
+        loadData(currentPage)
+    }, [currentPage, loadData])
 
     const handleTopUp = async () => {
         const amount = parseFloat(topUpAmount)
-        if (isNaN(amount) || amount <= 0) {
-            toast.error("Please enter a valid amount")
+        const validationResult = walletTopUpSchema.safeParse({ amount })
+        if (!validationResult.success) {
+            toast.error(validationResult.error.issues[0].message)
             return
         }
 
-        setIsTopUpLoading(true)
-        try {
-            // Reusing createRazorpayOrder for top-up by passing appointmentId as 'topup'
-            const orderRes = await paymentApi.createRazorpayOrder({
-                amount,
-                appointmentId: "topup"
-            })
-
-            if (!orderRes.success) {
-                toast.error(orderRes.message || "Failed to initiate top-up")
-                setIsTopUpLoading(false)
-                return
-            }
-
-            const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: orderRes.order.amount,
-                currency: orderRes.order.currency,
+        const orderData = await createTopUpOrder(amount)
+        if (orderData) {
+            openRazorpay({
+                order_id: orderData.order.id,
+                amount: orderData.order.amount,
+                currency: orderData.order.currency,
                 name: "TailBuddies Wallet",
                 description: "Wallet Top-up",
-                order_id: orderRes.order.id,
-                handler: async (response: RazorpayResponse) => {
-                    try {
-                        const verifyRes = await paymentApi.verifyRazorpayPayment({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                            appointmentId: "topup"
-                        })
+                onSuccess: async (response: Record<string, string>) => {
+                    const verified = await verifyTopUpPayment({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature
+                    })
 
-                        if (verifyRes.success) {
-                            toast.success("Wallet topped up successfully!")
-                            setShowTopUpModal(false)
-                            setTopUpAmount("")
-                            // Refresh data
-                            await fetchWalletData()
-                            await fetchTransactions(1)
-                        } else {
-                            toast.error(verifyRes.message || "Verification failed. Please contact support.")
-                        }
-                    } catch (err: unknown) {
-                        console.error("Verification error:", err)
-                        toast.error("An error occurred during verification")
-                    } finally {
-                        setIsTopUpLoading(false)
+                    if (verified) {
+                        setShowTopUpModal(false)
+                        setTopUpAmount("")
+                        loadData(1)
+                        setCurrentPage(1)
                     }
                 },
-                modal: {
-                    ondismiss: () => {
-                        setIsTopUpLoading(false)
-                    }
-                },
-                theme: {
-                    color: "#2563eb"
+                onDismiss: () => {
+                    toast.info("Payment dismissed")
                 }
-            }
-
-            const rzp = new (window as unknown as RazorpayWindow).Razorpay(options)
-            rzp.open()
-        } catch (error: unknown) {
-            console.error("Top-up error:", error)
-            toast.error("An error occurred during top-up")
-            setIsTopUpLoading(false)
+            })
         }
     }
 
@@ -168,10 +82,6 @@ function WalletPageContent() {
         setCurrentPage(page)
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-
-
-    console.log(transactions)
-
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto pb-20">
@@ -219,33 +129,6 @@ function WalletPageContent() {
                         </div>
                     </div>
                 </div>
-
-                {/* <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl flex flex-col justify-center space-y-8"> */}
-                    {/* <h3 className="text-xs font-black text-blue-950 uppercase tracking-[0.2em] border-b border-gray-50 pb-4">Quick Stats</h3> */}
-                    {/* <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-emerald-50 text-emerald-500 rounded-lg">
-                                    <ArrowUpRight size={18} />
-                                </div>
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Added</span>
-                            </div>
-                            <span className="font-bold text-gray-900">₹{transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-red-50 text-red-500 rounded-lg">
-                                    <ArrowDownLeft size={18} />
-                                </div>
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Spent</span>
-                            </div>
-                            <span className="font-bold text-gray-900">₹{transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0).toLocaleString()}</span>
-                        </div>
-                    </div> */}
-                    {/* <button className="w-full py-4 text-blue-600 font-black uppercase tracking-widest text-[10px] hover:bg-blue-50 rounded-xl transition-all">
-                        View Detailed Report
-                    </button> */}
-                {/* </div> */}
             </div>
 
             {/* Transaction History */}
@@ -256,10 +139,6 @@ function WalletPageContent() {
                             <History size={18} />
                         </div>
                         <h3 className="text-sm font-black text-blue-950 uppercase tracking-[0.2em]">Transaction History</h3>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        {/* <Search size={14} /> */}
-                        {/* Filter */}
                     </div>
                 </div>
 
@@ -284,7 +163,6 @@ function WalletPageContent() {
                                 </tr>
                             ) : transactions.length > 0 ? (
                                 transactions.map((t) => (
-                                    
                                     <tr key={t.transactionID || t._id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-8 py-6">
                                             <div className="flex flex-col">
@@ -375,8 +253,9 @@ function WalletPageContent() {
                                     type="number"
                                     placeholder="Enter Amount"
                                     value={topUpAmount}
+                                    maxLength={5}
                                     onChange={(e) => setTopUpAmount(e.target.value)}
-                                    className="w-full px-6 py-4   text-gray-700 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg"
+                                    className="w-full px-6 py-4 text-gray-700 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg"
                                 />
                             </div>
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Minus, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Minus } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 
 interface Transaction {

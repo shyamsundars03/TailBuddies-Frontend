@@ -1,36 +1,35 @@
 import { useEffect, useState } from "react"
 import { ChevronDown, Plus, Loader2, X } from "lucide-react"
 import { AddPetModal } from "@/components/owner/AddPetModal"
-import { cn } from "@/lib/utils/utils"
-import { userPetApi } from "@/lib/api/user/pet.api"
+import { useOwnerPets } from "@/lib/hooks/owner/useOwnerPets"
 import { toast } from "sonner"
+import { PetFormValues } from "@/lib/validation/owner/pet.schema"
 
-const SYMPTOMS_OPTIONS = [
-    { id: "itching", label: "Itching" },
-    { id: "redness", label: "Redness" },
-    { id: "hairloss", label: "Hair loss" },
-    { id: "skinrashes", label: "Skin rashes" },
-    { id: "fever", label: "Fever" },
-    { id: "vomiting", label: "Vomiting" }
-]
+interface BookingData {
+    type: string;
+    petId: string;
+    problemDescription: string;
+    symptoms: string[];
+    date: string;
+    rawDate: string;
+    time: string;
+    slotId: string;
+    mode: string;
+    paymentMethod: string;
+}
 
-export function PetSelectionStep({ data, setData }: { data: any, setData: any }) {
+interface PetSelectionStepProps {
+    data: BookingData;
+    setData: React.Dispatch<React.SetStateAction<BookingData>>;
+}
+
+export function PetSelectionStep({ data, setData }: PetSelectionStepProps) {
     const [isAddPetModalOpen, setIsAddPetModalOpen] = useState(false)
-    const [pets, setPets] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-
-    const fetchPets = async () => {
-        setIsLoading(true)
-        const response = await userPetApi.getOwnerPets(1, 50)
-        if (response.success) {
-            setPets(response.data.pets || [])
-        }
-        setIsLoading(false)
-    }
+    const { pets, isLoading, loadPetsData, addPet } = useOwnerPets()
 
     useEffect(() => {
-        fetchPets()
-    }, [])
+        loadPetsData(1, 50)
+    }, [loadPetsData])
 
     const [symptomInput, setSymptomInput] = useState("")
 
@@ -59,43 +58,12 @@ export function PetSelectionStep({ data, setData }: { data: any, setData: any })
         })
     }
 
-    const handleSavePet = async (petData: any, pictureFile: File | null) => {
-        try {
-            const formData = new FormData();
-            
-            // Basic fields
-            formData.append('name', petData.name);
-            formData.append('species', petData.species);
-            formData.append('breed', petData.breed);
-            formData.append('gender', petData.gender);
-            formData.append('age', petData.age);
-            formData.append('dob', petData.dob);
-            formData.append('weight', petData.weight);
-            
-            if (pictureFile) {
-                formData.append('picture', pictureFile);
-            }
-
-            if (petData.vaccinations) {
-                formData.append('vaccinations', JSON.stringify(petData.vaccinations));
-            }
-
-            const response = await userPetApi.addPet(formData);
-            
-            if (response.success) {
-                toast.success("Pet added successfully!");
-                await fetchPets(); // Refresh the list
-                // Find the new pet (usually the last one if sorted by createdAt desc)
-                // Or just assume the API returns the new pet
-                if (response.data && response.data._id) {
-                    setData({ ...data, petId: response.data._id });
-                }
-                setIsAddPetModalOpen(false);
-            } else {
-                toast.error(response.error || "Failed to add pet");
-            }
-        } catch (error) {
-            toast.error("An unexpected error occurred while saving pet");
+    const handleSavePet = async (petData: PetFormValues, pictureFile: File | null) => {
+        const newPet = await addPet(petData, pictureFile)
+        if (newPet) {
+            await loadPetsData(1, 50) // Refresh the list
+            setData({ ...data, petId: newPet._id })
+            setIsAddPetModalOpen(false)
         }
     }
 
@@ -119,17 +87,26 @@ export function PetSelectionStep({ data, setData }: { data: any, setData: any })
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-1">Select Your Pet</label>
                     <div className="relative group">
-                        <select
-                            value={data.petId}
-                            onChange={(e) => setData({ ...data, petId: e.target.value })}
-                            className="w-full bg-white border border-gray-100 rounded-lg px-4 py-3.5 text-xs font-bold text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm group-hover:border-blue-200"
-                        >
-                            <option value="">Select Pet</option>
-                            {pets.map(pet => (
-                                <option key={pet._id} value={pet._id}>{pet.name}</option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-blue-500 transition-colors" size={16} />
+                        {isLoading ? (
+                            <div className="w-full bg-white border border-gray-100 rounded-lg px-4 py-3.5 flex items-center gap-2 text-xs font-semibold text-gray-400 shadow-sm">
+                                <Loader2 size={14} className="animate-spin text-blue-600" />
+                                Loading your pets...
+                            </div>
+                        ) : (
+                            <>
+                                <select
+                                    value={data.petId}
+                                    onChange={(e) => setData({ ...data, petId: e.target.value })}
+                                    className="w-full bg-white border border-gray-100 rounded-lg px-4 py-3.5 text-xs font-bold text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm group-hover:border-blue-200"
+                                >
+                                    <option value="">Select Pet</option>
+                                    {pets.map(pet => (
+                                        <option key={pet._id} value={pet._id}>{pet.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-blue-500 transition-colors" size={16} />
+                            </>
+                        )}
                     </div>
                 </div>
 

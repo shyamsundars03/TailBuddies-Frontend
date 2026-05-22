@@ -1,9 +1,14 @@
-"use client"
-
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
+import { BookingData } from "@/lib/types/owner/owner.types"
 
-export function AppointmentTypeStep({ data, setData }: { data: any, setData: any }) {
+export function AppointmentTypeStep({ 
+    data, 
+    setData 
+}: { 
+    data: BookingData, 
+    setData: React.Dispatch<React.SetStateAction<BookingData>> 
+}) {
     const types = [
         { id: "Normal", name: "Normal", description: "Standard physical consultation" },
         // { id: "Emergency", name: "Emergency", description: "Urgent medical attention needed" },

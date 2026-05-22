@@ -3,11 +3,14 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Clock, Search, Filter, Calendar as CalendarIcon, Eye, Trash2, LayoutGrid, List, ChevronDown, Loader2, MessageSquare } from "lucide-react"
+import { Clock, Calendar as CalendarIcon, Eye, Loader2, MessageSquare } from "lucide-react"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { Pagination } from "../../../../components/common/ui/Pagination"
-import { toast } from "sonner"
+import { SearchInput } from "../../../../components/common/ui/SearchInput"
 import { cn } from "@/lib/utils/utils"
+import { useDebounce } from "@/lib/hooks/useDebounce"
+import type { Appointment } from "@/lib/types/admin/admin.types"
+import type { DoctorAppointmentStats } from "@/lib/types/api.types"
 
 export default function AppointmentsPage() {
     const searchParams = useSearchParams()
@@ -19,11 +22,11 @@ export default function AppointmentsPage() {
     const initialPage = parseInt(searchParams.get('page') || "1")
 
     const [activeTab, setActiveTab] = useState(initialTab)
-    const [appointments, setAppointments] = useState<any[]>([])
+    const [appointments, setAppointments] = useState<Appointment[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [allStats, setAllStats] = useState<any>(null)
+    const [allStats, setAllStats] = useState<DoctorAppointmentStats | null>(null)
     const [searchTerm, setSearchTerm] = useState(initialSearch)
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const debouncedSearchTerm = useDebounce(searchTerm, 1000)
     const [currentPage, setCurrentPage] = useState(initialPage)
     const [totalEntries, setTotalEntries] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
@@ -31,8 +34,8 @@ export default function AppointmentsPage() {
 
     const fetchStats = useCallback(async () => {
         const response = await appointmentApi.getDoctorStats()
-        if (response.success) {
-            setAllStats(response.stats)
+        if (response.success && response.data) {
+            setAllStats(response.data)
         }
     }, [])
 
@@ -46,10 +49,12 @@ export default function AppointmentsPage() {
         else if (tab === "Requests") status = "cancel request"
 
         const response = await appointmentApi.getDoctorAppointments(status, page, entriesPerPage, search)
-        if (response.success) {
-            setAppointments(response.data || [])
-            setTotalEntries(response.total || 0)
-            setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
+        if (response.success && response.data) {
+            const items = response.data.items || (Array.isArray(response.data) ? response.data : [])
+            const total = response.data.total || (Array.isArray(response.data) ? response.data.length : 0)
+            setAppointments(items)
+            setTotalEntries(total)
+            setTotalPages(Math.ceil(total / entriesPerPage) || 1)
         }
         setIsLoading(false)
         fetchStats() 
@@ -71,15 +76,6 @@ export default function AppointmentsPage() {
         fetchAppointmentsData(currentPage, debouncedSearchTerm, activeTab)
     }, [currentPage, debouncedSearchTerm, activeTab, fetchAppointmentsData])
 
-    // Debounce search
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm)
-            setCurrentPage(1)
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [searchTerm])
-
     const handlePageChange = (page: number) => {
         setCurrentPage(page)
         window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -100,16 +96,16 @@ export default function AppointmentsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                 <h2 className="text-2xl font-bold font-inter text-[#002B49]">Appointments</h2>
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="relative flex-1 sm:flex-none">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Search" 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64 text-black" 
-                        />
-                    </div>
+                    <SearchInput 
+                        placeholder="Search" 
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value)
+                            setCurrentPage(1)
+                        }}
+                        containerClassName="flex-1 sm:flex-none"
+                        className="sm:w-64"
+                    />
                     {/* <div className="flex border border-gray-200 rounded-lg overflow-hidden shrink-0">
                         <button className="p-2 bg-blue-600 text-white"><LayoutGrid size={18} /></button>
                         <button className="p-2 bg-white text-gray-400 hover:bg-gray-50"><List size={18} /></button>

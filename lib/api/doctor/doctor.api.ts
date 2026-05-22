@@ -1,248 +1,136 @@
 import apiClient from '../apiClient';
-import { AxiosError } from 'axios';
 import { DOCTOR_ENDPOINTS } from '@/lib/endpoints/doctor';
+import { ApiResponse } from '@/lib/types/api.types';
+import type { DoctorDetail } from '@/lib/types/admin/admin.types';
+import type { DoctorFilters, DoctorResponse, PaginatedDoctorResponse  } from '@/lib/types/doctor/doctor.api.types';
+import { handleApiError } from '../../utils/api-error.handler';
+
+export type { DoctorFilters, DoctorResponse, PaginatedDoctorResponse };
+
+export interface DoctorUploadResponse {
+    url?: string;
+    filename?: string;
+}
 
 export const doctorApi = {
-
-
-
-
-
-
-
-
-    async getAdminById(id: string) {
+    getAdminById: async (id: string): Promise<ApiResponse<DoctorDetail>> => {
         try {
-            // const response = await apiClient.get(`/admin/doctors/${id}`);
             const response = await apiClient.get(DOCTOR_ENDPOINTS.ADMIN_DOCTOR_BY_ID(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch doctor' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch doctor');
         }
     },
 
-
-
-
-
-
-    getProfile: async () => {
+    getProfile: async (): Promise<ApiResponse<DoctorDetail>> => {
         try {
-            // const response = await apiClient.get('/doctor/profile');
             const response = await apiClient.get(DOCTOR_ENDPOINTS.PROFILE);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch doctor profile' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch doctor profile');
         }
     },
 
-
-
-
-
-
-
-    getById: async (id: string) => {
+    getById: async (id: string): Promise<ApiResponse<DoctorResponse>> => {
         try {
-            // const response = await apiClient.get(`/auth/doctors/${id}`);
-            const response = await apiClient.get(DOCTOR_ENDPOINTS.AUTH_DOCTOR_BY_ID(id))
+            const response = await apiClient.get(DOCTOR_ENDPOINTS.AUTH_DOCTOR_BY_ID(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch doctor' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch doctor');
         }
     },
 
+// getownerCount: async (docId:string) : Promise<ApiResponse<Owners>> =>{
+
+
+// try{
+
+
+
+// }catch(){
 
 
 
 
+// }
+
+// }
 
 
 
-    updateProfile: async (data: Record<string, any>) => {
+    updateProfile: async (data: Record<string, unknown>): Promise<ApiResponse<DoctorDetail>> => {
         try {
-            // const response = await apiClient.put('/doctor/profile', data);
             const response = await apiClient.put(DOCTOR_ENDPOINTS.UPDATE_PROFILE, data);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Update failed' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Update failed');
         }
     },
 
-
-
-
-
-
-
-
-
-
-    uploadDocument: async (file: File) => {
+    uploadDocument: async (file: File): Promise<ApiResponse<DoctorUploadResponse>> => {
         try {
             const formData = new FormData();
             formData.append('document', file);
-            // const response = await apiClient.post('/doctor/upload-document', formData, {
-            //     headers: {
-            //         'Content-Type': 'multipart/form-data',
-            //     },
-            // });
             const response = await apiClient.post(DOCTOR_ENDPOINTS.UPLOAD_DOCUMENT, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Upload failed' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Upload failed');
         }
     },
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    requestVerification: async () => {
+    requestVerification: async (): Promise<ApiResponse<Record<string, unknown>>> => {
         try {
-            // const response = await apiClient.post('/doctor/verification-request');
             const response = await apiClient.post(DOCTOR_ENDPOINTS.VERIFICATION_REQUEST);
-
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Verification request failed' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Verification request failed');
         }
     },
 
-
-
-
-
-
-
-
-
-
-
-    getSpecialties: async () => {
+    getSpecialties: async (): Promise<ApiResponse<Record<string, unknown>[]>> => {
         try {
-            // const response = await apiClient.get('/auth/specialties');
             const response = await apiClient.get(DOCTOR_ENDPOINTS.AUTH_SPECIALTIES);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch specialties' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch specialties');
         }
     },
 
-
-
-
-
-
-
-
-
-
-
-
-
-    getAllDoctors: async (page = 1, limit = 3, search?: string, isVerified?: boolean, status?: string, filters?: any, sortBy?: string) => {
+    getAllDoctors: async (
+        page = 1,
+        limit = 3,
+        search?: string,
+        isVerified?: boolean,
+        status?: string,
+        filters?: DoctorFilters,
+        _sortBy?: string
+    ): Promise<PaginatedDoctorResponse> => {
         try {
-            const params = new URLSearchParams();
-            params.append('page', page.toString());
-            params.append('limit', limit.toString());
-            if (search) params.append('search', search);
-            if (isVerified !== undefined) params.append('isVerified', isVerified.toString());
-            if (status) params.append('status', status);
-            if (sortBy) params.append('sortBy', sortBy);
-
-            if (filters) {
-                if (filters.specialty) params.append('specialty', filters.specialty);
-                if (filters.gender) params.append('gender', filters.gender);
-                if (filters.experienceYears) params.append('experienceYears', filters.experienceYears);
-                if (filters.city) params.append('city', filters.city);
-                if (filters.minRating) params.append('minRating', filters.minRating);
-            }
-
-            // Determine base URL: /admin/doctors for admin, /auth/doctors for public
-            const url = status || isVerified === undefined ? `/admin/doctors?${params.toString()}` : `/auth/doctors?${params.toString()}`;
-
+            const url = DOCTOR_ENDPOINTS.DOCTORS_LIST(page, limit, search, isVerified, status, filters, _sortBy);
             const response = await apiClient.get(url);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Failed to fetch doctors' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            const fallback = handleApiError(error, 'Failed to fetch doctors');
+            return {
+                success: false,
+                data: { items: [], total: 0, page, limit },
+                message: fallback.message,
+                error: fallback.error,
+            };
         }
     },
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    verifyDoctor: async (doctorId: string, data: { isVerified: boolean, rejectionReason?: string, verificationStatus?: Record<string, boolean> }) => {
+    verifyDoctor: async (
+        doctorId: string,
+        data: { isVerified?: boolean; rejectionReason?: string; verificationStatus?: Record<string, boolean> }
+    ): Promise<ApiResponse<Record<string, unknown>>> => {
         try {
-            // const response = await apiClient.patch(`/admin/doctors/${doctorId}/verify`, data);
             const response = await apiClient.patch(DOCTOR_ENDPOINTS.ADMIN_VERIFY(doctorId), data);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, error: error.response?.data?.message || 'Verification failed' };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error, 'Verification failed');
         }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    },
 };

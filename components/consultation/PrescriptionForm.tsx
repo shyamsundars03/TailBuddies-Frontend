@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Pill, Plus, Trash2, Save, FileText, Activity, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/utils';
+import { toast } from 'sonner';
+import type { PrescriptionFormData } from '@/lib/types/api.types';
 
 interface Medication {
     name: string;
@@ -11,9 +13,9 @@ interface Medication {
 }
 
 interface PrescriptionFormProps {
-    onSubmit: (data: any) => void;
+    onSubmit: (data: PrescriptionFormData) => void;
     isSubmitting: boolean;
-    initialData?: any;
+    initialData?: Partial<PrescriptionFormData>;
 }
 
 export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, isSubmitting, initialData }) => {
@@ -38,10 +40,14 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
     };
 
     // Validation Logic
-    const validateField = (name: string, value: any) => {
+    const validateField = (name: string, value: string) => {
         let error = '';
 
-        if (['clinicalFindings', 'diagnosis', 'vetNotes'].includes(name)) {
+        if (name === 'clinicalFindings' && !(value as string)?.trim()) {
+            error = 'Clinical findings are required';
+        } else if (name === 'diagnosis' && !(value as string)?.trim()) {
+            error = 'Diagnosis is required';
+        } else if (['clinicalFindings', 'diagnosis', 'vetNotes'].includes(name)) {
             const words = getWordCount(value as string);
             if (words > 100) error = `Exceeds 100 word limit (${words}/100)`;
         } else if (['temperature', 'pulse', 'respiration'].includes(name)) {
@@ -73,7 +79,13 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
                 diagnosis: initialData.diagnosis || '',
                 vetNotes: initialData.vetNotes || '',
                 symptoms: initialData.symptoms || [],
-                medications: initialData.medications || []
+                medications: (initialData.medications || []).map((m) => ({
+                    name: m.name ?? m.medicineName ?? "",
+                    dosage: m.dosage,
+                    frequency: m.frequency,
+                    duration: m.duration,
+                    notes: m.notes,
+                })),
             });
         }
     }, [initialData]);
@@ -102,9 +114,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
 
     const isFormValid = useMemo(() => {
         if (hasErrors) return false;
-        if (!formData.clinicalFindings.trim()) return false;
-        if (!formData.diagnosis.trim()) return false;
-        if (!formData.vetNotes.trim()) return false;
+        if (!formData.clinicalFindings.trim() || !formData.diagnosis.trim()) return false;
 
         // If medicines are added, ensure they have at least name, dosage, and frequency
         if (formData.medications.length > 0) {
@@ -119,7 +129,20 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, is
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isFormValid) return;
+        if (!formData.clinicalFindings.trim()) {
+            toast.error('Please fill in clinical findings.');
+            setErrors((prev) => ({ ...prev, clinicalFindings: 'Clinical findings are required' }));
+            return;
+        }
+        if (!formData.diagnosis.trim()) {
+            toast.error('Please fill in the diagnosis.');
+            setErrors((prev) => ({ ...prev, diagnosis: 'Diagnosis is required' }));
+            return;
+        }
+        if (!isFormValid) {
+            toast.error('Please fix the errors in the prescription form.');
+            return;
+        }
         onSubmit(formData);
     };
 

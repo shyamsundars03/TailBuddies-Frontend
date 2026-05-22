@@ -1,20 +1,20 @@
 "use client"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Download, Plus, Clock, User, Heart, Activity, FileText, Pill, Loader2 } from "lucide-react"
+import { ArrowLeft, Download, Heart, Activity, FileText, Pill, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useState, useEffect } from "react"
-import { cn } from "@/lib/utils/utils"
 import { prescriptionApi } from "@/lib/api/prescription.api"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import type { Prescription } from "@/lib/types/api.types"
 
 export default function MedicalRecordDetailPage() {
     const params = useParams()
     const router = useRouter()
     const id = params.id as string
 
-    const [record, setRecord] = useState<any>(null)
+    const [record, setRecord] = useState<Prescription | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isDownloading, setIsDownloading] = useState(false)
 
@@ -23,15 +23,14 @@ export default function MedicalRecordDetailPage() {
             setIsLoading(true)
             // The ID in the URL can be either the prescription ID or appointment ID
             // We first try to get by prescription ID, then by appointment ID if needed
-            let response = await prescriptionApi.getById(id)
-            
+            let response = await prescriptionApi.getByAppointmentId(id)
+
             if (!response.success) {
-                // Try fetching by appointment ID as a fallback
-                response = await prescriptionApi.getByAppointmentId(id)
+                response = await prescriptionApi.getById(id)
             }
 
             if (response.success) {
-                setRecord(response.data)
+                setRecord(response.data ?? null)
             } else {
                 toast.error("Failed to load medical record")
                 // router.push("/owner/medical-records")
@@ -68,7 +67,7 @@ export default function MedicalRecordDetailPage() {
             <div className="flex flex-col items-center justify-center py-40 bg-white rounded-3xl border border-gray-100 shadow-sm">
                 <FileText className="w-16 h-16 text-gray-200 mb-4" />
                 <h2 className="text-xl font-black text-[#002B49] uppercase tracking-tight">Record Not Found</h2>
-                <p className="text-sm text-gray-400 mt-2 mb-8">We couldn't find the medical record you're looking for.</p>
+                <p className="text-sm text-gray-400 mt-2 mb-8">We couldn&apos;t find the medical record you&apos;re looking for.</p>
                 <button 
                     onClick={() => router.back()}
                     className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition shadow-lg shadow-blue-100 active:scale-95"
@@ -121,7 +120,7 @@ export default function MedicalRecordDetailPage() {
                             <div>
                                 <span className="text-xs font-black text-blue-500 uppercase tracking-[0.2em]">Prescription: {record.prescriptionId || record._id.slice(-8).toUpperCase()}</span>
                                 <h3 className="text-2xl font-black text-[#002B49] block mt-1">Dr. {record.vetId?.userId?.username || "Unknown Doctor"}</h3>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{format(new Date(record.createdAt), 'dd MMMM yyyy')}</p>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{record.createdAt ? format(new Date(record.createdAt), 'dd MMMM yyyy') : "—"}</p>
                             </div>
                         </div>
 
@@ -144,9 +143,9 @@ export default function MedicalRecordDetailPage() {
                                 <Heart size={24} className="text-red-400" /> Pet:
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-1 bg-gray-50/50 rounded-2xl overflow-hidden border border-gray-100">
-                                <InfoItem label="Pet Name" value={record.petId?.name} />
-                                <InfoItem label="Species" value={record.petId?.species} />
-                                <InfoItem label="Breed" value={record.petId?.breed} />
+                                <InfoItem label="Pet Name" value={record.petId?.name ?? "—"} />
+                                <InfoItem label="Species" value={record.petId?.species ?? "—"} />
+                                <InfoItem label="Breed" value={record.petId?.breed ?? "—"} />
                             </div>
                         </div>
 
@@ -169,10 +168,10 @@ export default function MedicalRecordDetailPage() {
                                 <FileText size={24} className="text-blue-500" /> Clinical Report
                             </h4>
                             <div className="bg-gray-50/30 rounded-3xl p-8 border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                <ReportItem label="Clinical Findings:" value={record.clinicalFindings} />
-                                <ReportItem label="Diagnosis:" value={record.diagnosis} />
-                                <ReportItem label="Symptoms:" value={record.symptoms?.join(', ')} />
-                                <ReportItem label="Vet Notes:" value={record.vetNotes} />
+                                <ReportItem label="Clinical Findings:" value={record.clinicalFindings ?? "—"} />
+                                <ReportItem label="Diagnosis:" value={record.diagnosis ?? "—"} />
+                                <ReportItem label="Symptoms:" value={record.symptoms?.join(', ') ?? "—"} />
+                                <ReportItem label="Vet Notes:" value={record.vetNotes ?? "—"} />
                             </div>
                         </div>
 
@@ -192,7 +191,7 @@ export default function MedicalRecordDetailPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {record.medications?.length > 0 ? record.medications.map((item: any, idx: number) => (
+                                        {(record.medications?.length ?? 0) > 0 ? (record.medications ?? []).map((item, idx: number) => (
                                             <tr key={idx} className="bg-white hover:bg-blue-50/30 transition-colors">
                                                 <td className="px-8 py-4 text-sm font-bold text-gray-700">{item.name}</td>
                                                 <td className="px-8 py-4 text-sm font-medium text-gray-500 italic">{item.dosage}</td>

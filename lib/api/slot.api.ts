@@ -1,27 +1,23 @@
 import apiClient from './apiClient';
-import { AxiosError } from 'axios';
+import { SLOT_ENDPOINTS } from '../endpoints/slot';
+import { handleApiError } from '../utils/api-error.handler';
+import { ApiResponse } from '../types/api.types';
 
 export const slotApi = {
-    blockSlots: async (slotIds: string[]) => {
+    blockSlots: async (slotIds: string[]): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.post('/slots/block', { slotIds });
+            const response = await apiClient.post(SLOT_ENDPOINTS.BLOCK, { slotIds });
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to block slots' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to block slots');
         }
     },
-    unblockSlots: async (slotIds: string[]) => {
+    unblockSlots: async (slotIds: string[]): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.post('/slots/unblock', { slotIds });
+            const response = await apiClient.post(SLOT_ENDPOINTS.UNBLOCK, { slotIds });
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to unblock slots' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to unblock slots');
         }
     }
 };

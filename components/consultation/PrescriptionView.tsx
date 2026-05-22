@@ -1,14 +1,15 @@
 import React from 'react';
 import { Pill, FileText, Activity, Download, Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils/utils';
+import type { Prescription, PrescriptionMedication } from '@/lib/types/api.types';
+import type { OwnerAppointment } from '@/lib/types/owner/owner.types';
 
 interface PrescriptionViewProps {
-    prescription: any;
-    appointment: any;
+    prescription: Prescription;
+    appointment?: OwnerAppointment;
     onDownload: () => void;
 }
 
-export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ prescription, appointment, onDownload }) => {
+export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ prescription, appointment: _appointment, onDownload }) => {
     if (!prescription) return null;
 
 
@@ -58,11 +59,11 @@ console.log("reoer", prescription)
                                 {prescription.clinicalFindings}
                             </p>
                         </div>
-                        {prescription.symptoms?.length > 0 && (
+                        {(prescription.symptoms?.length ?? 0) > 0 && (
                             <div>
                                 <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4">Reported Symptoms</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {prescription.symptoms.map((s: string, i: number) => (
+                                    {(prescription.symptoms ?? []).map((s: string, i: number) => (
                                         <span key={i} className="px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase rounded-lg border border-amber-100">
                                             {s}
                                         </span>
@@ -95,7 +96,7 @@ console.log("reoer", prescription)
                                 </tr>
                             </thead>
                             <tbody>
-                                {prescription.medications?.map((med: any, idx: number) => (
+                                {prescription.medications?.map((med: PrescriptionMedication, idx: number) => (
                                     <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-100/30 transition">
                                         <td className="px-6 py-4">
                                             <p className="text-xs font-black text-gray-800">{med.name}</p>
@@ -121,8 +122,8 @@ console.log("reoer", prescription)
                     <section className="pt-6 border-t border-gray-50 flex flex-col md:flex-row justify-between gap-6">
                         {prescription.vetNotes && (
                             <div className="flex-1">
-                                <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-2">Doctor's Advice</h3>
-                                <p className="text-xs font-medium text-gray-500 italic">"{prescription.vetNotes}"</p>
+                                <h3 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-2">Doctor&apos;s Advice</h3>
+                                <p className="text-xs font-medium text-gray-500 italic">&quot;{prescription.vetNotes}&quot;</p>
                             </div>
                         )}
                         {prescription.followUpDate && (

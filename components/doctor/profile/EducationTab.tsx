@@ -7,20 +7,21 @@ import { Plus, Trash2, FileText, Calendar, GraduationCap, X, AlertCircle, Pencil
 import Swal from 'sweetalert2'
 import { educationSchema } from '../../../lib/validation/doctor/doctor.schema'
 import { cn } from '@/lib/utils/utils'
+import type {
+    DoctorEducationEntry,
+    DoctorProfileTabProps,
+    EducationFormData,
+} from '@/lib/types/doctor/doctor-profile.types'
 
-interface EducationTabProps {
-    doctor: any;
-    onUpdate?: (data: any) => void;
-    isEditable?: boolean;
-}
+type EducationTabProps = Pick<DoctorProfileTabProps, 'doctor' | 'onUpdate' | 'isEditable'>
 
 export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationTabProps) => {
-    const [education, setEducation] = useState<any[]>(doctor?.education || [])
+    const [education, setEducation] = useState<DoctorEducationEntry[]>(doctor?.education || [])
     const [showModal, setShowModal] = useState(false)
     const [editIndex, setEditIndex] = useState<number | null>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [touched, setTouched] = useState<Record<string, boolean>>({})
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<EducationFormData>({
         degree: "",
         institute: "",
         startDate: "",
@@ -30,7 +31,7 @@ export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationT
     const [uploading, setUploading] = useState(false)
 
     // Sort function for education
-    const sortEducation = (data: any[]) => {
+    const sortEducation = (data: DoctorEducationEntry[]) => {
         return [...data].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     }
 
@@ -40,7 +41,7 @@ export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationT
         }
     }, [doctor])
 
-    const validateField = (name: string, value: any) => {
+    const validateField = (name: keyof EducationFormData, value: string) => {
         const result = educationSchema.safeParse({ ...formData, [name]: value })
         const newErrors = { ...errors }
 
@@ -68,9 +69,9 @@ export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationT
         setErrors(newErrors)
     }
 
-    const handleBlur = (name: string) => {
+    const handleBlur = (name: keyof EducationFormData) => {
         setTouched(prev => ({ ...prev, [name]: true }))
-        validateField(name, (formData as any)[name])
+        validateField(name, formData[name] ?? "")
     }
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,7 +86,7 @@ export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationT
         setUploading(true)
         const response = await doctorApi.uploadDocument(file)
         if (response.success) {
-            setFormData(prev => ({ ...prev, educationFile: response.data.url }))
+            setFormData(prev => ({ ...prev, educationFile: response.data?.url ?? '' }))
             toast.success("Document uploaded successfully")
         } else {
             toast.error(response.error || "Upload failed")
@@ -126,7 +127,7 @@ export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationT
         
         if (response.success) {
             setEducation(sortedEducation)
-            if (onUpdate) onUpdate(response.data)
+            if (onUpdate && response.data) onUpdate(response.data)
             setShowModal(false)
             setEditIndex(null)
             setFormData({ degree: "", institute: "", startDate: "", endDate: "", educationFile: "" })
@@ -167,7 +168,7 @@ export const EducationTab = ({ doctor, onUpdate, isEditable = true }: EducationT
             const response = await doctorApi.updateProfile({ education: newEducation })
             if (response.success) {
                 setEducation(newEducation)
-                if (onUpdate) onUpdate(response.data)
+                if (onUpdate && response.data) onUpdate(response.data)
                 toast.success("Education deleted")
             } else {
                 toast.error("Failed to delete")

@@ -10,11 +10,12 @@ import { reviewApi } from "@/lib/api/review.api"
 import { toast } from "sonner"
 import Swal from "sweetalert2"
 import { AdminPageContainer } from "../../../../../components/common/layout/admin/PageContainer"
+import type { Review } from "@/lib/types/owner/owner.types"
 
 export default function AdminReviewDetailPage() {
     const params = useParams()
     const router = useRouter()
-    const [review, setReview] = useState<any>(null)
+    const [review, setReview] = useState<Review | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
     const fetchReview = useCallback(async () => {
@@ -22,7 +23,7 @@ export default function AdminReviewDetailPage() {
         setIsLoading(true)
         const response = await reviewApi.getById(params.id as string)
         if (response.success) {
-            setReview(response.data)
+            setReview(response.data ?? null)
         } else {
             toast.error(response.message || "Failed to fetch review details")
             router.push('/admin/reviews')
@@ -45,7 +46,7 @@ export default function AdminReviewDetailPage() {
             customClass: { popup: 'rounded-[1rem]' }
         })
 
-        if (result.isConfirmed) {
+        if (result.isConfirmed && review) {
             const response = await reviewApi.delete(review._id)
             if (response.success) {
                 toast.success("Review deleted successfully")
@@ -67,7 +68,7 @@ export default function AdminReviewDetailPage() {
             customClass: { popup: 'rounded-[1rem]' }
         })
 
-        if (result.isConfirmed) {
+        if (result.isConfirmed && review) {
             const response = await reviewApi.deleteReply(review._id)
             if (response.success) {
                 toast.success("Doctor's reply removed")
@@ -162,7 +163,7 @@ console.log("sdvs",review)
                             <div className="p-6 bg-blue-50/30 rounded-2xl border border-blue-100/50">
                                 <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-4">Patient Review</label>
                                 <p className="text-gray-700 text-lg font-medium leading-relaxed italic">
-                                    "{review.comment}"
+                                    &quot;{review.comment}&quot;
                                 </p>
                                 <div className="mt-6 flex justify-end">
                                     <button 

@@ -1,75 +1,26 @@
 
-
 import apiClient from '../apiClient';
-import logger from '../../logger';
-import { AxiosError } from 'axios';
-import { SigninCredentials, AuthApiResponse } from '../../types/auth';
+import { LoginParams, AuthApiResponse } from '../../types/auth/auth.types';
 import { AUTH_ENDPOINTS } from '../../endpoints/auth';
+import { handleApiError } from '../../utils/api-error.handler';
+import { ApiResponse } from '../../types/api.types';
+
 export const signinApi = {
-
-
-
-    login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
-
+    login: async (credentials: LoginParams): Promise<AuthApiResponse> => {
         try {
-            logger.info('Signin API call', { email: credentials.email });
             const response = await apiClient.post(AUTH_ENDPOINTS.SIGNIN, credentials);
-
-
-            if (response.data?.success && response.data?.data) {
-                const { user: apiUser, accessToken } = response.data.data;
-                return {
-                    success: true,
-                    message: response.data.message,
-                    data: {
-                        user: {
-                            id: apiUser.id,
-                            email: apiUser.email,
-                            role: apiUser.role,
-                            username: apiUser.username,
-                        },
-                        accessToken: accessToken,
-                    }
-                };
-            }
             return response.data;
-
-
-
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                logger.error('Signin API error', {
-                    status: error.response?.status,
-                    data: error.response?.data,
-                    message: error.message
-                });
-                return {
-                    success: false,
-                    error: error.response?.data?.message || error.message || 'Login failed',
-                };
-            }
-            return { success: false, error: 'An unknown error occurred' };
+            return handleApiError(error);
         }
     },
 
-    logout: async (): Promise<{ success: boolean; message?: string; error?: string }> => {
+    logout: async (): Promise<ApiResponse<void>> => {
         try {
-            logger.info('Logout API call');
             const response = await apiClient.post(AUTH_ENDPOINTS.LOGOUT);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                logger.error('Logout API error', {
-                    status: error.response?.status,
-                    data: error.response?.data,
-                    message: error.message
-                });
-                return {
-                    success: false,
-                    error: error.response?.data?.message || error.message || 'Logout failed',
-                };
-            }
-            return { success: false, error: 'An unknown error occurred during logout' };
+            return handleApiError(error);
         }
     },
 };

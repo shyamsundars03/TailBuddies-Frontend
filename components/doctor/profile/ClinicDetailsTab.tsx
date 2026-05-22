@@ -7,15 +7,26 @@ import { MapPin, Building2, Upload, Trash2, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import { clinicInfoSchema } from '../../../lib/validation/doctor/doctor.schema'
 import { cn } from '@/lib/utils/utils'
+import type { ClinicFormData, DoctorProfileTabProps } from '@/lib/types/doctor/doctor-profile.types'
 
-interface ClinicDetailsProps {
-    doctor: any;
-    onUpdate: (data: any) => void;
-    isEditable?: boolean;
-}
+type ClinicDetailsProps = Pick<DoctorProfileTabProps, 'doctor' | 'onUpdate' | 'isEditable'>
+
+type ClinicAddress = ClinicFormData['address'];
+
+type ClinicAddressErrors = Partial<Record<keyof ClinicAddress, string | null>>;
+
+type ClinicFieldErrors = {
+    clinicName?: string;
+    address?: ClinicAddressErrors;
+};
+
+type ClinicTouched = {
+    clinicName?: boolean;
+    address?: Partial<Record<keyof ClinicAddress, boolean>>;
+};
 
 export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: ClinicDetailsProps) => {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<ClinicFormData>({
         clinicName: doctor?.clinicInfo?.clinicName || "",
         clinicPic: doctor?.clinicInfo?.clinicPic || "",
         address: {
@@ -23,12 +34,14 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
             street: doctor?.clinicInfo?.address?.street || "",
             city: doctor?.clinicInfo?.address?.city || "",
             state: doctor?.clinicInfo?.address?.state || "",
-            pincode: doctor?.clinicInfo?.address?.pincode || ""
+            pincode: doctor?.clinicInfo?.address?.pincode || "",
         },
-        location: doctor?.clinicInfo?.location || { type: 'Point', coordinates: [0, 0] }
+        location: doctor?.clinicInfo?.location?.coordinates?.length === 2
+            ? { type: "Point" as const, coordinates: doctor.clinicInfo.location.coordinates as [number, number] }
+            : undefined,
     })
-    const [errors, setErrors] = useState<Record<string, any>>({})
-    const [touched, setTouched] = useState<Record<string, any>>({})
+    const [errors, setErrors] = useState<ClinicFieldErrors>({})
+    const [touched, setTouched] = useState<ClinicTouched>({})
     const [uploading, setUploading] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -45,17 +58,17 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
                     pincode: doctor.clinicInfo.address?.pincode || ""
                 },
                 location: {
-                    type: doctor.clinicInfo.location?.type || 'Point',
+                    type: 'Point' as const,
                     coordinates: [
                         Number(doctor.clinicInfo.location?.coordinates?.[0] || 0),
-                        Number(doctor.clinicInfo.location?.coordinates?.[1] || 0)
-                    ]
+                        Number(doctor.clinicInfo.location?.coordinates?.[1] || 0),
+                    ] as [number, number],
                 }
             })
         }
     }, [doctor])
 
-    const validateField = (name: string, value: any) => {
+    const validateField = (name: string, value: string) => {
         let schemaData = { ...formData };
         if (name.includes('address.')) {
             const field = name.split('.')[1];
@@ -70,62 +83,56 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
         const result = clinicInfoSchema.safeParse(schemaData)
 
         if (!result.success) {
-            const fieldErrors: any = {}
+            const fieldErrors: ClinicFieldErrors = {}
             result.error.issues.forEach(issue => {
-                if (issue.path.length > 1) {
-                    const parent = issue.path[0] as string
-                    const child = issue.path[1] as string
-                    if (!fieldErrors[parent]) fieldErrors[parent] = {}
-                    fieldErrors[parent][child] = issue.message
-                } else {
-                    fieldErrors[issue.path[0] as string] = issue.message
+                if (issue.path[0] === "address" && issue.path[1]) {
+                    const child = issue.path[1] as keyof ClinicAddress
+                    fieldErrors.address = { ...fieldErrors.address, [child]: issue.message }
+                } else if (issue.path[0] === "clinicName") {
+                    fieldErrors.clinicName = issue.message
                 }
             })
 
             if (name.includes('address.')) {
-                const field = name.split('.')[1];
+                const field = name.split('.')[1] as keyof ClinicAddress
                 setErrors(prev => ({
                     ...prev,
                     address: { ...prev.address, [field]: fieldErrors.address?.[field] }
                 }))
-            } else {
-                setErrors(prev => ({ ...prev, [name]: fieldErrors[name] }))
+            } else if (name === "clinicName") {
+                setErrors(prev => ({ ...prev, clinicName: fieldErrors.clinicName }))
             }
         } else {
             if (name.includes('address.')) {
-                const field = name.split('.')[1];
+                const field = name.split('.')[1] as keyof ClinicAddress
                 setErrors(prev => ({
                     ...prev,
                     address: { ...prev.address, [field]: null }
                 }))
-            } else {
-                setErrors(prev => {
-                    const newErrors = { ...prev }
-                    delete newErrors[name]
-                    return newErrors
-                })
+            } else if (name === "clinicName") {
+                setErrors(prev => ({ ...prev, clinicName: undefined }))
             }
         }
     }
 
     const handleBlur = (name: string) => {
         if (name.includes('address.')) {
-            const field = name.split('.')[1];
+            const field = name.split('.')[1] as keyof ClinicAddress
             setTouched(prev => ({
                 ...prev,
                 address: { ...prev.address, [field]: true }
             }))
-            validateField(name, (formData.address as any)[field])
-        } else {
-            setTouched(prev => ({ ...prev, [name]: true }))
-            validateField(name, (formData as any)[name])
+            validateField(name, formData.address[field])
+        } else if (name === "clinicName") {
+            setTouched(prev => ({ ...prev, clinicName: true }))
+            validateField(name, formData.clinicName)
         }
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
         if (name.includes('address.')) {
-            const field = name.split('.')[1]
+            const field = name.split('.')[1] as keyof ClinicAddress
             setFormData(prev => ({
                 ...prev,
                 address: { ...prev.address, [field]: value }
@@ -133,9 +140,9 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
             if (touched.address?.[field]) {
                 validateField(name, value)
             }
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }))
-            if (touched[name]) {
+        } else if (name === "clinicName") {
+            setFormData(prev => ({ ...prev, clinicName: value }))
+            if (touched.clinicName) {
                 validateField(name, value)
             }
         }
@@ -157,15 +164,13 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
         const result = clinicInfoSchema.safeParse(formData)
 
         if (!result.success) {
-            const fieldErrors: any = {}
+            const fieldErrors: ClinicFieldErrors = {}
             result.error.issues.forEach(issue => {
-                if (issue.path.length > 1) {
-                    const parent = issue.path[0] as string
-                    const child = issue.path[1] as string
-                    if (!fieldErrors[parent]) fieldErrors[parent] = {}
-                    fieldErrors[parent][child] = issue.message
-                } else {
-                    fieldErrors[issue.path[0] as string] = issue.message
+                if (issue.path[0] === "address" && issue.path[1]) {
+                    const child = issue.path[1] as keyof ClinicAddress
+                    fieldErrors.address = { ...fieldErrors.address, [child]: issue.message }
+                } else if (issue.path[0] === "clinicName") {
+                    fieldErrors.clinicName = issue.message
                 }
             })
             setErrors(fieldErrors)
@@ -193,7 +198,7 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
 
         if (response.success) {
             toast.success("Clinic details updated successfully")
-            onUpdate(response.data)
+            if (response.data) onUpdate(response.data)
         } else {
             toast.error(response.error || "Failed to update clinic details")
         }
@@ -209,7 +214,7 @@ export const ClinicDetailsTab = ({ doctor, onUpdate, isEditable = true }: Clinic
         setUploading(false)
 
         if (response.success) {
-            setFormData(prev => ({ ...prev, clinicPic: response.data.url }))
+            setFormData(prev => ({ ...prev, clinicPic: response.data?.url ?? '' }))
             toast.success("Clinic picture uploaded")
         } else {
             toast.error(response.error || "Failed to upload image")

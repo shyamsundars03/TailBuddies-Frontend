@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import AgoraRTC from "agora-rtc-sdk-ng"
 import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng"
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2, Settings, Users, MessageSquare, XCircle, Activity, Play, ExternalLink } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2, Users, XCircle, Activity, Play, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
-import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface VideoCallProps {
@@ -61,7 +60,7 @@ export function VideoCall({ appId, channelName, token, uid, localName = "You", r
         }, ...prev].slice(0, 50))
     }, [])
 
-    const stringToUid = (uidValue: any): number => {
+    const stringToUid = (uidValue: string | number): number => {
         if (typeof uidValue === 'number') return uidValue >>> 0;
         if (!uidValue || uidValue === '0') return 0;
         if (typeof uidValue === 'string' && /^\d+$/.test(uidValue) && uidValue.length < 10) {
@@ -99,7 +98,14 @@ export function VideoCall({ appId, channelName, token, uid, localName = "You", r
         let agoraClient: IAgoraRTCClient | null = null;
 
         try {
-            if (!appId || !channelName || !token) {
+            const finalAppId = appId || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_AGORA_APP_ID : '');
+            
+            if (!finalAppId || !channelName || !token) {
+                console.error("Agora configuration missing:", { 
+                    hasAppId: !!finalAppId, 
+                    hasChannel: !!channelName, 
+                    hasToken: !!token 
+                });
                 throw new Error("Missing required Agora configuration");
             }
 
@@ -147,9 +153,9 @@ export function VideoCall({ appId, channelName, token, uid, localName = "You", r
             await agoraClient.publish([audioTrack, videoTrack])
             setIsJoining(false)
             
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Agora init error:", error)
-            setJoinError(error?.message || "Failed to connect")
+            setJoinError(error instanceof Error ? error.message : "Failed to connect")
             initStartedRef.current = false;
         }
     }

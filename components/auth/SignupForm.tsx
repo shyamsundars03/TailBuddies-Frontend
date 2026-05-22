@@ -2,7 +2,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Input } from "../../components/common/forms/Input"
@@ -11,9 +11,10 @@ import { RadioGroup } from "../../components/common/forms/RadioGroup"
 import { RoleSelector } from "../../components/common/forms/RoleSelector"
 import { Button } from "../../components/common/ui/Button"
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
-import { signupSchema } from "../../lib/validation/auth/signup.schema"
+import { useSearchParams } from "next/navigation"
+import { signupSchema, type SignupFormData } from "../../lib/validation/auth"
 import { useSignup, useSignin } from "../../lib/hooks/auth"
-import logger from "../../lib/logger"
+import { AUTH_ROUTES } from "../../lib/constants/routes"
 
 const roleOptions = [
     {
@@ -40,49 +41,41 @@ const genderOptions = [
 ]
 
 export function SignUpForm() {
-    const { handleSubmit: submitHookForm, isLoading: hookLoading, errors: hookErrors, setErrors: setHookErrors } = useSignup()
+    const searchParams = useSearchParams()
+    const urlRole = searchParams.get("role")
+    const { handleSubmit: submitHookForm, isLoading: hookLoading, errors: hookErrors } = useSignup()
     const { googleLogin } = useSignin()
-    const [formData, setFormData] = useState({
+
+    const [formData, setFormData] = useState<SignupFormData>({
         username: "",
         email: "",
-        gender: "Male" as "Male" | "Female" | "Other",
-        role: "owner" as "owner" | "doctor",
+        gender: "Male" as "Male" | "Female",
+        role: (urlRole === "doctor" ? "doctor" : "owner") as "owner" | "doctor",
         password: "",
         confirmPassword: "",
         phone: "",
     })
 
-    const [errors, setErrors] = useState<Record<string, string>>({})
+    const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
     const [touched, setTouched] = useState<Record<string, boolean>>({})
-    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target
-        setFormData((prev) => ({ ...prev, [name]: value }))
+    const allErrors = { ...localErrors, ...hookErrors }
 
-        // Clearing hook errors
-        if ((hookErrors as Record<string, string>)[name]) {
-            setHookErrors((prev) => {
-                const newErrors = { ...prev }
-                delete (newErrors as Record<string, string>)[name]
-                return newErrors
-            })
-        }
-    }
+    useEffect(() => {
+        const targetRole = urlRole === "doctor" ? "doctor" : "owner";
+        setFormData((prev) => (prev.role === targetRole ? prev : { ...prev, role: targetRole }));
+    }, [urlRole]);
 
     const validateField = (name: string, value: string) => {
-        const schemaData = {
-            ...formData,
-            [name]: value,
-        }
+        const schemaData = { ...formData, [name]: value }
         const result = signupSchema.safeParse(schemaData)
+
         if (!result.success) {
             const fieldErrors = result.error.flatten().fieldErrors as Record<string, string[]>
             const message = fieldErrors[name]?.[0]
-            setErrors((prev) => ({ ...prev, [name]: message || "" }))
-
+            setLocalErrors((prev) => ({ ...prev, [name]: message || "" }))
         } else {
-            setErrors((prev) => {
+            setLocalErrors((prev) => {
                 const newErrors = { ...prev }
                 delete newErrors[name]
                 return newErrors
@@ -92,69 +85,36 @@ export function SignUpForm() {
 
     const handleBlur = (field: string) => {
         setTouched((prev) => ({ ...prev, [field]: true }))
-        validateField(field, formData[field as keyof typeof formData])
+        validateField(field, formData[field as keyof SignupFormData] as string)
+    }
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target
+        setFormData((prev) => ({ ...prev, [name]: value }))
+        if (touched[name]) {
+            validateField(name, value)
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsSubmitting(true)
-        logger.info('Signup form submission started', { email: formData.email });
-
-        if (formData.password !== formData.confirmPassword) {
-            setErrors((prev) => ({ ...prev, confirmPassword: "Passwords do not match" }))
-            setTouched((prev) => ({ ...prev, confirmPassword: true }))
-            setIsSubmitting(false)
-            logger.warn('Signup failed: passwords do not match');
-            return
-        }
-
-        const result = signupSchema.safeParse(formData)
-
-        if (!result.success) {
-            const fieldErrors: Record<string, string> = {}
-            result.error.issues.forEach((issue) => {
-                const key = issue.path[0] as string
-                fieldErrors[key] = issue.message
-            })
-            setErrors(fieldErrors)
-            setTouched({
-                username: true,
-                email: true,
-                phone: true,
-                password: true,
-                confirmPassword: true,
-            })
-            setIsSubmitting(false)
-            logger.warn('Signup failed: validation errors', fieldErrors);
-            toast.error('Please fix the errors in the form');
-            return
-        }
-
-        try {
-            const signupResult = await submitHookForm(formData)
-
-            if (signupResult.success) {
-                // Success is handled by the hook.
-            }
-        } catch (error) {
-            logger.error('Signup general error', error);
-            toast.error("Failed. Please try again.");
-        } finally {
-            setIsSubmitting(false)
-        }
+        setTouched({
+            username: true,
+            email: true,
+            phone: true,
+            password: true,
+            confirmPassword: true,
+        })
+        await submitHookForm(formData)
     }
 
     const onGoogleSuccess = async (credentialResponse: CredentialResponse) => {
         if (credentialResponse.credential) {
-            const result = await googleLogin(credentialResponse.credential, formData.role)
-            if (result.success) {
-                toast.success(`Welcome back!`);
-            }
+            await googleLogin({ idToken: credentialResponse.credential, role: formData.role })
         }
     }
 
     const onGoogleError = () => {
-        logger.error('Google Sign Up failed');
         toast.error("Google Sign Up was unsuccessful.");
     }
 
@@ -179,7 +139,7 @@ export function SignUpForm() {
                     value={formData.username}
                     onChange={handleChange}
                     onBlur={() => handleBlur("username")}
-                    error={errors.username}
+                    error={allErrors.username}
                     touched={touched.username}
                 />
 
@@ -190,7 +150,7 @@ export function SignUpForm() {
                     value={formData.email}
                     onChange={handleChange}
                     onBlur={() => handleBlur("email")}
-                    error={errors.email}
+                    error={allErrors.email}
                     touched={touched.email}
                 />
 
@@ -199,7 +159,7 @@ export function SignUpForm() {
                     label="Gender"
                     options={genderOptions}
                     value={formData.gender}
-                    onChange={(value) => setFormData((prev) => ({ ...prev, gender: value as "Male" | "Female" | "Other" }))}
+                    onChange={(value) => setFormData((prev) => ({ ...prev, gender: value as "Male" | "Female" }))}
                 />
 
                 <Input
@@ -212,17 +172,17 @@ export function SignUpForm() {
                     pattern="[0-9]*"
                     onChange={handleChange}
                     onBlur={() => handleBlur("phone")}
-                    error={errors.phone}
+                    error={allErrors.phone}
                     touched={touched.phone}
                 />
 
                 <PasswordInput
                     name="password"
-                    placeholder="Password (min. 6 characters)"
+                    placeholder="Password (min. 8 characters)"
                     value={formData.password}
                     onChange={handleChange}
                     onBlur={() => handleBlur("password")}
-                    error={errors.password}
+                    error={allErrors.password}
                     touched={touched.password}
                 />
 
@@ -232,13 +192,13 @@ export function SignUpForm() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     onBlur={() => handleBlur("confirmPassword")}
-                    error={errors.confirmPassword}
+                    error={allErrors.confirmPassword}
                     touched={touched.confirmPassword}
                 />
 
                 <Button
                     onClick={handleSubmit}
-                    isLoading={isSubmitting || hookLoading}
+                    isLoading={hookLoading}
                     loadingText="Creating Account..."
                     variant={formData.role === "doctor" ? "doctor" : "owner"}
                     fullWidth
@@ -264,7 +224,7 @@ export function SignUpForm() {
                 <div className="text-center pt-2">
                     <p className="text-xs text-gray-600">
                         Already have an account?{" "}
-                        <Link href="/signin" className="text-gray-900 font-semibold hover:text-yellow-600">
+                        <Link href={AUTH_ROUTES.SIGNIN} className="text-gray-900 font-semibold hover:text-yellow-600">
                             Sign In
                         </Link>
                     </p>

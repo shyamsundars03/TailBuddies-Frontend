@@ -1,47 +1,80 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Star, MessageSquare, Loader2 } from "lucide-react"
-import Image from "next/image"
+import { useEffect, useState, useCallback } from "react"
+import { Star, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 import { reviewApi } from "@/lib/api/review.api"
 import { format } from "date-fns"
+import type { DoctorReview } from "@/lib/types/owner/owner.types"
 
-export function Reviews({ doctorId }: { doctorId: string }) {
-    const [reviews, setReviews] = useState<any[]>([])
+type RatingDistribution = Record<1 | 2 | 3 | 4 | 5, number>
+
+const EMPTY_DISTRIBUTION: RatingDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+
+interface ReviewItemProps {
+    user: string
+    date: string
+    rating: number
+    comment: string
+    reply: { doctor: string; date: string; text: string } | null
+}
+
+export function Reviews({
+    doctorId,
+    averageRating,
+    reviewCount,
+}: {
+    doctorId: string
+    averageRating?: number
+    reviewCount?: number
+}) {
+    const [reviews, setReviews] = useState<DoctorReview[]>([])
     const [total, setTotal] = useState(0)
     const [page, setPage] = useState(1)
     const [isLoading, setIsLoading] = useState(true)
-    const [stats, setStats] = useState({
-        average: 0,
-        distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+    const [stats, setStats] = useState<{
+        average: number
+        distribution: RatingDistribution
+    }>({
+        average: averageRating ?? 0,
+        distribution: EMPTY_DISTRIBUTION
     })
 
-    const fetchReviews = async () => {
+    const fetchReviews = useCallback(async () => {
         setIsLoading(true)
         const response = await reviewApi.getByDoctorId(doctorId, page, 10)
         if (response.success) {
-            setReviews(response.data || [])
-            setTotal(response.total || 0)
-            
-            // Calculate stats from data if backend doesn't provide them yet
-            // (In a real app, backend should provide these pre-calculated)
-            if (response.data?.length > 0) {
-                const distribution = response.data.reduce((acc: any, rev: any) => {
-                    acc[rev.rating] = (acc[rev.rating] || 0) + 1
+            const items = (response.data?.items || []) as DoctorReview[]
+            setReviews(items)
+            setTotal(response.data?.total ?? reviewCount ?? 0)
+
+            if (items.length > 0) {
+                const distribution = items.reduce<RatingDistribution>((acc, rev) => {
+                    const rating = rev.rating as keyof RatingDistribution
+                    if (rating >= 1 && rating <= 5) {
+                        acc[rating] = (acc[rating] || 0) + 1
+                    }
                     return acc
-                }, { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 })
+                }, { ...EMPTY_DISTRIBUTION })
                 
-                const avg = response.data.reduce((acc: number, rev: any) => acc + rev.rating, 0) / response.data.length
+                const avg = items.reduce((acc, rev) => acc + rev.rating, 0) / items.length
                 setStats({ average: avg, distribution })
+            } else if ((averageRating ?? 0) > 0) {
+                setStats((prev) => ({ ...prev, average: averageRating ?? 0 }))
             }
         }
         setIsLoading(false)
-    }
+    }, [doctorId, page, reviewCount, averageRating])
 
     useEffect(() => {
         fetchReviews()
-    }, [doctorId, page])
+    }, [fetchReviews])
+
+    useEffect(() => {
+        if ((averageRating ?? 0) > 0) {
+            setStats((prev) => ({ ...prev, average: averageRating ?? prev.average }))
+        }
+    }, [averageRating])
 
     if (isLoading && page === 1) {
         return (
@@ -97,17 +130,19 @@ export function Reviews({ doctorId }: { doctorId: string }) {
             </div>
 
             <div className="space-y-6">
-                {reviews.map((review) => (
+                {(reviews || []).map((review) => (
                     <ReviewItem
                         key={review._id}
                         user={review.ownerId?.username || "Verified Owner"}
-                        date={format(new Date(review.createdAt), "dd MMM yyyy")}
+                        date={review.createdAt ? format(new Date(review.createdAt), "dd MMM yyyy") : "N/A"}
                         rating={review.rating}
                         comment={review.comment}
                         reply={review.isReplied ? {
                             doctor: review.doctorId?.userId?.username || "Doctor",
-                            date: format(new Date(review.reply?.updatedAt || review.reply?.createdAt), "dd MMM yyyy"),
-                            text: review.reply?.comment
+                            date: (review.reply?.updatedAt || review.reply?.createdAt) 
+                                ? format(new Date(review.reply?.updatedAt || review.reply?.createdAt), "dd MMM yyyy") 
+                                : "N/A",
+                            text: review.reply?.comment ?? ""
                         } : null}
                     />
                 ))}
@@ -126,7 +161,7 @@ export function Reviews({ doctorId }: { doctorId: string }) {
     )
 }
 
-function ReviewItem({ user, date, rating, comment, reply }: any) {
+function ReviewItem({ user, date, rating, comment, reply }: ReviewItemProps) {
     return (
         <div className="bg-white border border-gray-50 rounded-3xl p-8 space-y-6 shadow-sm hover:shadow-md transition-all duration-500 group">
             <div className="flex items-start justify-between">
@@ -150,7 +185,7 @@ function ReviewItem({ user, date, rating, comment, reply }: any) {
                 </div>
             </div>
 
-            <p className="text-gray-500 text-xs font-medium leading-relaxed italic">"{comment}"</p>
+            <p className="text-gray-500 text-xs font-medium leading-relaxed italic">&quot;{comment}&quot;</p>
 
             {reply && (
                 <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-50 space-y-4">

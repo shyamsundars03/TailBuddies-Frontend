@@ -58,8 +58,13 @@ export const certificatesSchema = z.object({
     issuedYear: z.string().regex(/^\d{4}$/, "Issued year must be a 4-digit year"),
 });
 
-export const businessHoursSchema = z.array(z.object({
+export const businessHoursDaySchema = z.object({
     day: z.string(),
     isWorking: z.boolean(),
+    startTime: z.string(),
+    endTime: z.string(),
+    duration: z.string(),
     slots: z.array(z.string()),
-}));
+});
+
+export const businessHoursSchema = z.array(businessHoursDaySchema);

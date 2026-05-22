@@ -2,18 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import {
-    Mic,
     Send,
-    MoreVertical,
-    ChevronLeft,
     ChevronRight,
-    Star,
     Calendar,
     Minus,
     X,
-    Maximize2,
     Loader2,
-    MessageSquare,
     CheckCircle2,
     Search,
     Stethoscope,
@@ -27,6 +21,10 @@ import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
 import { userPetApi } from "@/lib/api/user/pet.api"
 import { aiApi } from "@/lib/api/ai.api"
+import type { AiSuggestedDoctor } from "@/lib/types/api.types"
+import type { OwnerPet } from "@/lib/types/owner/owner.types"
+import { useAppSelector } from "@/lib/redux/hooks"
+import { toast } from "sonner"
 import ReactMarkdown from 'react-markdown'
 
 const CATEGORIES = [
@@ -44,10 +42,10 @@ interface AssistantState {
     description: string
     carePlan: string
     identifiedSpecialty: string
-    suggestedDoctors: any[]
+    suggestedDoctors: AiSuggestedDoctor[]
 }
 
-const STORAGE_KEY = 'tb_ai_assistant_state'
+const STORAGE_KEY_PREFIX = 'tb_ai_assistant_state'
 
 export function AiAssistant({
     isPopup = false,
@@ -69,15 +67,17 @@ export function AiAssistant({
         suggestedDoctors: []
     })
 
-    const [pets, setPets] = useState<any[]>([])
+    const [pets, setPets] = useState<OwnerPet[]>([])
     const [isLoadingPets, setIsLoadingPets] = useState(false)
     const [activeResultTab, setActiveResultTab] = useState<'doctors' | 'careplan'>('doctors')
     const [error, setError] = useState<string | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
+    const userId = useAppSelector((s) => s.auth.user?.id) || 'guest'
+    const storageKey = `${STORAGE_KEY_PREFIX}_${userId}`
 
-    // Persist state
+    // Persist state per logged-in user
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY)
+        const saved = localStorage.getItem(storageKey)
         if (saved) {
             try {
                 const parsed = JSON.parse(saved)
@@ -85,21 +85,32 @@ export function AiAssistant({
             } catch (e) {
                 console.error("Failed to parse saved state", e)
             }
+        } else {
+            setState({
+                step: 'welcome',
+                category: '',
+                petId: '',
+                description: '',
+                carePlan: '',
+                identifiedSpecialty: '',
+                suggestedDoctors: []
+            })
         }
-    }, [])
+    }, [storageKey])
 
     useEffect(() => {
         if (state.step !== 'welcome' && state.step !== 'analyzing') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+            localStorage.setItem(storageKey, JSON.stringify(state))
         }
-    }, [state])
+    }, [state, storageKey])
 
     // Load pets when needed
     const loadPets = useCallback(async () => {
         setIsLoadingPets(true)
         const response = await userPetApi.getOwnerPets(1, 20)
-        if (response.success) {
-            setPets(response.data.pets || [])
+        if (response.success && response.data) {
+            const petList = Array.isArray(response.data) ? response.data : (response.data.items || response.data.pets || [])
+            setPets(petList)
         }
         setIsLoadingPets(false)
     }, [])
@@ -111,7 +122,7 @@ export function AiAssistant({
     }, [state.step, loadPets])
 
     const handleReset = () => {
-        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(storageKey)
         setState({
             step: 'welcome',
             category: '',
@@ -135,7 +146,7 @@ export function AiAssistant({
                 state.description
             );
 
-            if (response.success) {
+            if (response.success && response.data) {
                 const { identifiedSpecialty, carePlan, suggestedDoctors } = response.data;
                 setState(prev => ({
                     ...prev,
@@ -145,10 +156,12 @@ export function AiAssistant({
                     suggestedDoctors
                 }))
             } else {
-                setError(response.message || "Failed to analyze problem.");
+                const msg = response.message || "Failed to analyze problem."
+                setError(msg)
+                toast.error(msg)
                 setState(prev => ({ ...prev, step: 'description' }))
             }
-        } catch (err: any) {
+        } catch {
             setError("Something went wrong while communicating with the AI. Please try again.")
             setState(prev => ({ ...prev, step: 'description' }))
         }
@@ -335,7 +348,7 @@ export function AiAssistant({
                                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Analysis Complete</span>
                                 </div>
                                 <p className="text-sm text-emerald-950 font-bold leading-relaxed">
-                                    I've analyzed the symptoms. We recommend consulting a <span className="text-blue-600 underline underline-offset-4">{state.identifiedSpecialty}</span>.
+                                    I&apos;ve analyzed the symptoms. We recommend consulting a <span className="text-blue-600 underline underline-offset-4">{state.identifiedSpecialty}</span>.
                                 </p>
                             </div>
                         </div>
@@ -381,7 +394,7 @@ export function AiAssistant({
                                                     className="bg-gray-50/50 rounded-2xl p-4 border border-gray-50 flex items-center gap-4 hover:border-blue-200 transition-colors cursor-pointer group block"
                                                 >
                                                     <div className="w-14 h-14 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0">
-                                                        <Image src={doc.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d"} alt={doc.userId?.username} width={56} height={56} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                                        <Image src={doc.userId?.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d"} alt={doc.userId?.username ?? "Doctor"} width={56} height={56} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">{doc.profile?.specialtyId?.name || "Specialist"}</span>

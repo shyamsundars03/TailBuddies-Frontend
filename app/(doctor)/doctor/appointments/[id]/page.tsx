@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import { Clock, Phone, Mail, ChevronLeft, Loader2, Save, XCircle, CheckCircle2, MessageSquare, FileText, Activity } from "lucide-react"
+import { Clock, Phone, Mail, ChevronLeft, Loader2, CheckCircle2, MessageSquare, FileText, Activity } from "lucide-react"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { prescriptionApi } from "@/lib/api/prescription.api"
 import { toast } from "sonner"
@@ -17,57 +17,50 @@ import Swal from "sweetalert2"
 import { Star, Trash2, Edit2, Video } from "lucide-react"
 import { VideoCall } from "@/components/consultation/VideoCall"
 import { PrescriptionView } from "@/components/consultation/PrescriptionView"
+import type { Appointment } from "@/lib/types/admin/admin.types"
+import type { AgoraCallConfig, Prescription, PrescriptionFormData } from "@/lib/types/api.types"
+import type { OwnerAppointment, Review } from "@/lib/types/owner/owner.types"
+import { getUserId } from "@/lib/utils/user-id.util"
 
 export default function AppointmentDetailPage() {
     const router = useRouter()
     const { id } = useParams()
     const { user } = useAppSelector((state) => state.auth)
-    const [appointment, setAppointment] = useState<any>(null)
-    const [prescription, setPrescription] = useState<any>(null)
+    const userId = getUserId(user)
+    const [appointment, setAppointment] = useState<Appointment | null>(null)
+    const [prescription, setPrescription] = useState<Prescription | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription' | 'video'>('details')
-    const [agoraConfig, setAgoraConfig] = useState<any>(null)
-    const [review, setReview] = useState<any>(null)
+    const [agoraConfig, setAgoraConfig] = useState<AgoraCallConfig | null>(null)
+    const [review, setReview] = useState<Review | null>(null)
     const [replyingTo, setReplyingTo] = useState(false)
     const [replyComment, setReplyComment] = useState("")
 
-    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(id as string, user?.id || '', 'doctor', () => {
-        toast.info("Appointment status updated");
-        fetchDetails();
-    });
-
-    useEffect(() => {
-        if (chatError) {
-            toast.error(chatError)
-            setChatError(null)
-        }
-    }, [chatError])
-
-    const fetchDetails = async (isInitial = false) => {
+    const fetchDetails = useCallback(async (isInitial = false) => {
+        if (!id) return
         if (isInitial) setIsLoading(true)
         const response = await appointmentApi.getAppointmentById(id as string)
-        if (response.success) {
-            setAppointment(response.data)
-            if (response.data.status === 'completed' || response.data.prescriptionId) {
+        if (response.success && response.data) {
+            setAppointment(response.data ?? null)
+            if (response.data.prescriptionId) {
                 const prescRes = await prescriptionApi.getByAppointmentId(id as string)
-                if (prescRes.success) setPrescription(prescRes.data)
-                
+                if (prescRes.success && prescRes.data) setPrescription(prescRes.data)
+            }
+            if (response.data.status === 'completed') {
                 const reviewRes = await reviewApi.getByAppointment(id as string)
                 if (reviewRes.success) {
-                    setReview(reviewRes.data)
-                    // if (reviewRes.data.isReplied) setReplyComment(reviewRes.data.reply.comment)
+                    setReview(reviewRes.data ?? null)
                 }
             }
-        } else {
+        } else if (isInitial) {
             toast.error(response.message || "Failed to load appointment details")
             router.push("/doctor/appointments")
         }
         setIsLoading(false)
-    }
+    }, [id, router])
 
-    const fetchAgoraToken = async () => {
-        const userId = user?.id || (user as any)?._id
+    const fetchAgoraToken = useCallback(async () => {
         if (!appointment || !userId) {
             console.log("Cannot fetch Agora token: missing appointment or user ID", { hasAppointment: !!appointment, userId });
             return
@@ -75,10 +68,10 @@ export default function AppointmentDetailPage() {
         const channelName = `consultation_${appointment._id}`
         console.log("Fetching Agora token for:", { channelName, userId, role: 'publisher' });
         const response = await appointmentApi.getAgoraToken(channelName, userId, 'publisher')
-        if (response.success) {
+        if (response.success && response.data) {
             console.log("Agora token fetched successfully");
             setAgoraConfig({
-                token: response.token,
+                token: response.data.token,
                 channelName,
                 uid: userId,
                 appId: process.env.NEXT_PUBLIC_AGORA_APP_ID
@@ -87,41 +80,45 @@ export default function AppointmentDetailPage() {
             console.error("Agora token fetch failed:", response.message);
             toast.error("Failed to initialize video call")
         }
-    }
+    }, [appointment, userId])
+
+    const handleStatusUpdate = useCallback(() => {
+        toast.info("Appointment status updated");
+        fetchDetails();
+    }, [fetchDetails])
+
+    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(id as string, userId, 'doctor', handleStatusUpdate);
 
     useEffect(() => {
-        const userId = user?.id || (user as any)?._id
+        if (chatError) {
+            toast.error(chatError)
+            setChatError(null)
+        }
+    }, [chatError, setChatError])
+
+    useEffect(() => {
         if (activeTab === 'video' && appointment?.mode === 'online' && appointment?.status === 'ongoing' && !agoraConfig && userId) {
             fetchAgoraToken()
         }
-    }, [activeTab, appointment, agoraConfig, user])
+    }, [activeTab, appointment, agoraConfig, userId, fetchAgoraToken])
 
     useEffect(() => {
         if (id) fetchDetails(true)
-    }, [id])
-
-
-function DataField({ label, value, isStatus, statusType, italic, capitalize }: any) {
-    return (
-        <div>
-            <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-1.5">{label}</p>
-            <p className={cn(
-                "text-xs font-black uppercase",
-                isStatus ? (statusType === "success" ? "text-emerald-500" : "text-rose-500") : "text-gray-900",
-                italic && "italic",
-                capitalize && "capitalize"
-            )}>
-                {value || "N/A"}
-            </p>
-        </div>
-    )
-}
-
-
-
-
+    }, [id, fetchDetails])
 
     const handleCheckIn = async () => {
+        if (!appointment) return;
+
+        const now = new Date();
+        const [startH, startM] = appointment.appointmentStartTime.split(':').map(Number);
+        const apptStart = new Date(appointment.appointmentDate);
+        apptStart.setHours(startH, startM, 0, 0);
+
+        if (now < apptStart) {
+            toast.error(`Please wait until ${appointment.appointmentStartTime} to check in.`);
+            return;
+        }
+
         setIsActionLoading(true)
         const response = await appointmentApi.checkIn(id as string, 'doctor')
         if (response.success) {
@@ -129,7 +126,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
             
             // Use updated data from response to avoid stale state issues
             const updatedAppt = response.data
-            setAppointment(updatedAppt)
+            setAppointment(updatedAppt ?? null)
             
             const isOnlineConsultation = updatedAppt?.mode === 'online'
             const isOngoing = updatedAppt?.status === 'ongoing'
@@ -147,18 +144,39 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
         setIsActionLoading(false)
     }
 
-    const handlePrescriptionSubmit = async (data: any) => {
+    const handlePrescriptionSubmit = async (data: PrescriptionFormData) => {
+        if (!appointment) return
+
+        const now = new Date()
+        const [startH, startM] = appointment.appointmentStartTime.split(':').map(Number)
+        const apptStart = new Date(appointment.appointmentDate)
+        apptStart.setHours(startH, startM, 0, 0)
+
+        if (now < apptStart) {
+            toast.error(`Please wait until ${appointment.appointmentStartTime} to submit the prescription.`)
+            return
+        }
+
+        if (!data.clinicalFindings?.trim()) {
+            toast.error('Please fill in clinical findings.')
+            return
+        }
+        if (!data.diagnosis?.trim()) {
+            toast.error('Please fill in the diagnosis.')
+            return
+        }
+
         setIsActionLoading(true)
         const response = await prescriptionApi.create({
             appointmentId: id,
-            petId: appointment.petId?._id,
-            ownerId: appointment.ownerId?._id,
+            petId: appointment.petId?._id || appointment.petId,
+            ownerId: appointment.ownerId?._id || appointment.ownerId,
             ...data
         })
 
         if (response.success) {
             toast.success("Prescription saved successfully! You can now checkout when ready.")
-            setPrescription(response.data) // Assuming response.data is the prescription
+            setPrescription(response.data ?? null)
             fetchDetails() // Refresh to update prescriptionId in appointment
         } else {
             toast.error(response.message || "Failed to save prescription")
@@ -175,6 +193,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
     }
 
     const handleCancel = async () => {
+        if (!appointment) return
         const isEmergency = appointment.status === 'confirmed' || !!appointment.checkIn?.vetCheckInTime;
 
         const { value: reason, isConfirmed } = await Swal.fire({
@@ -285,6 +304,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
             return
         }
 
+        if (!review) return
         setIsActionLoading(true)
         const response = isUpdate 
             ? await reviewApi.updateReply(review._id, replyComment)
@@ -312,7 +332,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
             customClass: { popup: 'rounded-3xl' }
         })
 
-        if (result.isConfirmed) {
+        if (result.isConfirmed && review) {
             setIsActionLoading(true)
             const response = await reviewApi.deleteReply(review._id)
             if (response.success) {
@@ -365,7 +385,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                     
                     <div className="flex items-center gap-4">
                         {/* Action Buttons moved to Header */}
-                        {appointment.status === 'confirmed' && !appointment.checkIn?.vetCheckInTime && (
+                        {(appointment.status === 'confirmed' || appointment.status === 'booked' || appointment.status === 'BOOKED') && !appointment.checkIn?.vetCheckInTime && (
                             <button
                                 onClick={handleCheckIn}
                                 disabled={isActionLoading}
@@ -420,7 +440,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                     {appointment.status !== 'cancelled' && (appointment.status !== 'completed' || !appointment.prescriptionId) && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="E-Prescription" />
                     )}
-                    {appointment.status === 'completed' && appointment.prescriptionId && (
+                    {(prescription || appointment.prescriptionId) && appointment.status === 'completed' && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14}/>} label="View Medical Record" />
                     )}
                 </div>
@@ -570,7 +590,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                                 </span>
                                             </div>
                                             <p className="text-sm font-medium text-blue-950 leading-relaxed italic mb-8 pl-4 border-l-4 border-amber-200">
-                                                "{review.comment || "No written comment provided"}"
+                                                &quot;{review.comment || "No written comment provided"}&quot;
                                             </p>
 
                                             {/* Reply Area */}
@@ -592,7 +612,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                                             <button 
                                                                 onClick={() => {
                                                                     setReplyingTo(false)
-                                                                    setReplyComment(review.isReplied ? review.reply.comment : "")
+                                                                    setReplyComment(review.isReplied ? review.reply?.comment ?? "" : "")
                                                                 }}
                                                                 className="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600"
                                                             >
@@ -631,7 +651,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                                                 </div>
                                                             </div>
                                                             <p className="text-xs font-medium text-gray-900 leading-relaxed italic pl-4 border-l-2 border-emerald-200">
-                                                                {review.reply.comment}
+                                                                {review.reply?.comment}
                                                             </p>
                                                         </div>
                                                     ) : (
@@ -655,7 +675,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                     </h3>
                                     <div className="bg-blue-50/30 rounded-[2rem] p-6 border border-blue-100/50 min-h-[160px]">
                                         <h4 className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-4 opacity-60">Submitted Problem Description</h4>
-                                        <p className="text-xs font-medium text-gray-700 leading-[1.8] italic">"{appointment.problemDescription || "No initial description provided"}"</p>
+                                        <p className="text-xs font-medium text-gray-700 leading-[1.8] italic">&quot;{appointment.problemDescription || "No initial description provided"}&quot;</p>
                                     </div>
 
                                     {appointment.status === 'cancelled' && appointment.cancellation && (
@@ -678,16 +698,16 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                                 <div>
                                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Reason for Cancellation</p>
                                                     <p className="text-sm font-medium text-red-600 italic">
-                                                        "{appointment.cancellation.cancelReason || "No reason provided"}"
+                                                        &quot;{appointment.cancellation.cancelReason || "No reason provided"}&quot;
                                                     </p>
                                                 </div>
                                                 <div className="pt-4 border-t border-red-100/50 flex justify-between items-center">
                                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Cancelled At</p>
                                                     <p className="text-[10px] font-black text-blue-900">
-                                                        {new Date(appointment.cancellation.cancelledAt).toLocaleString('en-GB', { 
+                                                        {appointment.cancellation.cancelledAt ? new Date(appointment.cancellation.cancelledAt).toLocaleString('en-GB', { 
                                                             day: '2-digit', month: 'short', year: 'numeric',
                                                             hour: '2-digit', minute: '2-digit'
-                                                        })}
+                                                        }) : "—"}
                                                     </p>
                                                 </div>
                                             </div>
@@ -751,7 +771,7 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                         <div className={cn("animate-in zoom-in-95 duration-500", activeTab === 'video' ? "block" : "contents")}>
                             {agoraConfig ? (
                                 <VideoCall 
-                                    appId={agoraConfig.appId}
+                                    appId={agoraConfig.appId ?? ""}
                                     channelName={agoraConfig.channelName}
                                     token={agoraConfig.token}
                                     uid={agoraConfig.uid}
@@ -776,12 +796,12 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
                                 <PrescriptionForm 
                                     onSubmit={handlePrescriptionSubmit} 
                                     isSubmitting={isActionLoading} 
-                                    initialData={prescription}
+                                    initialData={(prescription ?? undefined) as Partial<PrescriptionFormData> | undefined}
                                 />
                             ) : (
                                 <PrescriptionView 
                                     prescription={prescription} 
-                                    appointment={appointment}
+                                    appointment={appointment as OwnerAppointment}
                                     onDownload={handlePrescriptionDownload} 
                                 />
                             )}

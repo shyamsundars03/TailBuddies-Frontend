@@ -87,7 +87,7 @@ export async function proxy(request: NextRequest) {
 
 
   // 3. Handle Protected Routes
-  const protectedPrefixes = ['/owner', '/doctor', '/admin', '/home', '/profile', '/account'];
+  const protectedPrefixes = ['/owner', '/doctor', '/admin', '/profile', '/account'];
   const isProtectedPath = protectedPrefixes.some(prefix => pathname.startsWith(prefix));
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
 
@@ -133,7 +133,7 @@ export async function proxy(request: NextRequest) {
 
 
       // Strict admin guard 
-      if ((pathname === '/home' || pathname.startsWith('/owner') || pathname.startsWith('/doctor')) && userRole === 'admin') {
+      if ((pathname.startsWith('/owner') || pathname.startsWith('/doctor')) && userRole === 'admin') {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
       }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, Bell, MessageSquare, User, LogOut } from "lucide-react"
+import { Search, Bell, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import { useAppSelector } from "../../../../lib/redux/hooks"
 import { useSignin } from "../../../../lib/hooks/auth/useSignin"
@@ -13,7 +13,7 @@ import { notificationApi } from "../../../../lib/api/notification.api"
 
 
 
-export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
+export function DoctorHeader({ onChatClick: _onChatClick }: { onChatClick?: () => void }) {
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
@@ -23,7 +23,7 @@ export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
         const fetchUnreadCount = async () => {
             const response = await notificationApi.getNotifications('unread')
             if (response.success) {
-                setUnreadCount(response.notifications?.length || 0)
+                setUnreadCount(response.data?.length || 0)
             }
         }
         
@@ -102,7 +102,7 @@ export function DoctorHeader({ onChatClick }: { onChatClick?: () => void }) {
                             const fetchUnreadCount = async () => {
                                 const response = await notificationApi.getNotifications('unread')
                                 if (response.success) {
-                                    setUnreadCount(response.notifications?.length || 0)
+                                    setUnreadCount(response.data?.length || 0)
                                 }
                             }
                             fetchUnreadCount()

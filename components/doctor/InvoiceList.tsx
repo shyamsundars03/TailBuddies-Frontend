@@ -1,9 +1,10 @@
 "use client"
-
 import { useState } from "react"
-import { Search, Filter, ChevronLeft, ChevronRight, User, MoreVertical } from "lucide-react"
+import { User, Filter, MoreVertical } from "lucide-react"
+
 import Image from "next/image"
 import { cn } from "@/lib/utils/utils"
+import { Pagination } from "../common/ui/Pagination"
 
 interface Invoice {
     id: string
@@ -21,6 +22,10 @@ interface Invoice {
 
 export default function InvoiceList() {
     const [activeTab, setActiveTab] = useState("Upcoming")
+    const [currentPage, setCurrentPage] = useState(1)
+    const entriesPerPage = 10
+    const totalEntries = 12 // This would come from API
+    const totalPages = Math.ceil(totalEntries / entriesPerPage)
 
     const invoices: Invoice[] = [
         {
@@ -190,18 +195,14 @@ export default function InvoiceList() {
                         ))}
                     </div>
 
-                    {/* Pagination */}
-                    <div className="flex items-center justify-between pt-8">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            Showing 1 to 8 of 12 entries
-                        </p>
-                        <div className="flex gap-2">
-                            <button className="px-4 py-2 text-gray-400 hover:text-gray-600 font-bold text-xs uppercase tracking-widest">Previous</button>
-                            <button className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent text-gray-600 font-bold text-xs">1</button>
-                            <button className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-400 text-gray-900 font-bold text-xs shadow-md">2</button>
-                            <button className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent text-gray-600 font-bold text-xs">3</button>
-                            <button className="px-4 py-2 text-gray-900 hover:text-black font-bold text-xs uppercase tracking-widest">Next</button>
-                        </div>
+                    <div className="pt-8">
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={(page) => setCurrentPage(page)}
+                            totalEntries={totalEntries}
+                            entriesPerPage={entriesPerPage}
+                        />
                     </div>
                 </div>
             </div>

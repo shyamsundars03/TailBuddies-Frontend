@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useDebounce } from "@/lib/hooks/useDebounce"
 import { Calendar as CalendarIcon, Clock, User, Search, ChevronRight, PawPrint, Loader2 } from "lucide-react"
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
@@ -11,30 +12,59 @@ import { cn } from "@/lib/utils/utils"
 import Image from "next/image"
 import Link from "next/link"
 import { slotApi } from "@/lib/api/slot.api"
+import { DOCTOR_ROUTES } from "@/lib/constants/routes"
 import { toast } from "sonner"
 import Swal from "sweetalert2"
+import type { Appointment } from "@/lib/types/admin/admin.types"
+import type { AvailableSlot } from "@/lib/types/api.types"
+
+interface DoctorSlot extends AvailableSlot {
+    status?: string;
+    isBooked?: boolean;
+    isBlocked?: boolean;
+}
 
 export default function DoctorCalendarPage() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-    const [appointments, setAppointments] = useState<any[]>([])
-    const [slots, setSlots] = useState<any[]>([])
+    const [appointments, setAppointments] = useState<Appointment[]>([])
+    const [slots, setSlots] = useState<DoctorSlot[]>([])
     const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isLoadingSlots, setIsLoadingSlots] = useState(false)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 1000)
 
+
+    const fetchAppointments = useCallback(async () => {
+        setIsLoading(true)
+        const response = await appointmentApi.getDoctorAppointments(undefined, 1, 100)
+        if (response.success && response.data) {
+            setAppointments(Array.isArray(response.data) ? response.data : (response.data.items || []))
+        }
+        setIsLoading(false)
+    }, [])
+
+    const fetchSlots = useCallback(async () => {
+        setIsLoadingSlots(true)
+        const dateStr = format(selectedDate, 'yyyy-MM-dd')
+        const response = await appointmentApi.getDoctorSlots(dateStr)
+        if (response.success && response.data) {
+            setSlots(Array.isArray(response.data) ? response.data : [])
+        }
+        setIsLoadingSlots(false)
+    }, [selectedDate])
 
     useEffect(() => {
         fetchAppointments()
-    }, [])
+    }, [fetchAppointments])
 
     useEffect(() => {
         setSelectedSlotIds([])
         fetchSlots()
-    }, [selectedDate])
+    }, [fetchSlots])
 
-    const toggleSlotSelection = (slot: any) => {
+    const toggleSlotSelection = (slot: DoctorSlot) => {
         if (slot.status === 'cancelled') return;
 
         // Check if slot is in the future
@@ -98,40 +128,24 @@ export default function DoctorCalendarPage() {
         setIsActionLoading(false);
     }
 
-    const fetchAppointments = async () => {
-
-        setIsLoading(true)
-        const response = await appointmentApi.getDoctorAppointments(undefined, 1, 100)
-        if (response.success) {
-            setAppointments(response.data || [])
-        }
-        setIsLoading(false)
-    }
-
-    const fetchSlots = async () => {
-        setIsLoadingSlots(true)
-        const dateStr = format(selectedDate, 'yyyy-MM-dd')
-        const response = await appointmentApi.getDoctorSlots(dateStr)
-        if (response.success) {
-            setSlots(response.data || [])
-        }
-        setIsLoadingSlots(false)
-    }
-
     const dayAppointments = appointments.filter(appt =>
         isSameDay(new Date(appt.appointmentDate), selectedDate)
     ).filter(appt =>
-        appt.petId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        appt.appointmentId?.toLowerCase().includes(searchQuery.toLowerCase())
+        appt.petId?.name?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        appt.appointmentId?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     )
 
     const hasAppointments = (date: Date) => {
         return appointments.some(appt => isSameDay(new Date(appt.appointmentDate), date))
     }
 
-    const getSlotColor = (slot: any) => {
+    const getSlotColor = (slot: DoctorSlot) => {
         const status = slot.status?.toLowerCase();
         const mode = slot.mode?.toLowerCase();
+
+        if (status === 'blocked' || slot.isBlocked || status === 'unavailable') {
+            return 'bg-[#002B49] border-[#001D32] text-white hover:bg-[#003B69]';
+        }
 
         if (status === 'appointment' || slot.isBooked) {
             if (mode === 'online') {
@@ -141,7 +155,6 @@ export default function DoctorCalendarPage() {
         }
         
         if (status === 'subscription') return 'bg-[#FED141] border-[#E8C040] text-[#002B49] hover:bg-[#ffe07a]';
-        if (status === 'blocked' || slot.isBlocked) return 'bg-[#002B49] border-[#001D32] text-white hover:bg-[#003B69]';
         
         if (status === 'cancelled') return 'bg-red-500 border-red-600 text-white hover:bg-red-600';
         
@@ -284,7 +297,7 @@ export default function DoctorCalendarPage() {
                                     placeholder="Search pets..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 uppercase tracking-tight"
+                                    className="w-full pl-10 pr-4 py-2 text-gray-900 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 uppercase tracking-tight"
                                 />
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                             </div>
@@ -309,7 +322,7 @@ export default function DoctorCalendarPage() {
                                         </div>
 
                                         <Link
-                                            href={`/doctor/appointments/${appt._id}`}
+                                            href={DOCTOR_ROUTES.APPOINTMENT_DETAILS(appt._id)}
                                             className="flex-1 bg-gray-50/50 hover:bg-white hover:shadow-xl hover:shadow-blue-100/50 border border-transparent hover:border-blue-50 rounded-2xl p-5 transition-all cursor-pointer group/card"
                                         >
                                             <div className="flex items-start justify-between">

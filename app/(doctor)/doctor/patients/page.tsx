@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Search, Filter, Calendar, MapPin, ChevronDown, Loader2 } from "lucide-react"
+import { Filter, Calendar, MapPin, ChevronDown, Loader2 } from "lucide-react"
 import { Pagination } from "../../../../components/common/ui/Pagination"
+import { SearchInput } from "../../../../components/common/ui/SearchInput"
+import { useDebounce } from "@/lib/hooks/useDebounce"
 import { appointmentApi } from "@/lib/api/appointment.api"
-
-// dummy data removed
+import { DOCTOR_ROUTES } from "@/lib/constants/routes"
+import type { BookingPet } from "@/lib/types/owner/owner.types"
 
 export default function PatientsPage() {
     const searchParams = useSearchParams()
@@ -20,10 +22,10 @@ export default function PatientsPage() {
     const initialSpecies = searchParams.get('species') || ""
     const initialDate = searchParams.get('date') || ""
 
-    const [patients, setPatients] = useState<any[]>([])
+    const [patients, setPatients] = useState<BookingPet[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState(initialSearch)
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
+    const debouncedSearchTerm = useDebounce(searchTerm, 1000)
     const [selectedSpecies, setSelectedSpecies] = useState(initialSpecies)
     const [selectedDate, setSelectedDate] = useState(initialDate)
     const [currentPage, setCurrentPage] = useState(initialPage)
@@ -31,13 +33,13 @@ export default function PatientsPage() {
     const [totalPages, setTotalPages] = useState(1)
     const entriesPerPage = 9
 
-    const fetchPatients = useCallback(async (page: number, search: string, species: string, date: string) => {
+    const fetchPatientsData = useCallback(async (page: number, search: string, speciesFilter: string) => {
         setIsLoading(true)
-        const response = await appointmentApi.getDoctorPatients(page, entriesPerPage, search, species, date)
-        if (response.success) {
-            setPatients(response.data || [])
-            setTotalEntries(response.total || 0)
-            setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
+        const response = await appointmentApi.getDoctorPatients(page, entriesPerPage, search, speciesFilter)
+        if (response.success && response.data) {
+            setPatients((response.data.items || []) as unknown as BookingPet[])
+            setTotalEntries(response.data.total || 0)
+            setTotalPages(Math.ceil((response.data.total || 0) / entriesPerPage) || 1)
         }
         setIsLoading(false)
     }, [entriesPerPage])
@@ -56,17 +58,8 @@ export default function PatientsPage() {
 
     // Load data
     useEffect(() => {
-        fetchPatients(currentPage, debouncedSearchTerm, selectedSpecies, selectedDate)
-    }, [currentPage, debouncedSearchTerm, selectedSpecies, selectedDate, fetchPatients])
-
-    // Debounce search
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm)
-            setCurrentPage(1)
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [searchTerm])
+        fetchPatientsData(currentPage, debouncedSearchTerm, selectedSpecies)
+    }, [currentPage, debouncedSearchTerm, selectedSpecies, fetchPatientsData])
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page)
@@ -79,16 +72,15 @@ export default function PatientsPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-2xl font-bold font-inter text-gray-900">My Patients</h2>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Search patients..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-72" 
-                        />
-                    </div>
+                    <SearchInput 
+                        placeholder="Search patients..." 
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value)
+                            setCurrentPage(1)
+                        }}
+                        className="w-72"
+                    />
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-4">
@@ -157,9 +149,9 @@ export default function PatientsPage() {
             ) : patients.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {patients.map((patient) => (
-                        <div key={patient.id} className="group bg-white rounded-3xl border border-gray-100 p-6 transition-all hover:shadow-xl hover:border-blue-100 flex flex-col">
+                        <div key={patient._id || patient.id} className="group bg-white rounded-3xl border border-gray-100 p-6 transition-all hover:shadow-xl hover:border-blue-100 flex flex-col">
                             <div className="flex items-center gap-4 mb-6 text-black">
-                                <Link href={`/doctor/patients/${patient.id}`} className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-sm transition-transform hover:scale-105 block shrink-0">
+                                <Link href={DOCTOR_ROUTES.PATIENT_DETAILS(patient._id || patient.id || "")} className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-sm transition-transform hover:scale-105 block shrink-0">
                                     <Image 
                                         src={patient.picture || "/placeholder.svg"} 
                                         alt={patient.name} 
@@ -169,8 +161,8 @@ export default function PatientsPage() {
                                     />
                                 </Link>
                                 <div className="space-y-1 min-w-0">
-                                    <span className="text-xs font-bold text-blue-600">ID: {patient.id?.substring(0, 8)}</span>
-                                    <Link href={`/doctor/patients/${patient.id}`} className="text-lg font-bold hover:text-blue-600 transition truncate block leading-tight">
+                                    <span className="text-xs font-bold text-blue-600">ID: {(patient._id || patient.id || "").substring(0, 8)}</span>
+                                    <Link href={DOCTOR_ROUTES.PATIENT_DETAILS(patient._id || patient.id || "")} className="text-lg font-bold hover:text-blue-600 transition truncate block leading-tight">
                                         {patient.name}
                                     </Link>
                                     <div className="flex flex-col gap-1 text-[10px] font-bold text-gray-500">
@@ -186,7 +178,7 @@ export default function PatientsPage() {
                                         <Calendar size={16} className="text-blue-600" />
                                     </div>
                                     <span className="text-xs font-bold text-gray-700">
-                                        Last: {new Date(patient.lastAppointmentDate).toLocaleDateString()}
+                                        Last: {patient.lastAppointmentDate ? new Date(patient.lastAppointmentDate).toLocaleDateString() : "—"}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3">

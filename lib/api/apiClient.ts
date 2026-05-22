@@ -48,11 +48,15 @@ apiClient.interceptors.request.use(
 
 
 
-// Response interceptor 
-let isRefreshing = false;
-let failedQueue: any[] = [];
+interface FailedRequest {
+    resolve: (token: string | null) => void;
+    reject: (error: unknown) => void;
+}
 
-const processQueue = (error: any, token: string | null = null) => {
+let isRefreshing = false;
+let failedQueue: FailedRequest[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
     failedQueue.forEach((prom) => {
         if (error) prom.reject(error);
         else prom.resolve(token);
@@ -72,11 +76,14 @@ apiClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        logger.error('API Response Error', {
-            status: error.response?.status,
-            message: error.message,
-            data: error.response?.data
-        });
+        const skipErrorLog = (originalRequest as { skipErrorLog?: boolean })?.skipErrorLog;
+        if (!skipErrorLog) {
+            logger.error(`API Response Error [${error.response?.status || 'N/A'}]`, {
+                url: originalRequest?.url,
+                message: error.message,
+                responseData: error.response?.data
+            });
+        }
 
         // Handle account blocked in real-time
         if (error.response?.status === 403 && error.response?.data?.message === 'Account is blocked') {
@@ -134,7 +141,7 @@ apiClient.interceptors.response.use(
                 // Update original request header and retry
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return apiClient(originalRequest);
-            } catch (refreshError: any) {
+            } catch (refreshError: unknown) {
                 logger.error('Token refresh failed', refreshError);
                 processQueue(refreshError, null);
                 clientCookies.delete('token');

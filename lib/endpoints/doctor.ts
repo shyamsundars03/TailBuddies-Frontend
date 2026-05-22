@@ -1,3 +1,4 @@
+import { DoctorFilters } from '@/lib/api/doctor/doctor.api';
 export const DOCTOR_ENDPOINTS = {
  
   ADMIN_DOCTORS: '/admin/doctors',
@@ -16,7 +17,15 @@ export const DOCTOR_ENDPOINTS = {
   VERIFICATION_REQUEST: '/doctor/verification-request',
 
   
-  DOCTORS_LIST: (page: number, limit: number, search?: string, isVerified?: boolean, status?: string, filters?: any) => {
+  DOCTORS_LIST: (
+    page: number,
+    limit: number,
+    search?: string,
+    isVerified?: boolean,
+    status?: string,
+    filters?: DoctorFilters,
+    sortBy?: string
+  ) => {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -24,11 +33,18 @@ export const DOCTOR_ENDPOINTS = {
     if (search) params.append('search', search);
     if (isVerified !== undefined) params.append('isVerified', isVerified.toString());
     if (status) params.append('status', status);
+    if (sortBy) params.append('sortBy', sortBy);
     if (filters) {
       if (filters.specialty) params.append('specialty', filters.specialty);
       if (filters.gender) params.append('gender', filters.gender);
       if (filters.experienceYears) params.append('experienceYears', filters.experienceYears);
+      if (filters.city) params.append('city', filters.city);
+      if (filters.minRating) params.append('minRating', filters.minRating);
     }
-    return `${status || isVerified === undefined ? DOCTOR_ENDPOINTS.ADMIN_DOCTORS : DOCTOR_ENDPOINTS.AUTH_DOCTORS}?${params.toString()}`;
+    const base =
+      status || isVerified === undefined
+        ? DOCTOR_ENDPOINTS.ADMIN_DOCTORS
+        : DOCTOR_ENDPOINTS.AUTH_DOCTORS;
+    return `${base}?${params.toString()}`;
   },
 } as const;

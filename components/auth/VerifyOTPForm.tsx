@@ -6,21 +6,22 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Input } from "../../components/common/forms/Input"
 import { Button } from "../../components/common/ui/Button"
 import { useOtp, getOtpTimeRemaining, setOtpTimer } from "../../lib/hooks/auth/useOtp"
-import logger from "../../lib/logger"
 import { toast } from "sonner"
+import { AUTH_ROUTES } from "../../lib/constants/routes";
 
-const OTP_DURATION = 75
+const OTP_DURATION = Number(process.env.NEXT_PUBLIC_OTP_DURATION) || 75
 
 export function VerifyOTPForm() {
     const searchParams = useSearchParams()
     const role = searchParams.get("role") || "owner"
     const variant = role === "doctor" ? "doctor" : "owner"
 
-    const { verify, resend, verifyAction, isLoading: isSubmitting } = useOtp()
+    const { verify, resend, verifyAction, isLoading: isSubmitting, errors } = useOtp()
     const router = useRouter()
     const email = searchParams.get("email") || ""
 
     const [otp, setOtp] = useState("")
+    const [otpTouched, setOtpTouched] = useState(false)
     const [isValidated, setIsValidated] = useState(false)
     const [timer, setTimer] = useState(() => {
         if (typeof window === 'undefined' || !email) return 0;
@@ -33,23 +34,20 @@ export function VerifyOTPForm() {
     });
     const [isResending, setIsResending] = useState(false)
 
-    // Redirect if no pending registration or reset purpose
     useEffect(() => {
-        // Wait for router and email to be ready
         if (email && !isValidated) {
             const canVerify = verifyAction(email);
             if (!canVerify) {
-                logger.warn('Unauthorized access to OTP page, redirecting to signup', { email });
                 toast.error('Session expired. Please sign up again.');
-                router.push('/signup');
+                router.push(AUTH_ROUTES.SIGNUP);
             }
         }
     }, [email, verifyAction, router, isValidated])
 
+    const isTimerActive = timer > 0;
 
     useEffect(() => {
-        if (timer <= 0) return;
-
+        if (!isTimerActive) return;
         const intervalId = setInterval(() => {
             setTimer((prev) => {
                 if (prev <= 1) {
@@ -59,33 +57,31 @@ export function VerifyOTPForm() {
                 return prev - 1;
             });
         }, 1000);
-
         return () => clearInterval(intervalId);
-    }, [timer > 0]) // eslint-disable-line react-hooks/exhaustive-deps
-
+    }, [isTimerActive])
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60)
         const secs = seconds % 60
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
     }
+
     const handleVerify = async () => {
         if (timer <= 0) {
             toast.error("OTP expired. Please click Resend OTP.")
             return
         }
-        if (!otp || otp.length < 4) {
-            toast.error("Please enter a valid OTP")
+        setOtpTouched(true)
+        if (otp.length !== 6) {
+            toast.error("OTP must be exactly 6 digits")
             return
         }
-        logger.info('VerifyOTPForm: submitting', { email, otpLength: otp.length })
-        const result = await verify(email, otp, otp) as { success: boolean; purpose?: string };
+        const result = await verify(email, otp);
         if (result?.success) {
             setIsValidated(true)
             if (result.purpose === 'reset') {
                 toast.success('OTP verified! Please set your new password.');
-                // Redirect first, cleanup in the next page or after navigation
-                router.push(`/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}&role=${role}`);
+                router.push(`${AUTH_ROUTES.RESET_PASSWORD}?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}&role=${role}`);
             }
         }
     }
@@ -94,8 +90,6 @@ export function VerifyOTPForm() {
         setIsResending(true)
         const result = await resend(email)
         if (result.success) {
-            // Reset timer
-            setOtpTimer(email)
             setTimer(OTP_DURATION)
             setOtp("")
         }
@@ -122,14 +116,20 @@ export function VerifyOTPForm() {
                 <Input
                     type="text"
                     name="otp"
-                    placeholder="Enter OTP"
+                    placeholder="Enter 6-digit OTP"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onBlur={() => setOtpTouched(true)}
                     maxLength={6}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    error={errors.otp}
+                    touched={otpTouched}
                 />
 
                 {/* Verify OTP Button */}
                 <Button
+                    type="button"
                     onClick={handleVerify}
                     isLoading={isSubmitting}
                     loadingText="Verifying..."

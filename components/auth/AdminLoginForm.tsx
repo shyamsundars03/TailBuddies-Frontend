@@ -10,6 +10,7 @@ import { setUser } from "../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
 import { AxiosError } from "axios"
 import apiClient from "../../lib/api/apiClient"
+import { ADMIN_ENDPOINTS } from "@/lib/endpoints/admin"
 
 import { clientCookies } from "../../lib/utils/clientCookies"
 import logger from "../../lib/logger"
@@ -42,7 +43,7 @@ const [isLoading, setIsLoading] = useState(false)
         setIsLoading(true)
 
         try {
-            const response = await apiClient.post('/admin/signin', formData)
+            const response = await apiClient.post(ADMIN_ENDPOINTS.SIGNIN, formData)
             const result = response.data
 
             if (result.success && result.data) {

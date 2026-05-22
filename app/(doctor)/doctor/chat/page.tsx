@@ -1,14 +1,35 @@
 "use client"
-import { useState } from "react"
-import { Search, Phone, MessageSquare, Video, MoreVertical, Pin, CheckCheck, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { SearchInput } from "../../../../components/common/ui/SearchInput"
+import { Pin, CheckCheck, Video, FileIcon } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils/utils"
+
+interface ChatListItem {
+    id: string
+    name: string
+    lastMessage: string
+    time: string
+    avatar: string
+    status?: string
+    badge?: number | string
+    isPinned?: boolean
+    isVideo?: boolean
+    isFile?: boolean
+}
 
 export default function DoctorChatListPage() {
     const router = useRouter()
     const [searchTerm, setSearchTerm] = useState("")
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm)
+        }, 1000)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
 
     const chats = [
         {
@@ -65,22 +86,18 @@ export default function DoctorChatListPage() {
                         </div>
 
                         {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input 
-                                type="text"
-                                placeholder="Search"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all text-black"
-                            />
-                        </div>
+                        <SearchInput 
+                            placeholder="Search"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="py-3 bg-gray-50/50"
+                        />
 
                         {/* Chat List */}
                         <div className="space-y-3">
                             <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest pl-2">Recent</h3>
                             <div className="space-y-2">
-                                {chats.map((chat) => (
+                                {chats.filter(c => c.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())).map((chat) => (
                                     <ChatCard key={chat.id} chat={chat} onClick={() => router.push(`/doctor/chat/${chat.id}`)} />
                                 ))}
                             </div>
@@ -93,7 +110,7 @@ export default function DoctorChatListPage() {
     )
 }
 
-function ChatCard({ chat, onClick }: { chat: any; onClick?: () => void }) {
+function ChatCard({ chat, onClick }: { chat: ChatListItem; onClick?: () => void }) {
     return (
         <div 
             onClick={onClick}
@@ -127,24 +144,5 @@ function ChatCard({ chat, onClick }: { chat: any; onClick?: () => void }) {
                 </div>
             </div>
         </div>
-    )
-}
-
-function FileIcon({ size, className }: { size: number; className?: string }) {
-    return (
-        <svg 
-            width={size} 
-            height={size} 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2.5" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className={className}
-        >
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-        </svg>
     )
 }

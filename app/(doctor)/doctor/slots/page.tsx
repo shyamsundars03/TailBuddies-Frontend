@@ -1,10 +1,7 @@
 "use client"
-import { useState } from "react"
-import { Calendar as CalendarIcon, Clock, Plus, Trash2, CheckCircle2, AlertCircle, Filter, ChevronDown, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from "lucide-react"
+import { Calendar as CalendarIcon, Filter, ChevronDown, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from "lucide-react"
 
 export default function SlotManagementPage() {
-    const [availability, setAvailability] = useState("I am Available Now")
-    const [selectedDate, setSelectedDate] = useState("2025-12-06")
 
     const slots = [
         { time: "9:00 AM", status: "Subscription", id: 1 },

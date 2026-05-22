@@ -1,64 +1,82 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { Download, Loader2, X } from "lucide-react"
+import { adminAnalyticsApi } from "@/lib/api/admin/admin-analytics.api"
+import { adminApi } from "@/lib/api/admin"
+import { toast } from "sonner"
 import { AdminPageContainer } from "../../../../components/common/layout/admin/PageContainer"
-import { Search, Calendar, Download, Filter, Loader2, User } from "lucide-react"
-import { adminAnalyticsApi } from "@/lib/api/admin-analytics.api"
-import { adminApi } from "@/lib/api/admin/admin.api"
-import Image from "next/image"
+import { Pagination } from "../../../../components/common/ui/Pagination"
+import { SearchInput } from "../../../../components/common/ui/SearchInput"
+import { DataTable, Column } from "../../../../components/common/ui/DataTable"
+import { useDebounce } from "@/lib/hooks/useDebounce"
+import Link from "next/link"
 import * as XLSX from 'xlsx'
 import { format } from "date-fns"
 import Swal from "sweetalert2"
-import Link from "next/link"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
+import { ReportItem, Specialty } from "@/lib/types/admin/admin.types"
+import type { ReportFilters } from "@/lib/types/api.types"
 
 export default function AdminReportsPage() {
-    const [reports, setReports] = useState<any[]>([])
-    const [specialties, setSpecialties] = useState<any[]>([])
+    const [reports, setReports] = useState<ReportItem[]>([])
+    const [specialties, setSpecialties] = useState<Specialty[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [isDataLoading, setIsDataLoading] = useState(false)
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalEntries, setTotalEntries] = useState(0)
     const [filters, setFilters] = useState({
         from: "",
         to: "",
         specialtyId: "",
         search: ""
     })
+    const debouncedFilters = useDebounce(filters, 500)
+    const limit = 10
+    const emptyFilters = { from: "", to: "", specialtyId: "", search: "" }
+    const hasActiveFilters = Boolean(filters.from || filters.to || filters.specialtyId || filters.search)
+
+    const fetchSpecialties = async () => {
+        try {
+            const response = await adminApi.getSpecialties({ page: 1, limit: 100 })
+            if (response.success && response.data) {
+                setSpecialties(response.data.items || [])
+            }
+        } catch (error) {
+            console.error("Failed to fetch specialties", error)
+        }
+    }
+
+    const fetchReports = useCallback(async (page: number, filters: ReportFilters) => {
+        setIsDataLoading(true)
+        try {
+            const response = await adminAnalyticsApi.getReports({
+                ...filters,
+                page,
+                limit
+            })
+            if (response.success && response.data) {
+                setReports(response.data.reports || [])
+                setTotalEntries(response.data.total || 0)
+            } else {
+                toast.error(response.message || "Failed to fetch reports")
+            }
+        } catch {
+            toast.error("An error occurred while fetching reports")
+        } finally {
+            setIsDataLoading(false)
+            setIsLoading(false)
+        }
+    }, [limit])
 
     useEffect(() => {
         fetchSpecialties()
-        fetchReports()
     }, [])
 
-    const fetchSpecialties = async () => {
-        const response = await adminApi.getSpecialties(1, 100)
-        if (response.success) {
-            setSpecialties(response.data?.specialties || [])
-        }
-    }
-
-    const fetchReports = async () => {
-        setIsLoading(true)
-        // Date validation
-        if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Date Range',
-                text: 'From Date must be before To Date'
-            })
-            setIsLoading(false)
-            return
-        }
-
-        const response = await adminAnalyticsApi.getReports(filters)
-        if (response.success) {
-            setReports(response.reports || [])
-        }
-        setIsLoading(false)
-    }
-
-    const handleFilter = () => {
-        fetchReports()
-    }
+    useEffect(() => {
+        fetchReports(currentPage, debouncedFilters)
+    }, [currentPage, debouncedFilters, fetchReports])
 
     const exportToPdf = () => {
         if (reports.length === 0) {
@@ -67,37 +85,25 @@ export default function AdminReportsPage() {
         }
 
         const doc = new jsPDF()
+        doc.text('Doctor Performance Reports', 14, 15)
 
-        // Add Header
-        doc.setFontSize(22)
-        doc.setTextColor(0, 43, 73) // #002B49
-        doc.text('TailBuddies Veterinary Portal', 14, 22)
-
-        doc.setFontSize(10)
-        doc.setTextColor(100)
-        doc.text(`Analysis Report: ${filters.from || 'Start'} to ${filters.to || 'End'}`, 14, 30)
-        doc.text(`Generated on: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, 35)
-
-        const tableColumn = ["S.No", "Doctor Name", "Specialty", "No. of Appointments", "Total Earned"]
-        const tableRows = reports.map((r, i) => [
-            i + 1,
-            `Dr. ${r.doctorName}`,
+        const tableColumn = ["S.No", "Doctor", "Specialty", "Join Date", "Appointments", "Revenue"]
+        const tableRows = reports.map((r) => [
+            r.sNo,
+            r.doctorName,
             r.specialty,
+            r.memberSince ? format(new Date(r.memberSince), 'dd/MM/yyyy') : 'N/A',
             r.noOfAppointments,
-            `INR ${r.earned}`
+            `INR ${r.earned || 0}`
         ])
 
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
-            startY: 45,
-            theme: 'grid',
-            headStyles: { fillColor: [0, 43, 73], textColor: [255, 255, 255], fontSize: 10, fontStyle: 'bold' },
-            styles: { fontSize: 9, cellPadding: 4 },
-            alternateRowStyles: { fillColor: [245, 247, 250] }
+            startY: 20,
         })
 
-        doc.save(`TailBuddies_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`)
+        doc.save(`doctor_reports_${format(new Date(), 'yyyyMMdd')}.pdf`)
     }
 
     const exportToExcel = () => {
@@ -106,197 +112,196 @@ export default function AdminReportsPage() {
             return
         }
 
-        const companyInfo = [
-            ["TailBuddies Veterinary Portal"],
-            ["Company Address: 123 Pet Care St, New York, NY"],
-            [`Analysis Report: ${filters.from || 'Start'} to ${filters.to || 'End'}`],
-            [`Specialties: ${filters.specialtyId ? specialties.find(s => s._id === filters.specialtyId)?.name : 'All'}`],
-            [],
-            ["S.No", "Doctor Name", "Specialty", "No. of Appointments", "Total Earned"]
-        ]
+        const data = reports.map((r) => ({
+            "S.No": r.sNo,
+            "Doctor": r.doctorName,
+            "Specialty": r.specialty,
+            "Join Date": r.memberSince ? format(new Date(r.memberSince), 'dd/MM/yyyy') : 'N/A',
+            "Appointments": r.noOfAppointments,
+            "Revenue": r.earned
+        }))
 
-        const data = reports.map((r, i) => [
-            i + 1,
-            r.doctorName,
-            r.specialty,
-            r.noOfAppointments,
-            `₹${r.earned}`
-        ])
-
-        const ws = XLSX.utils.aoa_to_sheet([...companyInfo, ...data])
+        const ws = XLSX.utils.json_to_sheet(data)
         const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, "Doctor Report")
-        XLSX.writeFile(wb, `TailBuddies_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+        XLSX.utils.book_append_sheet(wb, ws, "Doctor Reports")
+        XLSX.writeFile(wb, `doctor_reports_${format(new Date(), 'yyyyMMdd')}.xlsx`)
+    }
+
+    const columns: Column<ReportItem>[] = [
+        { header: "S.No", accessor: "sNo", className: "w-16" },
+        { 
+            header: "Doctor", 
+            accessor: (item) => (
+                <span className="font-medium text-gray-800">Dr. {item.doctorName}</span>
+            )
+        },
+        { 
+            header: "Specialty", 
+            accessor: (item) => (
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
+                    {item.specialty}
+                </span>
+            )
+        },
+        { 
+            header: "Join Date", 
+            accessor: (item) => (
+                <span className="text-gray-600">
+                    {item.memberSince ? (
+                        (() => {
+                            const date = new Date(item.memberSince);
+                            return isNaN(date.getTime()) ? 'N/A' : format(date, 'dd MMM yyyy');
+                        })()
+                    ) : 'N/A'}
+                </span>
+            )
+        },
+        { 
+            header: "Appointments", 
+            accessor: "noOfAppointments",
+            className: "font-medium text-gray-700"
+        },
+        { 
+            header: "Revenue", 
+            accessor: (item) => (
+                <span className="font-bold text-gray-900">₹{(item.earned || 0).toLocaleString('en-IN')}</span>
+            ),
+            className: "text-right"
+        }
+    ]
+
+    if (isLoading) {
+        return (
+            <AdminPageContainer title="Reports" activeItem="reports">
+                <div className="flex items-center justify-center h-64">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+            </AdminPageContainer>
+        )
     }
 
     return (
         <AdminPageContainer title="Reports" activeItem="reports">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-black text-[#002B49] mb-1 uppercase tracking-tight">Financial Reports</h1>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    <h1 className="text-2xl font-bold text-[#333333] mb-1">Financial Analysis</h1>
+                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
                         <Link href="/admin/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
                         <span>/</span>
-                        <span>Platform Analysis</span>
-                        <span>/</span>
-                        <span className="text-gray-300">Detailed Earnings</span>
+                        <span className="text-gray-400">Reports</span>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mb-8">
-                <div className="flex flex-wrap items-center gap-4 mb-10">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black uppercase text-blue-600 z-10">From Date</span>
-                            <input
-                                type="date"
-                                value={filters.from}
-                                onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-                                className="pl-4 pr-4 py-3 border border-gray-100 bg-gray-50/50 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-44 text-gray-600"
-                            />
-                        </div>
-                        <div className="relative">
-                            <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black uppercase text-blue-600 z-10">To Date</span>
-                            <input
-                                type="date"
-                                value={filters.to}
-                                onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-                                className="pl-4 pr-4 py-3 border border-gray-100 bg-gray-50/50 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-44 text-gray-600"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="relative flex-1 min-w-[200px]">
-                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black uppercase text-blue-600 z-10">Specialty</span>
-                        <select
-                            value={filters.specialtyId}
-                            onChange={(e) => setFilters({ ...filters, specialtyId: e.target.value })}
-                            className="w-full pl-4 pr-10 text-gray-600 py-3 border border-gray-100 bg-gray-50/50 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none"
-                        >
-                            <option value="">All Specialties</option>
-                            {specialties.map(s => (
-                                <option key={s._id} value={s._id}>{s.name}</option>
-                            ))}
-                        </select>
-                        <Filter className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleFilter}
-                            className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
-                        >
-                            Filter Analysis
-                        </button>
+            <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-100">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <h1 className="text-xl font-bold text-gray-800">Doctor Earnings Report</h1>
+                    <div className="flex gap-2">
                         <button
                             onClick={exportToPdf}
-                            className="px-6 py-3 bg-gray-50 text-gray-600 border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2"
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
                         >
-                            <Download size={14} /> PDF
+                            <Download size={16} /> PDF
                         </button>
                         <button
                             onClick={exportToExcel}
-                            className="px-6 py-3 bg-gray-50 text-gray-600 border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2"
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
                         >
-                            <Download size={14} /> Excel
+                            <Download size={16} /> Excel
                         </button>
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-gray-100">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="bg-gray-50/50 border-b border-gray-100">
-                                <th className="text-left py-5 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Doctor Profile</th>
-                                <th className="text-left py-5 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Speciality</th>
-                                <th className="text-left py-5 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Member Since</th>
-                                <th className="text-right py-5 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Total Earned</th>
-                                <th className="text-right py-5 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Appointments</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={5} className="py-20 text-center">
-                                        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Crunching Financial Data...</p>
-                                    </td>
-                                </tr>
-                            ) : reports.length > 0 ? (
-                                reports.map((report, idx) => (
-                                    <tr key={idx} className="group hover:bg-blue-50/20 transition-colors">
-                                        <td className="py-5 px-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 ring-2 ring-white shadow-sm group-hover:ring-blue-100 transition-all">
-                                                    <Image
-                                                        src={report.profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=150&h=150"}
-                                                        alt={report.doctorName || "Doctor Profile"}
-                                                        width={40}
-                                                        height={40}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-black text-blue-900 group-hover:text-blue-600 transition-colors">
-                                                        Dr. {report.doctorName}
-                                                    </span>
-                                                    <span className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">ID: {report.doctorId.slice(-8).toUpperCase()}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="py-5 px-6">
-                                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[9px] font-black uppercase tracking-tighter">
-                                                {report.specialty}
-                                            </span>
-                                        </td>
-                                        <td className="py-5 px-6 text-[11px] font-medium text-gray-400">
-                                            {format(new Date(report.memberSince), 'dd MMM yyyy')}
-                                        </td>
-                                        <td className="py-5 px-6 text-right">
-                                            <span className="text-xs font-black text-[#002B49]">
-                                                ₹{report.earned.toLocaleString()}
-                                            </span>
-                                        </td>
-                                        <td className="py-5 px-6 text-right">
-                                            <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-lg text-xs font-black">
-                                                {report.noOfAppointments}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={5} className="py-20 text-center">
-                                        <div className="max-w-xs mx-auto">
-                                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                                <Search size={24} className="text-gray-300" />
-                                            </div>
-                                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No matching records found</p>
-                                            <p className="text-[10px] text-gray-400 mt-2">Try adjusting your filters or date range</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                {/* Filters */}
+                <div className="flex items-center justify-between gap-4 mb-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filter reports</p>
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={() => setFilters(emptyFilters)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                        >
+                            <X size={16} /> Clear filters
+                        </button>
+                    )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">From Date</label>
+                        <input
+                            type="date"
+                            value={filters.from}
+                            onChange={(e) => {
+                                setFilters({ ...filters, from: e.target.value })
+                                setCurrentPage(1)
+                            }}
+                            className="w-full p-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">To Date</label>
+                        <input
+                            type="date"
+                            value={filters.to}
+                            onChange={(e) => {
+                                setFilters({ ...filters, to: e.target.value })
+                                setCurrentPage(1)
+                            }}
+                            className="w-full p-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Specialty</label>
+                        <select
+                            value={filters.specialtyId}
+                            onChange={(e) => {
+                                setFilters({ ...filters, specialtyId: e.target.value })
+                                setCurrentPage(1)
+                            }}
+                            className="w-full p-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+                        >
+                            <option value="">All Specialties</option>
+                            {specialties.map(spec => (
+                                <option key={spec._id} value={spec._id}>{spec.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Search Doctor</label>
+                        <SearchInput
+                            placeholder="Doctor name..."
+                            value={filters.search}
+                            onChange={(e) => {
+                                setFilters({ ...filters, search: e.target.value })
+                                setCurrentPage(1)
+                            }}
+                            containerClassName="w-full"
+                            className="h-9 text-sm"
+                        />
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-8">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        Showing {reports.length} Platform Experts
+                <DataTable 
+                    columns={columns}
+                    data={reports}
+                    isLoading={isDataLoading}
+                    keyExtractor={(item) => item.doctorId || `rep-${item.sNo}`}
+                    emptyMessage="No reports found matching the criteria."
+                />
+
+                <div className="mt-6 flex justify-between items-center">
+                    <p className="text-sm text-gray-500">
+                        Total Records: <span className="font-bold">{totalEntries}</span>
                     </p>
-                    <div className="flex items-center gap-2">
-                        <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-blue-600 transition">Prev</button>
-                        <div className="flex gap-1">
-                            {[1].map(p => (
-                                <button key={p} className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white text-[10px] font-black">{p}</button>
-                            ))}
-                        </div>
-                        <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-blue-600 transition">Next</button>
-                    </div>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={Math.ceil(totalEntries / limit) || 1}
+                        onPageChange={setCurrentPage}
+                        totalEntries={totalEntries}
+                        entriesPerPage={limit}
+                    />
                 </div>
             </div>
         </AdminPageContainer>
-    )
+    );
 }

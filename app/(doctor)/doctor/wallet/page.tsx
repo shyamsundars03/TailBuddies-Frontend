@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { paymentApi } from "@/lib/api/payment.api"
-import { Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, AlertCircle, Loader2, History } from "lucide-react"
-import Link from "next/link"
+import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, AlertCircle, Loader2, History } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
 import { toast } from "sonner"
 import Swal from "sweetalert2"
 import { format } from "date-fns"
 import { Pagination } from "@/components/common/ui/Pagination"
+import type { OwnerWallet, WalletTransaction } from "@/lib/types/owner/owner.types"
 
 export default function DoctorWalletPage() {
-    const [wallet, setWallet] = useState<any>(null)
-    const [transactions, setTransactions] = useState<any[]>([])
+    const [wallet, setWallet] = useState<OwnerWallet | null>(null)
+    const [transactions, setTransactions] = useState<WalletTransaction[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [page, setPage] = useState(1)
@@ -26,10 +26,10 @@ export default function DoctorWalletPage() {
             paymentApi.getTransactions(pageNum, limit)
         ])
         
-        if (walletRes.success) setWallet(walletRes.wallet)
-        if (transRes.success) {
-            setTransactions(transRes.transactions || [])
-            setTotalEntries(transRes.total || 0)
+        if (walletRes.success) setWallet(walletRes.data ?? null)
+        if (transRes.success && transRes.data) {
+            setTransactions(transRes.data.items || [])
+            setTotalEntries(transRes.data.total || 0)
         }
         setIsLoading(false)
     }
@@ -44,7 +44,7 @@ export default function DoctorWalletPage() {
     }
 
     const handleWithdrawRequest = async () => {
-        if (!wallet || wallet.balance <= 0) {
+        if (!wallet || (wallet.balance ?? 0) <= 0) {
             toast.error("Insufficient balance for withdrawal")
             return
         }
@@ -61,7 +61,7 @@ export default function DoctorWalletPage() {
 
         if (result.isConfirmed) {
             setIsActionLoading(true)
-            const response = await paymentApi.requestWithdrawal(wallet.balance)
+            const response = await paymentApi.requestWithdrawal(wallet.balance ?? 0)
             if (response.success) {
                 toast.success(response.message || "Request submitted successfully")
                 fetchData()
@@ -149,10 +149,10 @@ export default function DoctorWalletPage() {
                                 ) : (
                                     <button 
                                         onClick={handleWithdrawRequest}
-                                        disabled={isActionLoading || wallet?.balance <= 0}
+                                        disabled={isActionLoading || (wallet?.balance ?? 0) <= 0}
                                         className={cn(
                                             "w-full px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 shadow-xl",
-                                            wallet?.balance > 0
+                                            (wallet?.balance ?? 0) > 0
                                                 ? "bg-white text-blue-600 hover:bg-blue-50 shadow-white/10" 
                                                 : "bg-white/5 text-white/40 border border-white/10 cursor-not-allowed"
                                         )}

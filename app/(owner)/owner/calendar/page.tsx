@@ -1,44 +1,43 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useDebounce } from "@/lib/hooks/useDebounce"
 import { Calendar as CalendarIcon, Clock, Search, ChevronRight, PawPrint, Loader2, Stethoscope } from "lucide-react"
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 import '@/app/(doctor)/doctor/calendar/calendar-custom.css'
-import { appointmentApi } from "@/lib/api/appointment.api"
+import { useOwnerBookings } from "@/lib/hooks/owner/useOwnerBookings"
+import { OWNER_ROUTES } from "@/lib/constants/routes"
 import { format, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils/utils"
 import Image from "next/image"
 import Link from "next/link"
+import type { OwnerAppointment } from "@/lib/types/owner/owner.types"
 
 export default function OwnerCalendarPage() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-    const [appointments, setAppointments] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 100)
+
+    const {
+        appointments,
+        isLoading,
+        getOwnerAppointments,
+    } = useOwnerBookings()
 
     useEffect(() => {
-        fetchAppointments()
-    }, [])
+        getOwnerAppointments(1, 100)
+    }, [getOwnerAppointments])
 
-    const fetchAppointments = async () => {
-        setIsLoading(true)
-        const response = await appointmentApi.getOwnerAppointments(1, 100) 
-        if (response.success) {
-            setAppointments(response.data || [])
-        }
-        setIsLoading(false)
-    }
-
-    const dayAppointments = appointments.filter(appt => 
+    const dayAppointments = appointments.filter((appt: OwnerAppointment) =>
         isSameDay(new Date(appt.appointmentDate), selectedDate)
-    ).filter(appt => 
-        appt.doctorId?.userId?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        appt.petId?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    ).filter((appt: OwnerAppointment) =>
+        appt.doctorId?.userId?.username?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        appt.petId?.name?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     )
 
     const hasAppointments = (date: Date) => {
-        return appointments.some(appt => isSameDay(new Date(appt.appointmentDate), date))
+        return appointments.some((appt: OwnerAppointment) => isSameDay(new Date(appt.appointmentDate), date))
     }
 
     return (
@@ -48,8 +47,8 @@ export default function OwnerCalendarPage() {
                 {/* Left Side: Calendar */}
                 <div className="lg:col-span-5 space-y-6">
                     <div className="bg-white rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 p-6 overflow-hidden">
-                        <Calendar 
-                            onChange={(val) => setSelectedDate(val as Date)} 
+                        <Calendar
+                            onChange={(val) => setSelectedDate(val as Date)}
                             value={selectedDate}
                             tileClassName={({ date, view }) => {
                                 if (view === 'month' && hasAppointments(date)) {
@@ -88,12 +87,12 @@ export default function OwnerCalendarPage() {
                                 Timeline
                             </h3>
                             <div className="relative w-64">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     placeholder="Search doctor or pet..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                    className="w-full pl-10 pr-4 py-2 text-gray-900 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                                 />
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             </div>
@@ -106,7 +105,7 @@ export default function OwnerCalendarPage() {
                                     <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Loading Events...</p>
                                 </div>
                             ) : dayAppointments.length > 0 ? (
-                                dayAppointments.sort((a,b) => a.appointmentStartTime.localeCompare(b.appointmentStartTime)).map((appt, idx) => (
+                                dayAppointments.sort((a, b) => a.appointmentStartTime.localeCompare(b.appointmentStartTime)).map((appt, idx) => (
                                     <div key={idx} className="group flex gap-6">
                                         <div className="flex flex-col items-center">
                                             <div className="text-xs font-black text-indigo-600 uppercase w-16 text-right pt-4">
@@ -116,19 +115,19 @@ export default function OwnerCalendarPage() {
                                                 <div className="absolute top-0 -left-1 w-2 h-2 rounded-full bg-indigo-500 group-hover:scale-150 transition-transform" />
                                             </div>
                                         </div>
-                                        
-                                        <Link 
-                                            href={`/owner/bookings/${appt._id}`}
+
+                                        <Link
+                                            href={OWNER_ROUTES.BOOKING_DETAILS(appt._id)}
                                             className="flex-1 bg-gray-50/50 hover:bg-white hover:shadow-xl hover:shadow-gray-100 border border-transparent hover:border-indigo-50 rounded-2xl p-5 transition-all cursor-pointer group/card"
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md">
-                                                        <Image 
-                                                            src={appt.petId?.picture || "/placeholder.svg?height=48&width=48"} 
-                                                            alt="Pet" 
-                                                            width={48} 
-                                                            height={48} 
+                                                        <Image
+                                                            src={appt.petId?.picture || "/placeholder.svg?height=48&width=48"}
+                                                            alt="Pet"
+                                                            width={48}
+                                                            height={48}
                                                             className="w-full h-full object-cover"
                                                         />
                                                     </div>
@@ -143,14 +142,14 @@ export default function OwnerCalendarPage() {
                                                 <span className={cn(
                                                     "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest",
                                                     appt.status === 'confirmed' ? "bg-emerald-100 text-emerald-600" :
-                                                    appt.status === 'booked' ? "bg-indigo-100 text-indigo-600" :
-                                                    appt.status === 'completed' ? "bg-gray-100 text-gray-600" :
-                                                    "bg-rose-100 text-rose-600"
+                                                        appt.status === 'booked' ? "bg-indigo-100 text-indigo-600" :
+                                                            appt.status === 'completed' ? "bg-gray-100 text-gray-600" :
+                                                                "bg-rose-100 text-rose-600"
                                                 )}>
                                                     {appt.status}
                                                 </span>
                                             </div>
-                                            
+
                                             <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100/50">
                                                 <div className="flex items-center gap-2">
                                                     <Stethoscope size={12} className="text-gray-400" />

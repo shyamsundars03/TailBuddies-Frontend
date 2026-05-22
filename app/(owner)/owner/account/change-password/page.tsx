@@ -1,18 +1,10 @@
 "use client"
 
-import { useState } from "react"
-// import { OwnerHeader } from "../../../../../components/common/layout/owner/Header"
-// import { OwnerSidebar } from "../../../../../components/common/layout/owner/SideBar"
-// import { PageContainer } from "../../../../../components/common/layout/owner/PageContainer"
 import { ChangePasswordForm } from "../../../../../components/owner/ChangePasswordForm"
-import { useAppSelector } from "../../../../../lib/redux/hooks"
 
 import Link from "next/link"
 
 export default function ChangePasswordPage() {
-    const { user } = useAppSelector((state) => state.auth)
-    const [activeSection, setActiveSection] = useState("account")
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between mb-8">

@@ -10,17 +10,11 @@ import { userApi } from "../../../../lib/api/user"
 import { setUser } from "../../../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
 import Swal from "sweetalert2"
+import { DOCTOR_ROUTES } from "../../../../lib/constants/routes"
 import {
   LayoutDashboard,
   ClipboardList,
-  //   Calendar,
-  Clock,
-  //   Users,
-  CreditCard,
   Star,
-  FileText,
-  Bell,
-  MessageSquare,
   Bot,
   type LucideIcon,
 } from "lucide-react"
@@ -51,18 +45,13 @@ interface DoctorSidebarMenuItem {
   badge?: boolean
 }
 const menuItems: DoctorSidebarMenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: "/doctor/dashboard" },
-  { icon: ClipboardList, label: "Requests", id: "requests", href: "/doctor/requests", badge: true },
-  { icon: Calendar, label: "Appointments", id: "appointments", href: "/doctor/appointments" },
-  // { icon: Clock, label: "Available Timings", id: "timings", href: "/doctor/slots" },
-  { icon: Calendar, label: "Calendar", id: "calendar", href: "/doctor/calendar" },
-  { icon: Users, label: "My Patients", id: "patients", href: "/doctor/patients" },
-  // { icon: CreditCard, label: "Subscription", id: "subscription", href: "#" },
-  { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/doctor/reviews" },
-  // { icon: FileText, label: "Invoices", id: "invoices", href: "/doctor/invoices" },
-  // { icon: Bell, label: "Notifications", id: "notifications", href: "#", badge: true },
-  // { icon: MessageSquare, label: "Message", id: "message", href: "/doctor/chat" },
-  { icon: Bot, label: "Wallet", id: "wallet", href: "/doctor/wallet" },
+  { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: DOCTOR_ROUTES.DASHBOARD },
+  { icon: ClipboardList, label: "Requests", id: "requests", href: DOCTOR_ROUTES.REQUESTS, badge: true },
+  { icon: Calendar, label: "Appointments", id: "appointments", href: DOCTOR_ROUTES.APPOINTMENTS },
+  { icon: Calendar, label: "Calendar", id: "calendar", href: DOCTOR_ROUTES.CALENDAR },
+  { icon: Users, label: "My Patients", id: "patients", href: DOCTOR_ROUTES.PATIENTS },
+  { icon: Star, label: "Ratings/Reviews", id: "reviews", href: DOCTOR_ROUTES.REVIEWS },
+  { icon: Bot, label: "Wallet", id: "wallet", href: DOCTOR_ROUTES.WALLET },
 ]
 
 export function DoctorSidebar({
@@ -70,9 +59,9 @@ export function DoctorSidebar({
   email: _email,
   qualification,
   specialty,
-  totalPatients,
-  patientsToday,
-  appointmentsToday,
+  totalPatients: _totalPatients,
+  patientsToday: _patientsToday,
+  appointmentsToday: _appointmentsToday,
   availability,
   onAvailabilityChange,
   onImageClick: _onImageClick,
@@ -82,7 +71,7 @@ export function DoctorSidebar({
   showChangeButton: _showChangeButton = false,
 }: DoctorSidebarProps) {
   const pathname = usePathname()
-  const isProfilePage = pathname === "/doctor/profile" || pathname === "/doctor/dashboard"
+  const isProfilePage = pathname === DOCTOR_ROUTES.PROFILE || pathname === DOCTOR_ROUTES.DASHBOARD
   const { user } = useAppSelector((state) => state.auth)
   const { logout } = useSignin()
   const router = useRouter()
@@ -92,7 +81,7 @@ export function DoctorSidebar({
   const [isUploading, setIsUploading] = useState(false)
 
   const handleProfileClick = () => {
-    router.push("/doctor/profile")
+    router.push(DOCTOR_ROUTES.PROFILE)
   }
 
   const handleChangeClick = (e: React.MouseEvent) => {

@@ -1,9 +1,10 @@
 "use client"
 
-import { CheckCircle2 } from "lucide-react"
+import type { DoctorEducationEntry, DoctorExperienceEntry } from "@/lib/types/doctor/doctor-profile.types"
+import type { DoctorResponse } from "@/lib/types/doctor/doctor.api.types"
 
-export function Overview({ doctor }: { doctor: any }) {
-    const specializations = doctor.profile?.specializations || []
+export function Overview({ doctor }: { doctor: DoctorResponse }) {
+    const specializations = doctor.profile?.keywords || []
     const education = doctor.education || []
     const experience = doctor.experience || []
     
@@ -12,7 +13,7 @@ export function Overview({ doctor }: { doctor: any }) {
             <section className="space-y-4">
                 <h3 className="text-lg font-black text-blue-950 uppercase tracking-tight">About Me</h3>
                 <p className="text-gray-500 font-medium leading-relaxed text-sm">
-                    {doctor.profile?.about || doctor.profile?.bio || "No biography provided yet."}
+                    {doctor.profile?.about || "No biography provided yet."}
                 </p>
             </section>
 
@@ -20,7 +21,7 @@ export function Overview({ doctor }: { doctor: any }) {
                 <h3 className="text-lg font-black text-blue-950 uppercase tracking-tight">Education</h3>
                 <div className="space-y-6">
                     {education.length > 0 ? (
-                        education.map((edu: any, idx: number) => (
+                        education.map((edu: DoctorEducationEntry, idx: number) => (
                             <EducationItem 
                                 key={idx}
                                 university={edu.institute}
@@ -38,11 +39,11 @@ export function Overview({ doctor }: { doctor: any }) {
                 <h3 className="text-lg font-black text-blue-950 uppercase tracking-tight">Work Experience</h3>
                 <div className="space-y-6">
                     {experience.length > 0 ? (
-                        experience.map((exp: any, idx: number) => (
+                        experience.map((exp: DoctorExperienceEntry, idx: number) => (
                             <ExperienceItem 
                                 key={idx}
                                 place={exp.organization}
-                                period={`${new Date(exp.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - ${exp.isCurrent ? "Present" : new Date(exp.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}`}
+                                period={`${new Date(exp.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - ${exp.isCurrent ? "Present" : exp.endDate ? new Date(exp.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : "—"}`}
                             />
                         ))
                     ) : (
@@ -61,8 +62,8 @@ export function Overview({ doctor }: { doctor: any }) {
                                 <span className="text-xs font-bold text-gray-500 group-hover:text-blue-950 transition-colors uppercase tracking-wider">{spec}</span>
                             </div>
                         ))
-                    ) : doctor.profile?.keywords?.length > 0 ? (
-                        doctor.profile.keywords.map((spec: string) => (
+                    ) : (doctor.profile?.keywords?.length ?? 0) > 0 ? (
+                        (doctor.profile?.keywords ?? []).map((spec: string) => (
                             <div key={spec} className="flex items-center gap-3 group">
                                 <div className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-blue-600 transition-colors"></div>
                                 <span className="text-xs font-bold text-gray-500 group-hover:text-blue-950 transition-colors uppercase tracking-wider">{spec}</span>

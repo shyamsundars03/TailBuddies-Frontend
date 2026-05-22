@@ -7,20 +7,21 @@ import { Plus, Trash2, FileText, Calendar, Briefcase, X, AlertCircle, Pencil } f
 import Swal from 'sweetalert2'
 import { experienceSchema } from '../../../lib/validation/doctor/doctor.schema'
 import { cn } from '@/lib/utils/utils'
+import type {
+    DoctorExperienceEntry,
+    DoctorProfileTabProps,
+    ExperienceFormData,
+} from '@/lib/types/doctor/doctor-profile.types'
 
-interface ExperienceTabProps {
-    doctor: any;
-    onUpdate?: (data: any) => void;
-    isEditable?: boolean;
-}
+type ExperienceTabProps = Pick<DoctorProfileTabProps, 'doctor' | 'onUpdate' | 'isEditable'>
 
 export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: ExperienceTabProps) => {
-    const [experience, setExperience] = useState<any[]>(doctor?.experience || [])
+    const [experience, setExperience] = useState<DoctorExperienceEntry[]>(doctor?.experience || [])
     const [showModal, setShowModal] = useState(false)
     const [editIndex, setEditIndex] = useState<number | null>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [touched, setTouched] = useState<Record<string, boolean>>({})
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<ExperienceFormData>({
         role: "",
         organization: "",
         startDate: "",
@@ -31,7 +32,7 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
     const [uploading, setUploading] = useState(false)
 
     // Sort function for experience
-    const sortExperience = (data: any[]) => {
+    const sortExperience = (data: DoctorExperienceEntry[]) => {
         return [...data].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     }
 
@@ -41,7 +42,7 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
         }
     }, [doctor])
 
-    const validateField = (name: string, value: any) => {
+    const validateField = (name: keyof ExperienceFormData, value: string | boolean) => {
         const validationData = {
             ...formData,
             [name]: value,
@@ -74,9 +75,10 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
         setErrors(newErrors)
     }
 
-    const handleBlur = (name: string) => {
+    const handleBlur = (name: keyof ExperienceFormData) => {
         setTouched(prev => ({ ...prev, [name]: true }))
-        validateField(name, (formData as any)[name])
+        const value = name === "isCurrent" ? !!formData.isCurrent : (formData[name] ?? "")
+        validateField(name, value)
     }
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,7 +93,7 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
         setUploading(true)
         const response = await doctorApi.uploadDocument(file)
         if (response.success) {
-            setFormData(prev => ({ ...prev, experienceFile: response.data.url }))
+            setFormData(prev => ({ ...prev, experienceFile: response.data?.url ?? '' }))
             toast.success("Document uploaded successfully")
         } else {
             toast.error(response.error || "Upload failed")
@@ -136,7 +138,7 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
         
         if (response.success) {
             setExperience(sortedExperience)
-            if (onUpdate) onUpdate(response.data)
+            if (onUpdate && response.data) onUpdate(response.data)
             setShowModal(false)
             setEditIndex(null)
             setFormData({ role: "", organization: "", startDate: "", endDate: "", isCurrent: false, experienceFile: "" })
@@ -178,7 +180,7 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
             const response = await doctorApi.updateProfile({ experience: newExperience })
             if (response.success) {
                 setExperience(newExperience)
-                if (onUpdate) onUpdate(response.data)
+                if (onUpdate && response.data) onUpdate(response.data)
                 toast.success("Experience deleted")
             } else {
                 toast.error("Failed to delete")
@@ -225,7 +227,7 @@ export const ExperienceTab = ({ doctor, onUpdate, isEditable = true }: Experienc
                                     <div className="flex items-center gap-5 text-xs text-gray-500 font-bold mt-2">
                                         <span className="flex items-center gap-1.5 py-1 px-3 bg-gray-50 rounded-full">
                                             <Calendar size={14} className="text-gray-400" /> 
-                                            {new Date(exp.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - {exp.isCurrent ? "Present" : new Date(exp.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
+                                            {new Date(exp.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - {exp.isCurrent ? "Present" : exp.endDate ? new Date(exp.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : "—"}
                                         </span>
                                         {exp.experienceFile && (
                                             <a href={exp.experienceFile} target="_blank" className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 underline decoration-2">

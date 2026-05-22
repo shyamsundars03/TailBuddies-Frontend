@@ -4,28 +4,25 @@ import {
     User,
     Calendar,
     FileText,
-    Phone,
     Wallet,
-    MessageSquare,
-    Bell,
+    Star,
     LogOut,
     ChevronRight,
     Search,
-    Star,
     type LucideIcon,
 } from "lucide-react"
 import { cn } from "../../../../lib/utils/utils"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useAppSelector, useAppDispatch } from "../../../../lib/redux/hooks"
+import { useAppSelector } from "../../../../lib/redux/hooks"
 import { useSignin } from "../../../../lib/hooks/auth/useSignin"
-import { useRef, useState } from "react"
+import { useOwnerProfile } from "../../../../lib/hooks/owner/useOwnerProfile"
+import { useRef } from "react"
 import { uploadToCloudinary } from "../../../../lib/utils/cloudinary"
-import { userApi } from "../../../../lib/api/user"
-import { setUser } from "../../../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
 import Image from "next/image"
 import Swal from "sweetalert2"
+import { OWNER_ROUTES } from "../../../../lib/constants/routes"
 
 export interface SidebarMenuItem {
     icon: LucideIcon
@@ -46,18 +43,14 @@ export interface OwnerSidebarProps {
 }
 
 const defaultMenuItems: SidebarMenuItem[] = [
-    { icon: User, label: "Account", id: "account", href: "/owner/account" },
-    { icon: Search, label: "Find Doctor", id: "services", href: "/owner/services" },
-    { icon: Calendar, label: "My Pet", id: "pet", href: "/owner/pets" },
-    { icon: FileText, label: "My Bookings", id: "bookings", href: "/owner/bookings" },
-    { icon: FileText, label: "Medical Records", id: "medical", href: "/owner/medical-records" },
-    { icon: Calendar, label: "Calendar", id: "calendar", href: "/owner/calendar" },
-    // { icon: Phone, label: "Chat / Call", id: "chat", href: "/owner/chat", badge: true },
-    // { icon: MessageSquare, label: "AI Assistant", id: "ai", href: "/owner/ai-assistant" },
-    // { icon: Bell, label: "Notifications", id: "notifications", href: "#" },
-    { icon: Wallet, label: "Wallet", id: "wallet", href: "/owner/wallet" },
-    // { icon: FileText, label: "Subscription", id: "subscription", href: "/owner/subscriptions" },
-    { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/owner/reviews" },
+    { icon: User, label: "Account", id: "account", href: OWNER_ROUTES.ACCOUNT },
+    { icon: Search, label: "Find Doctor", id: "services", href: OWNER_ROUTES.SERVICES },
+    { icon: Calendar, label: "My Pet", id: "pet", href: OWNER_ROUTES.PETS },
+    { icon: FileText, label: "My Bookings", id: "bookings", href: OWNER_ROUTES.BOOKINGS },
+    { icon: FileText, label: "Medical Records", id: "medical", href: OWNER_ROUTES.MEDICAL_RECORDS },
+    { icon: Calendar, label: "Calendar", id: "calendar", href: OWNER_ROUTES.CALENDAR },
+    { icon: Wallet, label: "Wallet", id: "wallet", href: OWNER_ROUTES.WALLET },
+    { icon: Star, label: "Ratings/Reviews", id: "reviews", href: OWNER_ROUTES.REVIEWS },
 ]
 
 export function OwnerSidebar({
@@ -70,17 +63,18 @@ export function OwnerSidebar({
     className,
 }: OwnerSidebarProps) {
     const pathname = usePathname()
-    const isProfilePage = pathname === "/owner/profile"
+    const router = useRouter()
+    const isProfilePage = pathname === OWNER_ROUTES.PROFILE
+
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
-    const router = useRouter()
-    const dispatch = useAppDispatch()
+    const { isLoading: isUploading, updateProfilePic } = useOwnerProfile()
+
     const isGoogleUser = !!user?.googleId
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const [isUploading, setIsUploading] = useState(false)
 
     const handleProfileClick = () => {
-        router.push("/owner/profile")
+        router.push(OWNER_ROUTES.PROFILE)
     }
 
     const handleChangeClick = (e: React.MouseEvent) => {
@@ -94,39 +88,24 @@ export function OwnerSidebar({
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            // Validation: Max 5MB
-            if (file.size > 5 * 1024 * 1024) {
-                return toast.error("File size exceeds 5MB limit.")
-            }
+        if (!file) return
 
-            // Validation: JPEG/PNG only
-            const allowedTypes = ["image/jpeg", "image/png", "image/jpg"]
-            if (!allowedTypes.includes(file.type)) {
-                return toast.error("Only JPEG and PNG formats are supported.")
-            }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("File size exceeds 5MB limit.")
+            return
+        }
 
-            try {
-                setIsUploading(true)
-                const imageUrl = await uploadToCloudinary(file)
-                const response = await userApi.updateProfilePic(imageUrl)
+        const allowedTypes = ["image/jpeg", "image/png", "image/jpg"]
+        if (!allowedTypes.includes(file.type)) {
+            toast.error("Only JPEG and PNG formats are supported.")
+            return
+        }
 
-                if (response.success && user) {
-                    const updatedUser = {
-                        ...user,
-                        profilePic: imageUrl
-                    };
-                    dispatch(setUser(updatedUser));
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    toast.success("Profile picture updated!");
-                } else {
-                    toast.error(response.error || "Failed to update profile picture")
-                }
-            } catch {
-                toast.error("Upload failed. Please check your connection.")
-            } finally {
-                setIsUploading(false)
-            }
+        try {
+            const imageUrl = await uploadToCloudinary(file)
+            await updateProfilePic(imageUrl)
+        } catch {
+            toast.error("Upload failed. Please check your connection.")
         }
     }
 
@@ -195,7 +174,6 @@ export function OwnerSidebar({
                 {/* Menu Items */}
                 <div className="py-2">
                     {defaultMenuItems.map((item) => {
-                        // Strict highlighting: only if not on profile page
                         const isActive = !isProfilePage && pathname === item.href
 
                         return item.href && item.href !== "#" ? (

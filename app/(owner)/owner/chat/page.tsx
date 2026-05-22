@@ -1,10 +1,23 @@
 "use client"
-import { useState, useEffect } from "react"
-import { Search, Phone, MessageSquare, Video, MoreVertical, Pin, CheckCheck, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import { useState } from "react"
+import { Search, Pin, CheckCheck } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils/utils"
+import Link from "next/link"
+import { Video } from "lucide-react"
+
+interface ChatListItem {
+    id: string
+    name: string
+    lastMessage: string
+    time: string
+    avatar: string
+    status?: string
+    badge?: number | string
+    isPinned?: boolean
+    isVideo?: boolean
+    isFile?: boolean
+}
 
 export default function ChatListPage() {
     const router = useRouter()
@@ -114,7 +127,7 @@ export default function ChatListPage() {
     )
 }
 
-function ChatCard({ chat, onClick }: { chat: any; onClick?: () => void }) {
+function ChatCard({ chat, onClick }: { chat: ChatListItem; onClick?: () => void }) {
     return (
         <div 
             onClick={onClick}

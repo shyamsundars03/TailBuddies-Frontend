@@ -1,62 +1,76 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { DataTable, Column } from '../common/ui/DataTable'
 import { SearchInput } from '../common/ui/SearchInput'
+import { Pagination } from '../common/ui/Pagination'
+import { ADMIN_ROUTES } from '@/lib/constants'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
 import { cn } from '@/lib/utils/utils'
-import { doctorApi } from '@/lib/api/doctor/doctor.api'
+import { doctorApi, DoctorResponse } from '@/lib/api/doctor/doctor.api'
 import { toast } from 'sonner'
-
-interface Doctor {
-    id: string
-    name: string
-    speciality: string
-    memberSince: string
-    memberSinceTime: string
-    earned: string
-    isBlocked: boolean
-    image: string
-    status: string
-}
+import { DoctorVerificationItem } from '@/lib/types/admin/admin.types'
 
 export function DoctorVerifications() {
-    const [doctors, setDoctors] = useState<Doctor[]>([])
+    const [doctors, setDoctors] = useState<DoctorVerificationItem[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
-    const [statusFilter, setStatusFilter] = useState<string>('under_review')
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+    const [statusFilter, setStatusFilter] = useState<string>('verified')
     const [totalEntries, setTotalEntries] = useState(0)
     const [currentPage, setCurrentPage] = useState(1)
     const router = useRouter()
 
 
 
-    const fetchDoctors = async () => {
+    const fetchDoctors = useCallback(async (search = debouncedSearchTerm) => {
         setLoading(true)
-        const response = await doctorApi.getAllDoctors(currentPage, 10, searchTerm, undefined, statusFilter)
-        if (response.success) {
-            const mapped = response.data.map((doc: any) => {
-                const date = new Date(doc.createdAt);
-                return {
-                    id: doc._id,
-                    name: doc.userId?.username || 'Unknown',
-                    speciality: doc.profile?.designation || 'General',
-                    memberSince: new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date),
-                    memberSinceTime: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(date),
-                    earned: '$0.00',
-                    isBlocked: doc.userId?.isBlocked || false,
-                    image: doc.userId?.profilePic || doc.clinicInfo?.clinicPic || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b1f8?auto=format&fit=crop&q=80&w=150&h=150',
-                    status: doc.profileStatus || 'incomplete'
-                };
-            })
-            setDoctors(mapped)
-            setTotalEntries(response.total || mapped.length)
-        } else {
-            toast.error(response.error || "Failed to fetch doctors")
+        try {
+            const response = await doctorApi.getAllDoctors(currentPage, 5, search, undefined, statusFilter)
+            if (response.success && response.data) {
+                const items = response.data.items || []
+                const mapped = items.map((doc: DoctorResponse) => {
+                    const date = new Date(doc.createdAt);
+                    return {
+                        id: doc._id,
+                        name: doc.userId?.username || 'Unknown',
+                        speciality: doc.profile?.designation || 'General',
+                        memberSince: new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date),
+                        memberSinceTime: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(date),
+                        earned: '$0.00',
+                        isBlocked: doc.userId?.isBlocked || false,
+                        image: doc.userId?.profilePic || doc.clinicInfo?.clinicPic || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b1f8?auto=format&fit=crop&q=80&w=150&h=150',
+                        status: doc.profileStatus || 'incomplete'
+                    };
+                })
+                setDoctors(mapped)
+                setTotalEntries(response.data.total || 0)
+            } else {
+                setDoctors([])
+                setTotalEntries(0)
+                if (response.error) toast.error(response.error)
+            }
+        } catch (err) {
+            console.error("Fetch doctors error:", err)
+            toast.error("An error occurred while fetching doctors")
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
-    }
+    }, [currentPage, debouncedSearchTerm, statusFilter])
+
     useEffect(() => {
-        fetchDoctors()
-    }, [currentPage, searchTerm, statusFilter])
+        fetchDoctors(debouncedSearchTerm)
+    }, [fetchDoctors, debouncedSearchTerm])
+
+    // Debounce search term only
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm)
+            setCurrentPage(1)
+        }, 1000)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
+
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -67,13 +81,13 @@ export function DoctorVerifications() {
         }
     }
 
-    const columns: Column<Doctor>[] = [
+    const columns: Column<DoctorVerificationItem>[] = [
         {
             header: "Doctor Name",
             accessor: (doc) => (
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
-                        <img src={doc.image} alt={doc.name} className="w-full h-full object-cover" />
+                        <Image src={doc.image} alt={doc.name} width={40} height={40} className="w-full h-full object-cover" />
                     </div>
                     <span className="text-blue-600 font-semibold hover:underline cursor-pointer">
                         {doc.name}
@@ -103,13 +117,13 @@ export function DoctorVerifications() {
     ]
 
     return (
-        <div className="bg-gray-50/50 min-h-screen">
+        <div className="bg-gray-50/50 min-h-full">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">List of Doctors</h1>
-                <div className="flex items-center gap-2 text-sm text-gray-400 font-medium">
-                    <span className="cursor-pointer hover:text-blue-600" onClick={() => router.push('/admin/dashboard')}>Dashboard</span>
+                <h1 className="text-2xl font-bold text-[#333333] mb-1">List of Doctors</h1>
+                <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                    <Link href={ADMIN_ROUTES.DASHBOARD} className="text-blue-600 hover:underline">Dashboard</Link>
                     <span>/</span>
-                    <span className="text-gray-400">List of Doctors</span>
+                    <span className="text-gray-400">Doctor Verifications</span>
                 </div>
             </div>
 
@@ -119,7 +133,10 @@ export function DoctorVerifications() {
                         {['under_review', 'verified', 'rejected', 'all'].map((status) => (
                             <button
                                 key={status}
-                                onClick={() => setStatusFilter(status === 'all' ? '' : status)}
+                                onClick={() => {
+                                    setStatusFilter(status === 'all' ? '' : status);
+                                    setCurrentPage(1);
+                                }}
                                 className={cn(
                                     "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
                                     (statusFilter === status || (status === 'all' && !statusFilter))
@@ -134,7 +151,10 @@ export function DoctorVerifications() {
                     <SearchInput
                         placeholder="Search"
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
                         containerClassName="w-64"
                     />
                 </div>
@@ -154,27 +174,14 @@ export function DoctorVerifications() {
                     />
                 )}
 
-                <div className="p-6 flex items-center justify-between border-t border-gray-100">
-                    <span className="text-sm text-gray-500">
-                        Showing {(currentPage - 1) * 10 + 1} to {Math.min(currentPage * 10, totalEntries)} of {totalEntries} entries
-                    </span>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-400 disabled:opacity-50"
-                        >
-                            Previous
-                        </button>
-                        <button className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold shadow-md">{currentPage}</button>
-                        <button
-                            onClick={() => setCurrentPage(prev => prev + 1)}
-                            disabled={currentPage * 10 >= totalEntries}
-                            className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
-                        >
-                            Next
-                        </button>
-                    </div>
+                <div className="px-6 py-4 bg-gray-50/30">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={Math.ceil(totalEntries / 5) || 1}
+                        onPageChange={setCurrentPage}
+                        totalEntries={totalEntries}
+                        entriesPerPage={5}
+                    />
                 </div>
             </div>
         </div>

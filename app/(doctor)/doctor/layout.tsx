@@ -11,6 +11,8 @@ import { DoctorFooter } from "../../../components/common/layout/doctor/Footer"
 import { setUser } from "../../../lib/redux/slices/authSlice"
 import { toast } from "sonner"
 import logger from "../../../lib/logger"
+import type { DoctorUserRef } from "@/lib/types/doctor/doctor-profile.types"
+import { getSpecialtyLabel } from "@/lib/utils/utils"
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
     const dispatch = useAppDispatch()
@@ -20,43 +22,58 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
     const router = useRouter()
     const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+    const userId = user?.id
+    const userRole = user?.role
+
     useEffect(() => {
+        if (!userId || userRole !== "doctor") return
+
+        let cancelled = false
+
         const fetchDoctorData = async () => {
             dispatch(setDoctorLoading(true))
             const [profileRes, statsRes] = await Promise.all([
                 doctorApi.getProfile(),
-                // Assuming there's a stats endpoint or we extract it from profile
-                // For now, let's just use profile and dummy stats if not exists
                 Promise.resolve({ success: true, data: { totalPatients: 125, patientsToday: 12, appointmentsToday: 5 } })
             ])
+
+            if (cancelled) return
 
             if (profileRes.success) {
                 const doc = profileRes.data
                 if (doc) {
-                    // Refresh auth state with fresh user data from profile
                     if (doc.userId) {
-                        const apiUser = doc.userId as any;
-                        dispatch(setUser({
-                            id: apiUser._id,
-                            username: apiUser.username,
-                            email: apiUser.email,
-                            role: apiUser.role,
+                        const apiUser = doc.userId as DoctorUserRef & { role?: string }
+                        const nextUser = {
+                            id: apiUser._id ?? userId,
+                            username: apiUser.username ?? "",
+                            email: apiUser.email ?? "",
+                            role: (apiUser.role as "doctor") ?? "doctor",
                             gender: apiUser.gender,
                             phone: apiUser.phone,
-                            profilePic: apiUser.profilePic
-                        }));
+                            profilePic: apiUser.profilePic,
+                        }
+                        const shouldSyncAuth =
+                            user?.username !== nextUser.username ||
+                            user?.email !== nextUser.email ||
+                            user?.profilePic !== nextUser.profilePic ||
+                            user?.phone !== nextUser.phone ||
+                            user?.gender !== nextUser.gender
+
+                        if (shouldSyncAuth) {
+                            dispatch(setUser(nextUser))
+                        }
                     }
 
                     dispatch(setDoctorProfile({
                         qualification: doc.profile?.designation || "Get qualified",
-                        specialty: doc.profile?.specialtyId?.name || "Finalize you spec",
-                        isActive: doc.isActive,
+                        specialty: getSpecialtyLabel(doc.profile?.specialtyId, "Finalize your specialty"),
+                        isActive: doc.isActive ?? true,
                         verificationStatus: doc.verificationStatus,
                         appointmentDuration: doc.appointmentDuration || 30
                     }))
                 } else {
-                    logger.warn('Doctor profile data is null despite success response');
-                    // Set default profile for incomplete registration
+                    logger.warn('Doctor profile data is null despite success response')
                     dispatch(setDoctorProfile({
                         qualification: "Get qualified",
                         specialty: "Finalize you spec",
@@ -77,10 +94,13 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
             setIsInitialLoad(false)
         }
 
-        if (user && user.role === 'doctor') {
-            fetchDoctorData()
+        fetchDoctorData()
+
+        return () => {
+            cancelled = true
         }
-    }, [dispatch, user?.id, user?.role])
+    // Only re-fetch when the logged-in doctor identity changes — not on every setUser() field sync
+    }, [dispatch, userId, userRole])
 
     const handleAvailabilityChange = async (value: string) => {
         const isNowAvailable = value === "I am Available Now"
@@ -109,8 +129,6 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         )
     }
 
-
-    console.log("data in the ")
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">

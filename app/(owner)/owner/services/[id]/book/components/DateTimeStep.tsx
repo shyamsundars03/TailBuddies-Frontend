@@ -1,40 +1,67 @@
 import { useEffect, useState } from "react"
-import { Clock, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
-// import { doctorApi } from "@/lib/api/doctor/doctor.api"
-import { appointmentApi } from "@/lib/api/appointment.api"
 import { useParams } from "next/navigation"
+import { BookingData } from "@/lib/types/owner/owner.types"
+import { useOwnerServices } from "@/lib/hooks/owner/useOwnerServices"
 
-export function DateTimeStep({ data, setData, doctor }: { data: any, setData: any, doctor: any }) {
+interface BusinessHour {
+    day: string;
+    isWorking: boolean;
+}
+
+interface RecurringSchedule {
+    dtstart?: string;
+    dtend?: string;
+}
+
+interface DateTimeDoctor {
+    recurringSchedules?: RecurringSchedule[];
+    businessHours?: BusinessHour[];
+}
+
+interface DayItem {
+    id: string;
+    label: string;
+    fullDate: string;
+    rawDate: string;
+}
+
+interface AvailableSlot {
+    _id: string;
+    startTime: string;
+    endTime: string;
+}
+
+interface DateTimeStepProps {
+    data: BookingData;
+    setData: React.Dispatch<React.SetStateAction<BookingData>>;
+    doctor: DateTimeDoctor | null;
+}
+
+export function DateTimeStep({ data, setData, doctor }: DateTimeStepProps) {
     const params = useParams()
-    const [days, setDays] = useState<any[]>([])
-    const [slots, setSlots] = useState<any[]>([])
+    const { getAvailableSlots } = useOwnerServices()
+    const [days, setDays] = useState<DayItem[]>([])
+    const [slots, setSlots] = useState<AvailableSlot[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
-
-        useEffect(() => {
+    useEffect(() => {
         const fetchAvailableSlots = async () => {
             if (!data.rawDate || !params.id) return
             setIsLoading(true)
-            const response = await appointmentApi.getAvailableSlots(params.id as string, data.rawDate)
-            console.log("frontend :", response)
-            if (response.success) {
-                const slotsData = response.data || []
-                console.log(`[DateTimeStep] Received ${slotsData.length} slots from API. Selection: ${data.slotId}`)
-                setSlots(slotsData)
-            } else {
-                setSlots([])
-            }
+            const slotsData = await getAvailableSlots(params.id as string, data.rawDate)
+            console.log(`[DateTimeStep] Received ${slotsData?.length || 0} slots from hook. Selection: ${data.slotId}`)
+            setSlots(slotsData || [])
             setIsLoading(false)
         }
         fetchAvailableSlots()
-    }, [data.rawDate, params.id])
+    }, [data.rawDate, params.id, getAvailableSlots, data.slotId])
 
-    
     useEffect(() => {
         const generateDays = () => {
             if (!doctor) return
-            const result: any[] = []
+            const result: DayItem[] = []
             const now = new Date()
             now.setHours(0, 0, 0, 0)
             
@@ -45,12 +72,10 @@ export function DateTimeStep({ data, setData, doctor }: { data: any, setData: an
             let dtstart = now
             if (schedule?.dtstart) {
                 const sDate = new Date(schedule.dtstart)
-                // If it's UTC, we need to treat it as local or adjust
-                // For now, let's just use the date parts
                 dtstart = new Date(sDate.getFullYear(), sDate.getMonth(), sDate.getDate(), 0, 0, 0, 0)
             }
             
-            let dtend = null
+            let dtend: Date | null = null
             if (schedule?.dtend) {
                 const eDate = new Date(schedule.dtend)
                 dtend = new Date(eDate.getFullYear(), eDate.getMonth(), eDate.getDate(), 23, 59, 59, 999)
@@ -73,7 +98,7 @@ export function DateTimeStep({ data, setData, doctor }: { data: any, setData: an
 
                 // 2. Respect Working Days
                 const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
-                const businessDay = doctor.businessHours?.find((bh: any) => bh.day === dayOfWeek)
+                const businessDay = doctor.businessHours?.find((bh: BusinessHour) => bh.day === dayOfWeek)
                 
                 if (businessDay?.isWorking) {
                     const y = date.getFullYear()
@@ -96,17 +121,15 @@ export function DateTimeStep({ data, setData, doctor }: { data: any, setData: an
             if (result.length > 0) {
                 const isCurrentValid = result.find(d => d.rawDate === data.rawDate)
                 if (!data.date || !isCurrentValid) {
-                    setData((prev: any) => ({ ...prev, date: result[0].fullDate, rawDate: result[0].rawDate, time: "", slotId: "" }))
+                    setData((prev: BookingData) => ({ ...prev, date: result[0].fullDate, rawDate: result[0].rawDate, time: "", slotId: "" }))
                 }
             }
         }
         generateDays()
-    }, [doctor])
+    }, [doctor, data.rawDate, data.date, setData])
 
-
-
-    const handleDateSelect = (day: any) => {
-        setData({ ...data, date: day.fullDate, rawDate: day.rawDate, time: "", slotId: "" })
+    const handleDateSelect = (day: DayItem) => {
+        setData(prev => ({ ...prev, date: day.fullDate, rawDate: day.rawDate, time: "", slotId: "" }))
     }
 
     const selectedDay = days.find(d => d.rawDate === data.rawDate)

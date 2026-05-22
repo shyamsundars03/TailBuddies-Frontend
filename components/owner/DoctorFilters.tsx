@@ -1,8 +1,9 @@
 "use client"
 
-import { Search, ChevronDown, Check, Star } from "lucide-react"
+import { ChevronDown, Check, Star } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils/utils"
+import type { Specialty } from "@/lib/types/admin/admin.types"
 
 interface DoctorFiltersProps {
     activeFilters: {
@@ -14,7 +15,7 @@ interface DoctorFiltersProps {
     };
     onFilterChange: (key: string, value: string) => void;
     onClear: () => void;
-    specialties: any[];
+    specialties: Specialty[];
 }
 
 export function DoctorFilters({ activeFilters, onFilterChange, onClear, specialties }: DoctorFiltersProps) {
@@ -47,7 +48,7 @@ export function DoctorFilters({ activeFilters, onFilterChange, onClear, specialt
             >
                 <div className="space-y-1 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                     {specialties.map((spec) => (
-                        <div key={spec._id} onClick={() => onFilterChange('specialty', activeFilters.specialty === spec._id ? '' : spec._id)}>
+                        <div key={spec._id} onClick={() => onFilterChange('specialty', activeFilters.specialty === spec._id ? '' : (spec._id ?? ''))}>
                             <FilterItem 
                                 label={spec.name} 
                                 checked={activeFilters.specialty === spec._id} 

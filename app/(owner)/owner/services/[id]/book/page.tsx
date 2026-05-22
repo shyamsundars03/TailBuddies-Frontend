@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, Check, Star, MapPin } from "lucide-react"
 import Image from "next/image"
-import { cn } from "@/lib/utils/utils"
-import { doctorApi } from "@/lib/api/doctor/doctor.api"
+import { cn, getSpecialtyLabel } from "@/lib/utils/utils"
+import { OWNER_ROUTES } from "@/lib/constants/routes"
 import { toast } from "sonner"
+
+import { useOwnerServices } from "@/lib/hooks/owner/useOwnerServices"
 
 // Step Components (will be defined in separate files or inline for now)
 import { AppointmentTypeStep } from "./components/AppointmentTypeStep"
@@ -25,8 +27,8 @@ export default function AppointmentBookingPage() {
     const params = useParams()
     const router = useRouter()
     const [currentStep, setCurrentStep] = useState(1)
-    const [doctor, setDoctor] = useState<any>(null)
-    const [isFetchingDoctor, setIsFetchingDoctor] = useState(true)
+    const { doctor, isLoading: isFetchingDoctor, getDoctorById } = useOwnerServices()
+    const bookingTriggerRef = useRef<(() => void) | null>(null)
 
     // Booking State
     const [bookingData, setBookingData] = useState(() => {
@@ -55,7 +57,7 @@ export default function AppointmentBookingPage() {
     })
 
     // Action Verification
-    const isStepValid = (step: number) => {
+    const isStepValid = useCallback((step: number) => {
         switch (step) {
             case 1: return !!bookingData.type
             case 2: return !!bookingData.petId && !!bookingData.problemDescription
@@ -63,7 +65,7 @@ export default function AppointmentBookingPage() {
             case 4: return true
             default: return false
         }
-    }
+    }, [bookingData])
 
     const nextStep = () => {
         if (isStepValid(currentStep)) {
@@ -112,7 +114,7 @@ export default function AppointmentBookingPage() {
             }
             setCurrentStep(validStep)
         }
-    }, [params.id])
+    }, [params.id, isStepValid])
 
     // Save data whenever it changes
     useEffect(() => {
@@ -121,17 +123,10 @@ export default function AppointmentBookingPage() {
 
     // Fetch Doctor Details
     useEffect(() => {
-        const fetchDoctor = async () => {
-            if (!params.id) return
-            setIsFetchingDoctor(true)
-            const response = await doctorApi.getById(params.id as string)
-            if (response.success) {
-                setDoctor(response.data)
-            }
-            setIsFetchingDoctor(false)
+        if (params.id) {
+            getDoctorById(params.id as string)
         }
-        fetchDoctor()
-    }, [params.id])
+    }, [params.id, getDoctorById])
 
     return (
         <div className="min-h-screen bg-gray-50/30 -mt-8 -mx-8 p-8">
@@ -142,7 +137,7 @@ export default function AppointmentBookingPage() {
                         onClick={() => {
                             sessionStorage.removeItem(`booking_${params.id}`)
                             sessionStorage.removeItem(`booking_step_${params.id}`)
-                            router.push(`/owner/services/${params.id}`)
+                            router.push(OWNER_ROUTES.SERVICE_DETAILS(params.id as string))
                         }}
                         className="
     px-5 py-2
@@ -230,7 +225,7 @@ export default function AppointmentBookingPage() {
                                     </div>
                                 </div>
                                 <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">
-                                    {doctor?.profile?.specialtyId?.name || "Veterinary Surgeon"}
+                                    {getSpecialtyLabel(doctor?.profile?.specialtyId, "Veterinary Surgeon")}
                                 </p>
                                 <div className="flex items-center gap-2 text-gray-400 mt-1">
                                     <MapPin size={12} className="text-gray-300" />
@@ -250,7 +245,7 @@ export default function AppointmentBookingPage() {
                         {currentStep === 1 && <AppointmentTypeStep data={bookingData} setData={setBookingData} />}
                         {currentStep === 2 && <PetSelectionStep data={bookingData} setData={setBookingData} />}
                         {currentStep === 3 && <DateTimeStep data={bookingData} setData={setBookingData} doctor={doctor} />}
-                        {currentStep === 4 && <SummaryPaymentStep data={bookingData} doctorId={params.id as string} />}
+                        {currentStep === 4 && <SummaryPaymentStep data={bookingData} doctorId={params.id as string} onRegisterTrigger={(fn) => { bookingTriggerRef.current = fn }} />}
                     </div>
 
                     {/* Navigation Buttons */}
@@ -279,7 +274,7 @@ export default function AppointmentBookingPage() {
                             </button>
                         ) : (
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('trigger-booking', { detail: 'trigger-booking' }))}
+                            onClick={() => bookingTriggerRef.current?.()}
                                 className="bg-blue-600 text-white px-12 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-[0.98] shadow-lg shadow-blue-600/20"
                             >
                                 Pay Now

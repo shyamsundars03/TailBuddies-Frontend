@@ -9,11 +9,9 @@ import {
     UserCheck,
     PawPrint,
     Stethoscope,
-    Receipt,
     CalendarCheck,
     ArrowLeftRight,
     CreditCard,
-    MessageSquare,
     Star,
     BarChart3,
     LogOut,
@@ -25,6 +23,7 @@ import { cn } from "../../../../lib/utils/utils"
 import { useSignin } from "../../../../lib/hooks/auth/useSignin"
 import { useAppSelector } from "../../../../lib/redux/hooks"
 import Swal from "sweetalert2"
+import { ADMIN_ROUTES } from "../../../../lib/constants"
 
 interface AdminSidebarProps {
     onItemClick?: (id: string) => void
@@ -41,18 +40,18 @@ interface SidebarMenuItem {
 }
 
 const menuItems: SidebarMenuItem[] = [
-    { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: "/admin/dashboard" },
-    { icon: Users, label: "Users", id: "users", href: "/admin/usersManagement" },
-    { icon: UserCheck, label: "Doctors Verifications", id: "doctors", href: "/admin/doctorVerifications" },
-    { icon: PawPrint, label: "Pets", id: "pets", href: "/admin/petsManagement" },
-    { icon: Stethoscope, label: "Speacilities", id: "specialities", href: "/admin/specialitiesManagement" },
+    { icon: LayoutDashboard, label: "Dashboard", id: "dashboard", href: ADMIN_ROUTES.DASHBOARD },
+    { icon: Users, label: "Users", id: "users", href: ADMIN_ROUTES.USERS },
+    { icon: UserCheck, label: "Doctors Verifications", id: "doctors", href: ADMIN_ROUTES.DOCTORS },
+    { icon: PawPrint, label: "Pets", id: "pets", href: ADMIN_ROUTES.PETS },
+    { icon: Stethoscope, label: "Speacilities", id: "specialities", href: ADMIN_ROUTES.SPECIALTIES },
     // { icon: Receipt, label: "Subscription", id: "subscriptions", href: "#" },
-    { icon: CalendarCheck, label: "Appointments", id: "appointments", href: "/admin/appointmentManagement" },
-    { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: "/admin/transactionManagement" },
-    { icon: CreditCard, label: "Payment Approvals", id: "payments", href: "/admin/paymentApprovals" },
+    { icon: CalendarCheck, label: "Appointments", id: "appointments", href: ADMIN_ROUTES.APPOINTMENTS },
+    { icon: ArrowLeftRight, label: "Transactions", id: "transactions", href: ADMIN_ROUTES.TRANSACTIONS },
+    { icon: CreditCard, label: "Payment Approvals", id: "payments", href: ADMIN_ROUTES.PAYMENTS },
     // { icon: MessageSquare, label: "Chat Assistant", id: "chat", href: "/admin/chatAssistant" },
-    { icon: Star, label: "Ratings/Reviews", id: "reviews", href: "/admin/reviews" },
-    { icon: BarChart3, label: "Reports", id: "reports", href: "/admin/reports" },
+    { icon: Star, label: "Ratings/Reviews", id: "reviews", href: ADMIN_ROUTES.REVIEWS },
+    { icon: BarChart3, label: "Reports", id: "reports", href: ADMIN_ROUTES.REPORTS },
 ]
 
 export const AdminSidebar = memo(function AdminSidebar({ onItemClick, className, activeItem }: AdminSidebarProps) {

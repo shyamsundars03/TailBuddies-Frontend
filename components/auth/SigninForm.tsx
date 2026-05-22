@@ -13,70 +13,38 @@ import { Badge } from "../../components/common/ui/Badge"
 
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
 import { useSignin } from "../../lib/hooks/auth"
-import { signinSchema } from "../../lib/validation/auth/signin.schema"
-import logger from "../../lib/logger"
+import { signinSchema, type SigninFormData } from "../../lib/validation/auth"
+import { AUTH_ROUTES } from "../../lib/constants/routes"
 
 export function SignInForm() {
-
-
   const searchParams = useSearchParams()
-  const { login, googleLogin, isLoading, errors: hookErrors, setErrors: setHookErrors } = useSignin()
-
+  const { login, googleLogin, isLoading, errors: hookErrors } = useSignin()
   const urlRole = searchParams.get("role")
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<SigninFormData>({
     email: "",
     password: "",
-    role: (urlRole || "owner") as "owner" | "doctor",
+    role: (urlRole === "doctor" ? "doctor" : "owner") as "owner" | "doctor",
   })
 
-  const [errors, setLocalErrors] = useState<Record<string, string>>({})
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-
-  const allErrors = { ...errors, ...hookErrors };
+  const allErrors = { ...localErrors, ...hookErrors }
 
   useEffect(() => {
-
-
-    if (!urlRole) return;
     const targetRole = urlRole === "doctor" ? "doctor" : "owner";
-    if (formData.role !== targetRole) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData((prev) => ({ ...prev, role: targetRole }));
-    }
-  }, [urlRole, formData.role]);
-
-
-
-
-
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-
-
-
+    setFormData((prev) => (prev.role === targetRole ? prev : { ...prev, role: targetRole }));
+  }, [urlRole]);
 
   const validateField = (name: string, value: string) => {
-
-
-    const schemaData = {
-      ...formData,
-      [name]: value,
-    }
-
+    const schemaData = { ...formData, [name]: value }
     const result = signinSchema.safeParse(schemaData)
 
     if (!result.success) {
       const fieldError = result.error.flatten().fieldErrors as Record<string, string[]>
       const message = fieldError[name]?.[0]
-
       setLocalErrors((prev) => ({ ...prev, [name]: message || "" }))
-
     } else {
       setLocalErrors((prev) => {
         const newErrors = { ...prev }
@@ -87,56 +55,31 @@ export function SignInForm() {
   }
 
   const handleBlur = (field: string) => {
-
-
     setTouched((prev) => ({ ...prev, [field]: true }))
-    validateField(field, formData[field as keyof typeof formData])
+    validateField(field, formData[field as keyof SigninFormData])
+  }
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (touched[name]) {
+      validateField(name, value)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-
     e.preventDefault()
-    logger.info('Signin form submission started', { email: formData.email });
-
-
-    setTouched({
-      email: true,
-      password: true,
-    })
-
-    try {
-      const loginResult = await login({
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-      })
-
-      if (loginResult?.success) {
-
-
-        logger.info('Login success, redirecting...', { email: formData.email });
-
-      } else if (!loginResult?.success && !loginResult?.error) {
-
-        toast.error("Please fix the validation errors");
-      }
-    } catch (error) {
-
-      logger.error('Signin submit error', error);
-      toast.error("An error occurred. Please try again.");
-
-    }
+    setTouched({ email: true, password: true })
+    await login(formData)
   }
 
   const onGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
-      await googleLogin(credentialResponse.credential, formData.role)
+      await googleLogin({ idToken: credentialResponse.credential, role: formData.role })
     }
   }
 
   const onGoogleError = () => {
-    logger.error('Google Sign In failed');
     toast.error("Google Sign In was unsuccessful.");
   }
 
@@ -167,7 +110,6 @@ export function SignInForm() {
           onBlur={() => handleBlur("email")}
           error={allErrors.email}
           touched={touched.email}
-
         />
 
         <PasswordInput
@@ -178,7 +120,6 @@ export function SignInForm() {
           onBlur={() => handleBlur("password")}
           error={allErrors.password}
           touched={touched.password}
-
         />
 
         <Button
@@ -210,7 +151,7 @@ export function SignInForm() {
           <div className="text-center">
             <p className="text-xs text-gray-600">
               Forgot Password?{" "}
-              <Link href="/forgot-password" className="text-gray-900 font-semibold hover:text-yellow-600">
+              <Link href={AUTH_ROUTES.FORGOT_PASSWORD} className="text-gray-900 font-semibold hover:text-yellow-600">
                 Reset
               </Link>
             </p>
@@ -219,7 +160,7 @@ export function SignInForm() {
           <div className="text-center">
             <p className="text-xs text-gray-600">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="text-gray-900 font-semibold hover:text-yellow-600">
+              <Link href={AUTH_ROUTES.SIGNUP} className="text-gray-900 font-semibold hover:text-yellow-600">
                 Sign Up
               </Link>
             </p>
@@ -229,14 +170,14 @@ export function SignInForm() {
             {formData.role === "doctor" ? (
               <p className="text-xs text-gray-600">
                 Are you a pet owner?{" "}
-                <Link href="/signin" className="text-yellow-600 font-semibold hover:text-yellow-800">
+                <Link href={AUTH_ROUTES.SIGNIN} className="text-yellow-600 font-semibold hover:text-yellow-800">
                   Sign In as Owner
                 </Link>
               </p>
             ) : (
               <p className="text-xs text-gray-600">
                 Are you a doctor?{" "}
-                <Link href="/signin?role=doctor" className="text-blue-600 font-semibold hover:text-blue-800">
+                <Link href={AUTH_ROUTES.DOCTOR_SIGNIN} className="text-blue-600 font-semibold hover:text-blue-800">
                   Doctor Sign In
                 </Link>
               </p>

@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, Phone, Calendar, Clock, Star, Download, MessageSquare, ShieldCheck, FileText, Pill, Loader2, CreditCard, Activity, CheckCircle2 } from "lucide-react"
+import { Calendar, Clock, Star, MessageSquare, ShieldCheck, FileText, Loader2, Activity, CheckCircle2, Video } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
@@ -17,57 +17,49 @@ import { ReviewModal } from "@/components/owner/ReviewModal"
 import { reviewApi } from "@/lib/api/review.api"
 import Swal from "sweetalert2"
 import { VideoCall } from "@/components/consultation/VideoCall"
-import { Video } from "lucide-react"
+import type { OwnerAppointment, Review } from "@/lib/types/owner/owner.types"
+import type { AgoraCallConfig, Prescription } from "@/lib/types/api.types"
+import { getUserId } from "@/lib/utils/user-id.util"
 
 export default function SingleBookingViewPage() {
     const params = useParams()
     const router = useRouter()
     const { user } = useAppSelector((state) => state.auth)
-    const [appointment, setAppointment] = useState<any>(null)
-    const [prescription, setPrescription] = useState<any>(null)
+    const userId = getUserId(user)
+    const [appointment, setAppointment] = useState<OwnerAppointment | null>(null)
+    const [prescription, setPrescription] = useState<Prescription | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'prescription' | 'video'>('details')
-    const [agoraConfig, setAgoraConfig] = useState<any>(null)
+    const [agoraConfig, setAgoraConfig] = useState<AgoraCallConfig | null>(null)
     const [isReviewOpen, setIsReviewOpen] = useState(false)
-    const [review, setReview] = useState<any>(null)
+    const [review, setReview] = useState<Review | null>(null)
 
-    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(params?.id as string, user?.id || (user as any)?._id || '', 'owner', () => {
-        toast.info("Booking status updated");
-        fetchAppointment();
-    });
-
-    useEffect(() => {
-        if (chatError) {
-            toast.error(chatError)
-            setChatError(null)
-        }
-    }, [chatError])
-
-    const fetchAppointment = async (isInitial = false) => {
+    const fetchAppointment = useCallback(async (isInitial = false) => {
         if (!params?.id) return
         if (isInitial) setIsLoading(true)
         const response = await appointmentApi.getAppointmentById(params.id as string)
-        if (response.success) {
-            setAppointment(response.data)
-            if (response.data.status === 'completed') {
+        if (response.success && response.data) {
+            setAppointment((response.data as OwnerAppointment) ?? null)
+            if (response.data.prescriptionId) {
                 const presResponse = await prescriptionApi.getByAppointmentId(params.id as string)
-                if (presResponse.success) {
+                if (presResponse.success && presResponse.data) {
                     setPrescription(presResponse.data)
                 }
+            }
+            if (response.data.status === 'completed') {
                 const reviewResponse = await reviewApi.getByAppointment(params.id as string)
                 if (reviewResponse.success) {
-                    setReview(reviewResponse.data)
+                    setReview(reviewResponse.data ?? null)
                 }
             }
-        } else {
+        } else if (isInitial) {
             toast.error(response.message || "Failed to fetch appointment details")
         }
         setIsLoading(false)
-    }
+    }, [params])
 
-    const fetchAgoraToken = async () => {
-        const userId = user?.id || (user as any)?._id
+    const fetchAgoraToken = useCallback(async () => {
         if (!appointment || !userId) {
             console.log("Cannot fetch Agora token: missing appointment or user ID", { hasAppointment: !!appointment, userId });
             return
@@ -75,10 +67,10 @@ export default function SingleBookingViewPage() {
         const channelName = `consultation_${appointment._id}`
         console.log("Fetching Agora token for:", { channelName, userId, role: 'subscriber' });
         const response = await appointmentApi.getAgoraToken(channelName, userId, 'subscriber')
-        if (response.success) {
+        if (response.success && response.data) {
             console.log("Agora token fetched successfully");
             setAgoraConfig({
-                token: response.token,
+                token: response.data.token,
                 channelName,
                 uid: userId,
                 appId: process.env.NEXT_PUBLIC_AGORA_APP_ID
@@ -87,20 +79,45 @@ export default function SingleBookingViewPage() {
             console.error("Agora token fetch failed:", response.message);
             toast.error("Failed to initialize video call")
         }
-    }
+    }, [appointment, userId])
+
+    const handleStatusUpdate = useCallback(() => {
+        toast.info("Booking status updated");
+        fetchAppointment();
+    }, [fetchAppointment])
+
+    const { messages, sendMessage, error: chatError, setError: setChatError } = useConsultation(params?.id as string, userId, 'owner', handleStatusUpdate);
 
     useEffect(() => {
-        const userId = user?.id || (user as any)?._id
+        if (chatError) {
+            toast.error(chatError)
+            setChatError(null)
+        }
+    }, [chatError, setChatError])
+
+    useEffect(() => {
         if (activeTab === 'video' && appointment?.mode === 'online' && appointment?.status === 'ongoing' && !agoraConfig && userId) {
             fetchAgoraToken()
         }
-    }, [activeTab, appointment, agoraConfig, user])
+    }, [activeTab, appointment, agoraConfig, userId, fetchAgoraToken])
 
     useEffect(() => {
         fetchAppointment(true)
-    }, [params?.id])
+    }, [fetchAppointment])
 
     const handleCheckIn = async () => {
+        if (!appointment) return;
+
+        const now = new Date();
+        const [startH, startM] = appointment.appointmentStartTime.split(':').map(Number);
+        const apptStart = new Date(appointment.appointmentDate);
+        apptStart.setHours(startH, startM, 0, 0);
+
+        if (now < apptStart) {
+            toast.error(`Please wait until ${appointment.appointmentStartTime} to check in.`);
+            return;
+        }
+
         setIsActionLoading(true)
         const response = await appointmentApi.checkIn(params?.id as string, 'owner')
         if (response.success) {
@@ -168,6 +185,7 @@ export default function SingleBookingViewPage() {
     }
 
     const handleCancel = async () => {
+        if (!appointment) return
         const isEmergency = appointment.status === 'confirmed' || !!appointment.checkIn?.ownerCheckInTime;
         
         const { value: reason, isConfirmed } = await Swal.fire({
@@ -191,7 +209,7 @@ export default function SingleBookingViewPage() {
 
         if (isConfirmed && reason) {
             setIsActionLoading(true)
-            const response = await appointmentApi.updateStatus(params?.id as string, 'cancelled', reason)
+            const response = await appointmentApi.cancel(params?.id as string, reason)
             if (response.success) {
                 toast.success(isEmergency ? "Cancellation and refund processed" : "Booking cancelled successfully")
                 fetchAppointment()
@@ -218,7 +236,8 @@ export default function SingleBookingViewPage() {
     const doctorUser = appointment.doctorId?.userId;
     const pet = appointment.petId;
     const isConsultationActive = appointment.status === 'ongoing'
-    const canJoinVideo = isConsultationActive && appointment.mode === 'online'
+    const isOnlineConsultation = appointment.mode === 'online'
+    const canJoinVideo = isOnlineConsultation && ['ongoing', 'confirmed', 'booked', 'BOOKED'].includes(appointment.status)
     const canViewChat = appointment.status === 'ongoing' || !!appointment.checkIn?.ownerCheckInTime || appointment.status === 'completed'
 
     console.log(appointment)
@@ -340,7 +359,7 @@ export default function SingleBookingViewPage() {
                             label={appointment.status === 'completed' ? "History" : "Live Chat"} 
                         />
                     )}
-                    {isConsultationActive && appointment.mode === 'online' && (
+                    {isOnlineConsultation && appointment.status !== 'cancelled' && (
                         <TabButton 
                             active={activeTab === 'video'} 
                             onClick={() => setActiveTab('video')} 
@@ -348,7 +367,7 @@ export default function SingleBookingViewPage() {
                             label="Video Call" 
                         />
                     )}
-                    {prescription && (
+                    {(prescription || appointment.prescriptionId) && (
                         <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<FileText size={14} />} label="Medical Record" />
                     )}
                 </div>
@@ -463,14 +482,14 @@ export default function SingleBookingViewPage() {
                                         </div>
                                         <div className="bg-white/50 rounded-2xl p-6 border border-gray-100 shadow-inner">
                                             <p className="text-sm font-medium text-gray-700 italic leading-relaxed">
-                                                "{review.comment || "No comment provided"}"
+                                                &quot;{review.comment || "No comment provided"}&quot;
                                             </p>
                                         </div>
 
                                         {review.isReplied && review.reply && (
                                             <div className="ml-6 md:ml-10 bg-emerald-50/30 rounded-2xl p-6 space-y-3 border border-emerald-100/30 relative before:absolute before:-left-6 before:top-8 before:w-6 before:h-0.5 before:bg-emerald-100">
                                                 <div className="flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
-                                                    <CheckCircle2 size={14} /> Doctor's Response
+                                                    <CheckCircle2 size={14} /> Doctor&apos;s Response
                                                 </div>
                                                 <p className="text-xs font-medium text-gray-600 leading-relaxed italic pl-4 border-l-2 border-emerald-100">
                                                     {review.reply.comment}
@@ -501,16 +520,16 @@ export default function SingleBookingViewPage() {
                                             />
                                             <DataField 
                                                 label="Cancelled At" 
-                                                value={new Date(appointment.cancellation.cancelledAt).toLocaleString('en-GB', { 
+                                                value={appointment.cancellation.cancelledAt ? new Date(appointment.cancellation.cancelledAt).toLocaleString('en-GB', { 
                                                     day: '2-digit', month: 'short', year: 'numeric',
                                                     hour: '2-digit', minute: '2-digit'
-                                                })} 
+                                                }) : "—"} 
                                             />
                                         </div>
                                         <div className="pt-4 border-t border-red-100/50">
                                             <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-2">Reason for Cancellation</p>
                                             <p className="text-xs font-medium text-red-600 italic leading-relaxed">
-                                                "{appointment.cancellation.cancelReason || "No reason provided"}"
+                                                &quot;{appointment.cancellation.cancelReason || "No reason provided"}&quot;
                                             </p>
                                         </div>
                                     </div>
@@ -532,17 +551,23 @@ export default function SingleBookingViewPage() {
                             <ConsultationChat
                                 messages={messages}
                                 onSendMessage={sendMessage}
-                                currentUserId={user?.id || (user as any)?._id || ''}
+                                currentUserId={userId}
                                 isReadOnly={appointment.status === 'completed' || appointment.status === 'cancelled'}
                             />
                         </div>
                     )}
 
-                    {canJoinVideo && (
-                        <div className={cn("animate-in zoom-in-95 duration-500", activeTab === 'video' ? "block" : "contents")}>
-                            {agoraConfig ? (
+                    {activeTab === 'video' && isOnlineConsultation && (
+                        <div className="animate-in zoom-in-95 duration-500">
+                            {!isConsultationActive ? (
+                                <div className="h-[400px] w-full bg-[#001524] rounded-[2.5rem] flex flex-col items-center justify-center gap-4 p-8 text-center">
+                                    <Video size={40} className="text-blue-400 opacity-60" />
+                                    <p className="text-white text-sm font-bold">Video call opens when the consultation is ongoing.</p>
+                                    <p className="text-white/50 text-xs font-medium">Check in at the clinic time, or wait for the doctor to start the session.</p>
+                                </div>
+                            ) : agoraConfig ? (
                                 <VideoCall 
-                                    appId={agoraConfig.appId}
+                                    appId={agoraConfig.appId ?? ""}
                                     channelName={agoraConfig.channelName}
                                     token={agoraConfig.token}
                                     uid={agoraConfig.uid}
@@ -553,7 +578,7 @@ export default function SingleBookingViewPage() {
                                     onExpand={() => setActiveTab('video')}
                                 />
                             ) : (
-                                <div className={cn("h-[600px] w-full bg-[#001524] rounded-[2.5rem] flex flex-col items-center justify-center gap-4", activeTab !== 'video' && "hidden")}>
+                                <div className="h-[600px] w-full bg-[#001524] rounded-[2.5rem] flex flex-col items-center justify-center gap-4">
                                     <div className="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
                                     <p className="text-white/40 text-xs font-black uppercase tracking-widest">Initializing Video Session...</p>
                                 </div>
@@ -595,7 +620,14 @@ function SectionLayout({ title, children }: { title: string; children: React.Rea
     )
 }
 
-function DataField({ label, value, isStatus, statusType, italic, capitalize }: any) {
+function DataField({ label, value, isStatus, statusType, italic, capitalize }: {
+    label: string
+    value?: string | number | null
+    isStatus?: boolean
+    statusType?: "success" | "error"
+    italic?: boolean
+    capitalize?: boolean
+}) {
     return (
         <div>
             <p className="text-blue-900/40 font-black text-[9px] uppercase tracking-widest mb-1.5">{label}</p>
@@ -611,7 +643,12 @@ function DataField({ label, value, isStatus, statusType, italic, capitalize }: a
     )
 }
 
-function TabButton({ active, onClick, icon, label }: any) {
+function TabButton({ active, onClick, icon, label }: {
+    active: boolean
+    onClick: () => void
+    icon: React.ReactNode
+    label: string
+}) {
     return (
         <button
             onClick={onClick}

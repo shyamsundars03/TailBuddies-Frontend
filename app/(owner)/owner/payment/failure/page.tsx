@@ -2,22 +2,24 @@
 
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { AlertCircle, ArrowLeft, RefreshCcw, Wallet, CreditCard, Calendar, Clock, PawPrint } from "lucide-react"
+import { AlertCircle, ArrowLeft, Wallet, CreditCard, Calendar, Clock, PawPrint } from "lucide-react"
 import { motion } from "framer-motion"
-import { cn } from "@/lib/utils/utils"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { paymentApi } from "@/lib/api/payment.api"
+import { useRazorpay } from "@/lib/hooks/useRazorpay"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
+import type { OwnerAppointment } from "@/lib/types/owner/owner.types"
 
 function PaymentFailureContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const appointmentId = searchParams.get("id")
-    const [appointment, setAppointment] = useState<any>(null)
+    const [appointment, setAppointment] = useState<OwnerAppointment | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isRetrying, setIsRetrying] = useState(false)
     const [walletBalance, setWalletBalance] = useState<number>(0)
+    const { openRazorpay } = useRazorpay()
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -28,8 +30,8 @@ function PaymentFailureContent() {
                     appointmentApi.getAppointmentById(appointmentId),
                     paymentApi.getWallet()
                 ])
-                if (appRes.success) setAppointment(appRes.data)
-                if (walletRes.success) setWalletBalance(walletRes.wallet.balance)
+                if (appRes.success) setAppointment((appRes.data as OwnerAppointment) ?? null)
+                if (walletRes.success && walletRes.data) setWalletBalance(walletRes.data.balance ?? 0)
             } catch (error) {
                 console.error("Error fetching details:", error)
             } finally {
@@ -37,18 +39,6 @@ function PaymentFailureContent() {
             }
         }
         fetchDetails()
-
-        // Load Razorpay Script
-        const script = document.createElement("script")
-        script.src = "https://checkout.razorpay.com/v1/checkout.js"
-        script.async = true
-        document.body.appendChild(script)
-
-        return () => {
-             if (document.body.contains(script)) {
-                document.body.removeChild(script)
-            }
-        }
     }, [appointmentId])
 
     const handleRetry = async (method: "razorpay" | "wallet") => {
@@ -58,7 +48,7 @@ function PaymentFailureContent() {
         try {
             // Check slot availability first
             const availabilityRes = await appointmentApi.checkSlotAvailability(appointment._id)
-            if (!availabilityRes.success || !availabilityRes.available) {
+            if (!availabilityRes.success || !availabilityRes.data) {
                 toast.error(availabilityRes.message || "This slot is no longer available. Please book a new slot.")
                 setIsRetrying(false)
                 return
@@ -92,14 +82,20 @@ function PaymentFailureContent() {
                     return
                 }
 
-                const options = {
-                    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                    amount: orderRes.order.amount,
-                    currency: orderRes.order.currency,
+                const order = orderRes.data?.order
+                if (!order) {
+                    toast.error("Failed to create payment order")
+                    setIsRetrying(false)
+                    return
+                }
+
+                openRazorpay({
+                    amount: order.amount,
+                    currency: order.currency,
                     name: "TailBuddies",
                     description: "Retry Appointment Payment",
-                    order_id: orderRes.order.id,
-                    handler: async (response: any) => {
+                    order_id: order.id,
+                    onSuccess: async (response) => {
                         const verifyRes = await paymentApi.verifyRazorpayPayment({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
@@ -122,16 +118,11 @@ function PaymentFailureContent() {
                     theme: {
                         color: "#2563eb"
                     },
-                    modal: {
-                        ondismiss: () => {
-                            toast.error("Payment cancelled again")
-                            setIsRetrying(false)
-                        }
+                    onDismiss: () => {
+                        toast.error("Payment cancelled again")
+                        setIsRetrying(false)
                     }
-                }
-
-                const rzp = new (window as any).Razorpay(options)
-                rzp.open()
+                })
             }
         } catch (error) {
             console.error("Retry error:", error)
@@ -169,7 +160,7 @@ function PaymentFailureContent() {
                         <AlertCircle size={48} className="text-amber-500" />
                     </motion.div>
                     <h1 className="relative z-10 text-3xl font-black text-white uppercase tracking-wider mb-2">Payment Failed</h1>
-                    <p className="relative z-10 text-amber-50 font-bold opacity-90">We couldn't process your transaction. Please try again to secure your preferred slot.</p>
+                    <p className="relative z-10 text-amber-50 font-bold opacity-90">We couldn&apos;t process your transaction. Please try again to secure your preferred slot.</p>
                     
                     {/* Decorative Background Elements */}
                     <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-amber-400 rounded-full blur-3xl opacity-50" />

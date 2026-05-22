@@ -1,12 +1,17 @@
 "use client"
 
-import { Video, MessageSquare, Calendar, Users, Clock, Loader2 } from "lucide-react"
+import { Calendar, Users, Clock, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { appointmentApi } from "../../lib/api/appointment.api"
 import { toast } from "sonner"
 import Image from "next/image"
 import Link from "next/link"
 import { cn, formatDate } from "@/lib/utils/utils"
+import type { Appointment } from "@/lib/types/admin/admin.types"
+
+type DashboardAppointment = Omit<Appointment, "petId"> & {
+    petId: Appointment["petId"] & { picture?: string };
+};
 
 const DoctorDashboardContent = () => {
     const [stats, setStats] = useState({
@@ -14,8 +19,8 @@ const DoctorDashboardContent = () => {
         appointmentsToday: 0,
         avgConsultation: "30 min" // Constant for now
     })
-    const [appointments, setAppointments] = useState<any[]>([])
-    const [upcomingAppointment, setUpcomingAppointment] = useState<any>(null)
+    const [appointments, setAppointments] = useState<DashboardAppointment[]>([])
+    const [upcomingAppointment, setUpcomingAppointment] = useState<DashboardAppointment | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
@@ -31,16 +36,16 @@ const DoctorDashboardContent = () => {
                 appointmentApi.getDoctorAppointments("confirmed", 1, 100)
             ])
 
-            const allApts = [
-                ...(bookedRes.success ? bookedRes.data : []),
-                ...(confirmedRes.success ? confirmedRes.data : [])
+            const allApts: DashboardAppointment[] = [
+                ...(bookedRes.success && bookedRes.data?.items ? bookedRes.data.items as DashboardAppointment[] : []),
+                ...(confirmedRes.success && confirmedRes.data?.items ? confirmedRes.data.items as DashboardAppointment[] : [])
             ]
 
             // Calculate Stats
-            const uniquePets = new Set(allApts.map((a: any) => a.petId?._id)).size
+            const uniquePets = new Set(allApts.map((a) => a.petId?._id)).size
             
             const today = new Date().toISOString().split('T')[0]
-            const todayApts = allApts.filter((a: any) => 
+            const todayApts = allApts.filter((a) => 
                 a.appointmentDate?.split('T')[0] === today
             ).length
 
@@ -67,7 +72,7 @@ const DoctorDashboardContent = () => {
             })
             setUpcomingAppointment(next || sorted[0]) // fallback to first sorted if all in past? or null.
 
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Dashboard data fetch error", error)
             toast.error("Failed to load dashboard data")
         } finally {
@@ -126,7 +131,7 @@ const DoctorDashboardContent = () => {
                     </div>
                     <div className="space-y-4">
                         {appointments.length > 0 ? (
-                            appointments.map((apt: any, i) => (
+                            appointments.map((apt) => (
                                 <Link href={`/doctor/appointments/${apt._id}`} key={apt._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-gray-400 border border-gray-100 overflow-hidden relative">

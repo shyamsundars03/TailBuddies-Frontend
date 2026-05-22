@@ -1,15 +1,14 @@
 "use client"
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Search, MoreVertical, Mic, Paperclip, Send, Play, Video, ChevronLeft } from "lucide-react"
+import { Search, MoreVertical, Mic, Send, Play, ChevronLeft } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
 
 export default function ChatDetailPage() {
     const params = useParams()
     const router = useRouter()
-    const id = params.id as string
+    const _id = params.id as string
     const [message, setMessage] = useState("")
 
     const messages = [

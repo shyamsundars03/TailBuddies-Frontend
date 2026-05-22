@@ -10,7 +10,7 @@ interface AdminHeaderProps {
     title?: string
 }
 
-export function AdminHeader({ title }: AdminHeaderProps) {
+export function AdminHeader({ title: _title }: AdminHeaderProps) {
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
 
@@ -32,35 +32,37 @@ export function AdminHeader({ title }: AdminHeaderProps) {
     }
 
     return (
-        <header className="sticky top-0 z-50 bg-[#605f5f] text-white px-6 py-0 flex items-center justify-between pl-40 pr-40 h-20 shadow-md">
-            {/* Logo Section */}
-            <div className="flex items-center gap-2 flex-1">
+        <header className="sticky top-0 z-50 bg-[#605f5f] text-white shadow-md">
+            <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                {/* Logo Section */}
                 <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 flex items-center justify-center">
-                        <Image src="/favicon.ico" alt="TailBuddies Logo" width={50} height={70} />
+                    <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 flex items-center justify-center">
+                            <Image src="/favicon.ico" alt="TailBuddies Logo" width={50} height={70} />
+                        </div>
+                        <span className="font-bold text-lg tracking-tight">TailBuddies</span>
                     </div>
-                    <span className="font-bold text-lg tracking-tight">TailBuddies</span>
                 </div>
-            </div>
 
-            {/* Right Side: Role & Profile */}
-            <div className="flex items-center gap-4 ml-auto">
-                {user && (
-                    <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full flex items-center gap-2 transition cursor-default shadow-sm">
-                        <User size={14} />
-                        <span className="text-xs font-bold whitespace-nowrap">
-                            {user?.username || "Admin"}
-                        </span>
-                    </div>
-                )}
+                {/* Right Side: Role & Profile */}
+                <div className="flex items-center gap-4">
+                    {user && (
+                        <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full flex items-center gap-2 transition cursor-default shadow-sm">
+                            <User size={14} />
+                            <span className="text-xs font-bold whitespace-nowrap">
+                                {user?.username || "Admin"}
+                            </span>
+                        </div>
+                    )}
 
-                <button
-                    onClick={handleLogout}
-                    className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition text-white"
-                    title="Logout"
-                >
-                    <LogOut size={18} />
-                </button>
+                    <button
+                        onClick={handleLogout}
+                        className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition text-white"
+                        title="Logout"
+                    >
+                        <LogOut size={18} />
+                    </button>
+                </div>
             </div>
         </header>
     )

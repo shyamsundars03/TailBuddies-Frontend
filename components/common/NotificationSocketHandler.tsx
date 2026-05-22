@@ -4,16 +4,17 @@ import { useEffect } from "react";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { useSocket } from "@/lib/hooks/useSocket";
 import { toast } from "sonner";
+import type { NotificationItem } from "@/lib/types/api.types";
 import { Bell } from "lucide-react";
 import React from "react";
 
 export function NotificationSocketHandler() {
     const { user } = useAppSelector((state) => state.auth);
-    const socket = useSocket(user?.id ?? undefined);
+    const { socket } = useSocket(user?.id ?? undefined);
 
     useEffect(() => {
         if (socket) {
-            socket.on('new_notification', (notification: any) => {
+            socket.on('new_notification', (notification: NotificationItem) => {
                 console.log('New notification received via socket:', notification);
                 
                 // Show toast alert

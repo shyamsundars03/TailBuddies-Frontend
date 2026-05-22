@@ -3,11 +3,10 @@
 import { useState } from "react"
 import { Input } from "../common/forms/Input"
 import { Button } from "../common/ui/Button"
-import { userApi } from "../../lib/api/user"
+import { useOwnerProfile } from "../../lib/hooks/owner/useOwnerProfile"
+import { changeEmailSchema } from "../../lib/validation/owner/change-email.schema"
 import { toast } from "sonner"
 import { useRouter, usePathname } from "next/navigation"
-import { useAppDispatch, useAppSelector } from "../../lib/redux/hooks"
-import { setUser } from "../../lib/redux/slices/authSlice"
 
 type Step = "CURRENT_EMAIL" | "NEW_EMAIL"
 
@@ -15,101 +14,48 @@ export function ChangeEmailForm() {
     const [step, setStep] = useState<Step>("CURRENT_EMAIL")
     const [otp, setOtp] = useState("")
     const [newEmail, setNewEmail] = useState("")
-    const [isLoading, setIsLoading] = useState(false)
     const [isOtpSent, setIsOtpSent] = useState(false)
 
-    const { user } = useAppSelector(state => state.auth)
-    const dispatch = useAppDispatch()
+    const { user, isLoading, initiateEmailChange, verifyCurrentEmail, sendOtpToNewEmail, verifyNewEmail } = useOwnerProfile()
     const router = useRouter()
+    const pathname = usePathname()
+    const isDoctor = pathname.startsWith("/doctor")
+    const variant = isDoctor ? "doctor" : "owner"
 
     const handleSendCurrentOtp = async () => {
-        try {
-            setIsLoading(true)
-            const response = await userApi.initiateEmailChange()
-            if (response.success) {
-                setIsOtpSent(true)
-                toast.success("OTP sent to your current email")
-            } else {
-                toast.error(response.error || "Failed to send OTP")
-            }
-        } catch {
-            toast.error("An error occurred")
-        } finally {
-            setIsLoading(false)
+        const success = await initiateEmailChange()
+        if (success) {
+            setIsOtpSent(true)
         }
     }
 
     const handleVerifyCurrentOtp = async () => {
-        try {
-            setIsLoading(true)
-            const response = await userApi.verifyCurrentEmail(otp)
-            if (response.success) {
-                setStep("NEW_EMAIL")
-                setIsOtpSent(false)
-                setOtp("")
-                toast.success("Current email verified")
-            } else {
-                toast.error(response.error || "Invalid OTP")
-            }
-        } catch {
-            toast.error("An error occurred")
-        } finally {
-            setIsLoading(false)
+        const success = await verifyCurrentEmail(otp)
+        if (success) {
+            setStep("NEW_EMAIL")
+            setIsOtpSent(false)
+            setOtp("")
         }
     }
 
     const handleSendNewOtp = async () => {
-        if (!newEmail || !newEmail.includes("@")) {
-            return toast.error("Please enter a valid email")
+        const validationResult = changeEmailSchema.safeParse({ email: newEmail })
+        if (!validationResult.success) {
+            return toast.error(validationResult.error.issues[0].message)
         }
-        try {
-            setIsLoading(true)
-            const response = await userApi.sendOtpToNewEmail(newEmail)
-            if (response.success) {
-                setIsOtpSent(true)
-                toast.success("OTP sent to your new email")
-            } else {
-                toast.error(response.error || "Failed to send OTP")
-            }
-        } catch {
-            toast.error("An error occurred")
-        } finally {
-            setIsLoading(false)
+
+        const success = await sendOtpToNewEmail(newEmail)
+        if (success) {
+            setIsOtpSent(true)
         }
     }
 
     const handleVerifyNewOtp = async () => {
-        try {
-            setIsLoading(true)
-            const response = await userApi.verifyNewEmail(newEmail, otp)
-            if (response.success) {
-                const apiUser = response.data;
-                const updatedUser = {
-                    id: apiUser.id || apiUser._id,
-                    email: apiUser.email,
-                    role: apiUser.role,
-                    username: apiUser.username,
-                    phone: apiUser.phone,
-                    gender: apiUser.gender,
-                    profilePic: apiUser.profilePic
-                };
-                dispatch(setUser(updatedUser));
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-                toast.success("Email updated successfully");
-                router.push(isDoctor ? "/doctor/profile" : "/owner/account");
-            } else {
-                toast.error(response.error || "Invalid OTP")
-            }
-        } catch {
-            toast.error("An error occurred")
-        } finally {
-            setIsLoading(false)
+        const updatedUser = await verifyNewEmail(newEmail, otp)
+        if (updatedUser) {
+            router.push(isDoctor ? "/doctor/profile" : "/owner/account")
         }
     }
-
-    const pathname = usePathname()
-    const isDoctor = pathname.startsWith("/doctor")
-    const variant = isDoctor ? "doctor" : "owner"
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
@@ -171,3 +117,4 @@ export function ChangeEmailForm() {
         </div>
     )
 }
+

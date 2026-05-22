@@ -1,34 +1,35 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
-import { ChevronLeft, CheckCircle2, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { AlertCircle } from 'lucide-react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { adminPetApi } from '../../lib/api/admin/pet.api'
+import { adminPetApi } from '@/lib/api/admin'
+import { Pet } from '@/lib/types/admin/admin.types'
 import { toast } from 'sonner'
-import Swal from 'sweetalert2'
-import {  formatDate } from "@/lib/utils/utils"
+import { formatDate } from "@/lib/utils/utils"
 
 export function SinglePetView({ id }: { id: string }) {
     const router = useRouter()
-    const [pet, setPet] = useState<any>(null)
+    const [pet, setPet] = useState<Pet | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    const fetchPetDetails = async () => {
+    const fetchPetDetails = useCallback(async () => {
         setIsLoading(true)
         const response = await adminPetApi.getPetById(id)
-        if (response.success) {
+        if (response.success && response.data) {
             setPet(response.data)
         } else {
             toast.error(response.error || "Failed to load pet details")
         }
         setIsLoading(false)
-    }
+    }, [id])
 
     useEffect(() => {
         if (id) {
             fetchPetDetails()
         }
-    }, [id])
+    }, [id, fetchPetDetails])
 
     if (isLoading) {
         return <div className="p-12 text-center text-gray-500 font-medium">Loading pet details...</div>
@@ -43,8 +44,8 @@ export function SinglePetView({ id }: { id: string }) {
     }
 
     return (
-        <div className="bg-gray-50/50 min-h-screen p-6">
-            <div className="max-w-6xl mx-auto">
+        <div className="font-inter">
+            <div className="mx-auto">
                 {/* Header Section */}
                 <div className="flex items-center justify-between mb-8">
                     <div>
@@ -72,10 +73,12 @@ export function SinglePetView({ id }: { id: string }) {
                     {/* Owner Info Row */}
                     <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-50">
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center text-2xl">
-                            {pet.ownerId?.profilePicture ? (
-                                <img
-                                    src={pet.ownerId.profilePicture}
+                            {pet.ownerId?.profilePic ? (
+                                <Image
+                                    src={pet.ownerId.profilePic}
                                     alt="Owner"
+                                    width={48}
+                                    height={48}
                                     className="w-full h-full object-cover"
                                 />
                             ) : (
@@ -93,9 +96,11 @@ export function SinglePetView({ id }: { id: string }) {
                     <div className="flex items-center gap-3 mb-6 bg-gray-50/50 p-3 rounded-xl border border-gray-100 w-fit pr-8">
                         <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-200 shadow-sm">
                             {pet.picture ? (
-                                <img
+                                <Image
                                     src={pet.picture}
                                     alt="Pet"
+                                    width={48}
+                                    height={48}
                                     className="w-full h-full object-cover"
                                 />
                             ) : (
@@ -139,11 +144,11 @@ export function SinglePetView({ id }: { id: string }) {
                                     <span className="text-blue-900/60 font-black text-[10px] uppercase">Next Due Date</span>
                                     <span className="text-blue-900/60 font-black text-[10px] uppercase">Certificates</span>
                                 </div>
-                                {pet.vaccinations.map((vac: any, idx: number) => (
+                                {pet.vaccinations.map((vac, idx) => (
                                     <div key={idx} className="grid grid-cols-4 p-4 hover:bg-gray-50 transition border-b last:border-0 border-gray-50">
-                                        <span className="text-gray-700 font-bold text-xs">{vac.vaccinationName || vac.name || "N/A"}</span>
-                                        <span className="text-gray-600 font-medium text-xs">{vac.takenDate || vac.lastTaken || "N/A"}</span>
-                                        <span className="text-gray-600 font-medium text-xs">{vac.dueDate || vac.nextDue || "N/A"}</span>
+                                        <span className="text-gray-700 font-bold text-xs">{vac.vaccinationName || "N/A"}</span>
+                                        <span className="text-gray-600 font-medium text-xs">{formatDate(vac.takenDate)}</span>
+                                        <span className="text-gray-600 font-medium text-xs">{formatDate(vac.dueDate)}</span>
                                         <span className="text-blue-600 font-bold text-xs hover:underline cursor-pointer">{vac.certificate ? "View Certificate" : "N/A"}</span>
                                     </div>
                                 ))}

@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { Search, Calendar, Filter, List, Grid, Eye, XCircle, Loader2 } from "lucide-react"
+import { Search, Calendar, Eye, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { cn } from "@/lib/utils/utils"
-import { appointmentApi } from "@/lib/api/appointment.api"
-import { toast } from "sonner"
-
+import { OWNER_ROUTES } from "@/lib/constants/routes"
 import { Pagination } from "../../../../components/common/ui/Pagination";
+import { useOwnerBookings } from "@/lib/hooks/owner/useOwnerBookings"
+import { useDebounce } from "@/lib/hooks/useDebounce"
 
 export default function MyBookingsPage() {
     const searchParams = useSearchParams()
@@ -21,35 +21,29 @@ export default function MyBookingsPage() {
     const initialPage = parseInt(searchParams.get('page') || "1")
 
     const [activeTab, setActiveTab] = useState(initialStatus)
-    const [allStats, setAllStats] = useState<any>(null)
     const [searchTerm, setSearchTerm] = useState(initialSearch)
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch)
-    const [appointments, setAppointments] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [isRetrying, setIsRetrying] = useState(false)
+    const debouncedSearchTerm = useDebounce(searchTerm, 500)
     const [currentPage, setCurrentPage] = useState(initialPage)
-    const [totalEntries, setTotalEntries] = useState(0)
-    const [totalPages, setTotalPages] = useState(1)
     const entriesPerPage = 10
 
+    const {
+        appointments,
+        allStats,
+        isLoading,
+        totalPages,
+        totalEntries,
+        getOwnerStats,
+        getOwnerAppointments,
+    } = useOwnerBookings()
+
     const fetchStats = useCallback(async () => {
-        const response = await appointmentApi.getOwnerStats()
-        if (response.success) {
-            setAllStats(response.stats)
-        }
-    }, [])
+        await getOwnerStats()
+    }, [getOwnerStats])
 
     const fetchAppointmentsData = useCallback(async (page: number, search: string, status: string) => {
-        setIsLoading(true)
-        const response = await appointmentApi.getOwnerAppointments(page, entriesPerPage, search, status)
-        if (response.success) {
-            setAppointments(response.data || [])
-            setTotalEntries(response.total || 0)
-            setTotalPages(Math.ceil((response.total || 0) / entriesPerPage) || 1)
-        }
-        setIsLoading(false)
+        await getOwnerAppointments(page, entriesPerPage, search, status)
         fetchStats()
-    }, [entriesPerPage, fetchStats])
+    }, [entriesPerPage, getOwnerAppointments, fetchStats])
 
     // Update URL when state changes
     useEffect(() => {
@@ -66,28 +60,6 @@ export default function MyBookingsPage() {
     useEffect(() => {
         fetchAppointmentsData(currentPage, debouncedSearchTerm, activeTab)
     }, [currentPage, debouncedSearchTerm, activeTab, fetchAppointmentsData])
-
-    // Load Razorpay Script
-    useEffect(() => {
-        const script = document.createElement("script")
-        script.src = "https://checkout.razorpay.com/v1/checkout.js"
-        script.async = true
-        document.body.appendChild(script)
-        return () => {
-            if (document.body.contains(script)) {
-                document.body.removeChild(script)
-            }
-        }
-    }, [])
-
-    // Debounce search
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm)
-            setCurrentPage(1)
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [searchTerm])
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page)
@@ -107,7 +79,7 @@ export default function MyBookingsPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-blue-950 mb-1">My Bookings</h1>
                     <nav className="flex items-center gap-2 text-sm text-gray-400">
-                        <Link href="/owner/dashboard" className="hover:text-blue-600 transition">Dashboard</Link>
+                        <Link href={OWNER_ROUTES.PROFILE} className="hover:text-blue-600 transition">Dashboard</Link>
                         <span>/</span>
                         <span className="text-blue-600/60 font-medium">My Bookings</span>
                     </nav>
@@ -124,12 +96,14 @@ export default function MyBookingsPage() {
                                 type="text"
                                 placeholder="Search"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full md:w-64"
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value)
+                                    setCurrentPage(1)
+                                }}
+                                className="pl-10 pr-4 py-2 text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full md:w-64"
                             />
                         </div>
                     </div>
-                    
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 overflow-x-auto no-scrollbar">
@@ -247,7 +221,7 @@ export default function MyBookingsPage() {
                                                 </button>
                                             )}
                                             <Link
-                                                href={`/owner/bookings/${booking._id}`}
+                                                href={OWNER_ROUTES.BOOKING_DETAILS(booking._id)}
                                                 className="px-4 py-2 bg-blue-50 border border-blue-100 text-blue-800 rounded-xl text-sm font-bold hover:bg-blue-100 transition flex items-center gap-2"
                                             >
                                                 <Eye size={16} />

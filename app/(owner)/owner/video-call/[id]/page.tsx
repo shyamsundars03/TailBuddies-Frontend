@@ -1,29 +1,26 @@
 "use client"
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { 
     Mic, 
     MicOff, 
     Video, 
     VideoOff, 
     Monitor, 
-    MessageSquare, 
     PhoneOff, 
-    ChevronLeft, 
-    MoreHorizontal,
-    X,
     Maximize,
-    Settings,
-    MessageCircle
+    MessageCircle,
+    ChevronLeft,
+    Clock
 } from "lucide-react"
 import { cn } from "@/lib/utils/utils"
+import type { LucideIcon } from "lucide-react"
 
 export default function VideoCallPage() {
-    const params = useParams()
     const router = useRouter()
     const [isMuted, setIsMuted] = useState(false)
     const [isCameraOff, setIsCameraOff] = useState(false)
-    const [elapsedTime, setElapsedTime] = useState("13:38")
+    const elapsedTime = "13:38"
 
     return (
         <div className="relative w-full h-full bg-[#1A1D21] flex flex-col overflow-hidden font-inter border-[12px] border-[#0F1114]">
@@ -42,7 +39,7 @@ export default function VideoCallPage() {
             {/* Timer Overlay */}
             <div className="absolute top-12 left-12 z-20">
                 <div className="bg-black/60 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/10 flex items-center gap-3">
-                    <ClockIcon size={14} className="text-white/60" />
+                    <Clock size={14} className="text-white/60" />
                     <span className="text-white text-[10px] font-black uppercase tracking-[0.2em]">{elapsedTime} elapsed</span>
                 </div>
             </div>
@@ -114,7 +111,11 @@ export default function VideoCallPage() {
     )
 }
 
-function ControlRoundButton({ icon: Icon, active, onClick }: any) {
+function ControlRoundButton({ icon: Icon, active, onClick }: {
+    icon: LucideIcon
+    active?: boolean
+    onClick?: () => void
+}) {
     return (
         <button 
             onClick={onClick}
@@ -136,24 +137,5 @@ function InfoItem({ label, value }: { label: string; value: string }) {
             <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">{label}:</span>
             <span className="text-sm font-black whitespace-nowrap tracking-wider">{value}</span>
         </div>
-    )
-}
-
-function ClockIcon({ size, className }: any) {
-    return (
-        <svg 
-            width={size} 
-            height={size} 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="3" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className={className}
-        >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-        </svg>
     )
 }

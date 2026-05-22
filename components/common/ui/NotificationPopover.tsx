@@ -25,8 +25,8 @@ export function NotificationPopover({ onClose }: { onClose: () => void }) {
     const fetchNotifications = useCallback(async () => {
         setIsLoading(true)
         const response = await notificationApi.getNotifications(activeTab === 'unread' ? 'unread' : undefined)
-        if (response.success) {
-            setNotifications(response.notifications || [])
+        if (response.success && response.data) {
+            setNotifications(response.data || [])
         }
         setIsLoading(false)
     }, [activeTab])

@@ -6,18 +6,19 @@ import { toast } from 'sonner'
 import { Plus, Trash2, FileText, Award, X, Upload, Pencil } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { cn } from '@/lib/utils/utils'
+import type {
+    DoctorCertificateEntry,
+    DoctorProfileTabProps,
+    CertificateFormData,
+} from '@/lib/types/doctor/doctor-profile.types'
 
-interface CertificatesTabProps {
-    doctor: any;
-    onUpdate?: (data: any) => void;
-    isEditable?: boolean;
-}
+type CertificatesTabProps = Pick<DoctorProfileTabProps, 'doctor' | 'onUpdate' | 'isEditable'>
 
 export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: CertificatesTabProps) => {
-    const [certificates, setCertificates] = useState<any[]>(doctor?.certificates || [])
+    const [certificates, setCertificates] = useState<DoctorCertificateEntry[]>(doctor?.certificates || [])
     const [showModal, setShowModal] = useState(false)
     const [editIndex, setEditIndex] = useState<number | null>(null)
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<CertificateFormData>({
         certificateName: "",
         issuedBy: "",
         certificateFile: "",
@@ -28,7 +29,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
     const [errors, setErrors] = useState<Record<string, string>>({})
 
     // Sort function for certificates
-    const sortCertificates = (data: any[]) => {
+    const sortCertificates = (data: DoctorCertificateEntry[]) => {
         return [...data].sort((a, b) => Number(b.issuedYear) - Number(a.issuedYear));
     }
 
@@ -52,7 +53,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
 
     const handleBlur = (name: string) => {
         setTouched(prev => ({ ...prev, [name]: true }))
-        validateField(name, (formData as any)[name])
+        validateField(name, formData[name as keyof CertificateFormData])
     }
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +63,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
         setUploading(true)
         const response = await doctorApi.uploadDocument(file)
         if (response.success) {
-            setFormData(prev => ({ ...prev, certificateFile: response.data.url }))
+            setFormData(prev => ({ ...prev, certificateFile: response.data?.url ?? '' }))
             setErrors(prev => { const n = { ...prev }; delete n.certificateFile; return n; })
             toast.success("Certificate uploaded")
         } else {
@@ -80,7 +81,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
         })
 
         if (!formData.certificateName || !formData.certificateFile || !formData.issuedBy || !formData.issuedYear) {
-            const newErrors: any = {}
+            const newErrors: Record<string, string> = {}
             if (!formData.certificateName) newErrors.certificateName = "Required"
             if (!formData.issuedBy) newErrors.issuedBy = "Required"
             if (!formData.issuedYear) newErrors.issuedYear = "Required"
@@ -105,7 +106,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
         
         if (response.success) {
             setCertificates(sortedCertificates)
-            if (onUpdate) onUpdate(response.data)
+            if (onUpdate && response.data) onUpdate(response.data)
             setShowModal(false)
             setEditIndex(null)
             setFormData({ certificateName: "", issuedBy: "", certificateFile: "", issuedYear: "" })
@@ -122,7 +123,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
         setFormData({
             certificateName: item.certificateName,
             issuedBy: item.issuedBy,
-            certificateFile: item.certificateFile,
+            certificateFile: item.certificateFile ?? "",
             issuedYear: item.issuedYear
         });
         setEditIndex(index);
@@ -143,7 +144,7 @@ export const CertificatesTab = ({ doctor, onUpdate, isEditable = true }: Certifi
             const response = await doctorApi.updateProfile({ certificates: newCertificates })
             if (response.success) {
                 setCertificates(newCertificates)
-                if (onUpdate) onUpdate(response.data)
+                if (onUpdate && response.data) onUpdate(response.data)
                 toast.success("Certificate removed")
             }
         }

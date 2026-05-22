@@ -1,31 +1,26 @@
 import { signinApi, googleAuthApi } from '../../api/auth';
-import logger from '../../logger';
-import { SigninCredentials, AuthApiResponse } from '../../types/auth';
-
+import { LoginParams, AuthApiResponse, GoogleLoginParams } from '../../types/auth/auth.types';
+import { mapAuthUser } from './auth.mapper';
+import { ApiResponse } from '../../types/api.types';
 
 export const signinService = {
-
-
-    login: async (credentials: SigninCredentials): Promise<AuthApiResponse> => {
-
-
-
-        logger.info('signinService.login called', { email: credentials.email });
-        return await signinApi.login(credentials);
+    login: async (credentials: LoginParams): Promise<AuthApiResponse> => {
+        const response = await signinApi.login(credentials);
+        if (response.success && response.data?.user) {
+            response.data.user = mapAuthUser(response.data.user);
+        }
+        return response;
     },
 
-
-
-    googleLogin: async (idToken: string, role: string): Promise<AuthApiResponse> => {
-
-
-        logger.info('signinService.googleLogin called', { role });
-        return await googleAuthApi.login(idToken, role);
-        
+    googleLogin: async (params: GoogleLoginParams): Promise<AuthApiResponse> => {
+        const response = await googleAuthApi.login(params);
+        if (response.success && response.data?.user) {
+            response.data.user = mapAuthUser(response.data.user);
+        }
+        return response;
     },
-        async logout(): Promise < { success: boolean; message?: string; error?: string } > {
-            logger.info('signinService.logout called');
-            return await signinApi.logout();
-        },
+
+    logout: async (): Promise<ApiResponse<void>> => {
+        return await signinApi.logout();
+    },
 };
-

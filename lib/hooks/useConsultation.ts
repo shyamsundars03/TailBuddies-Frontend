@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { clientCookies } from '../utils/clientCookies';
 import { chatApi } from '../api/chat.api';
+import { SOCKET_BASE_URL } from '../constants/api';
 
 interface Message {
     senderId: string;
@@ -10,12 +11,30 @@ interface Message {
     timestamp: Date;
 }
 
-export const useConsultation = (appointmentId: string, userId: string, userRole: 'owner' | 'doctor', onStatusUpdate?: (data: any) => void) => {
+interface ChatHistoryItem {
+    senderId: string;
+    senderRole: 'owner' | 'doctor';
+    message: string;
+    timestamp: string;
+}
+
+export const useConsultation = (
+    appointmentId: string,
+    userId: string,
+    userRole: 'owner' | 'doctor',
+    onStatusUpdate?: (data: unknown) => void
+) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const socketRef = useRef<Socket | null>(null);
+
+    const onStatusUpdateRef = useRef(onStatusUpdate);
+
+    useEffect(() => {
+        onStatusUpdateRef.current = onStatusUpdate;
+    }, [onStatusUpdate]);
 
     useEffect(() => {
         if (!appointmentId) return;
@@ -25,7 +44,7 @@ export const useConsultation = (appointmentId: string, userId: string, userRole:
             const res = await chatApi.getChatHistory(appointmentId);
             if (res.success && Array.isArray(res.data)) {
                 // Map database messages to the required Message interface
-                const history = res.data.map((m: any) => ({
+                const history = (res.data as ChatHistoryItem[]).map((m) => ({
                     senderId: m.senderId,
                     senderRole: m.senderRole,
                     message: m.message,
@@ -37,8 +56,7 @@ export const useConsultation = (appointmentId: string, userId: string, userRole:
 
         fetchHistory();
 
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const SOCKET_URL = API_URL.replace(/\/api$/, '');
+        const SOCKET_URL = SOCKET_BASE_URL;
 
         if (!socketRef.current) {
             console.log('Initializing socket connection to:', SOCKET_URL);
@@ -58,6 +76,7 @@ export const useConsultation = (appointmentId: string, userId: string, userRole:
                 setIsConnected(true);
                 setError(null);
                 socketInstance.emit('join-room', appointmentId);
+                setSocket(socketInstance);
             });
 
             socketInstance.on('connect_error', (err) => {
@@ -70,10 +89,10 @@ export const useConsultation = (appointmentId: string, userId: string, userRole:
                 setMessages((prev) => [...prev, message]);
             });
 
-            socketInstance.on('status-updated', (data: any) => {
+            socketInstance.on('status-updated', (data: unknown) => {
                 console.log('Status updated received:', data);
-                if (onStatusUpdate) {
-                    onStatusUpdate(data);
+                if (onStatusUpdateRef.current) {
+                    onStatusUpdateRef.current(data);
                 }
             });
 
@@ -88,7 +107,6 @@ export const useConsultation = (appointmentId: string, userId: string, userRole:
             });
 
             socketRef.current = socketInstance;
-            setSocket(socketInstance);
         }
 
         return () => {

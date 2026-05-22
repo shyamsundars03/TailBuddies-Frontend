@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
-import { CheckCircle2, Calendar, Clock, PawPrint, ChevronRight, Home, List } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { CheckCircle2, Calendar, Clock, PawPrint, Home, List } from "lucide-react"
 import { motion } from "framer-motion"
+import type { BookingData } from "@/lib/types/owner/owner.types"
 
 export default function BookingSuccessPage() {
     const searchParams = useSearchParams()
     const id = searchParams.get("id")
     const appId = searchParams.get("appId")
-    const [bookingData, setBookingData] = useState<any>(null)
+    const [bookingData, setBookingData] = useState<BookingData | null>(null)
 
     useEffect(() => {
         const storedData = sessionStorage.getItem("bookingData")

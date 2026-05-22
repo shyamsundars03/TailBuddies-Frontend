@@ -6,14 +6,11 @@ import { setUser } from '../../redux/slices/authSlice';
 import { otpService } from '../../services/auth/otp.service';
 import logger from '../../logger/index';
 import { toast } from 'sonner';
-
-
-
-
-
-
-
-
+import { ADMIN_ROUTES, DOCTOR_ROUTES, PUBLIC_ROUTES } from '../../constants/routes';
+import { otpSchema } from '../../validation/auth';
+import { z } from 'zod';
+import { mapAuthUser } from '../../services/auth/auth.mapper';
+import { AuthApiResponse, VerifyOtpParams, ResendOtpParams } from '../../types/auth/auth.types';
 
 function getOtpPurpose(email: string): string | null {
     if (typeof window === 'undefined' || !email) return null;
@@ -21,28 +18,11 @@ function getOtpPurpose(email: string): string | null {
     const sessionPurpose = sessionStorage.getItem(`otp_purpose_${normalizedEmail}`);
     if (sessionPurpose) return sessionPurpose;
 
-    // Fallback to URL search params
     const params = new URLSearchParams(window.location.search);
-    const urlPurpose = params.get('purpose');
-    logger.debug('getOtpPurpose check', { email, normalizedEmail, sessionPurpose, urlPurpose });
-    return urlPurpose;
+    return params.get('purpose');
 }
 
-
-
-// function clearOtpPurpose(email: string) {
-//     if (typeof window !== 'undefined') {
-//         sessionStorage.removeItem(`otp_purpose_${email}`);
-//     }
-// }
-
-
-const TIMER_DURATION = 75;
-
-
-//helpers for the otp functionalities....
-
-
+const TIMER_DURATION = Number(process.env.NEXT_PUBLIC_TIMER_DURATION) || 75;
 
 export const setOtpTimer = (email: string) => {
     if (typeof window !== 'undefined') {
@@ -65,121 +45,86 @@ export const clearOtpTimer = (email: string) => {
     }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const useOtp = () => {
     const router = useRouter();
     const dispatch = useAppDispatch();
     const [isLoading, setIsLoading] = useState(false);
-
-    //Action Verification: purpose finding.
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const verifyAction = useCallback((email: string) => {
         if (!email) return false;
         const purpose = getOtpPurpose(email);
         const pendingReg = sessionStorage.getItem('pending_registration');
-
-
-
-        if (!purpose && !pendingReg) {
-            return false;
-        }
-        return true;
+        return !!(purpose || pendingReg);
     }, []);
 
-
-
-
-
-
-    const verify = async (email: string, otp: string, enteredOtp?: string) => {
-        setIsLoading(true);
-
-
-
-        logger.info('Verifying OTP', { email });
-
+    const verify = async (email: string, otp: string): Promise<AuthApiResponse & { purpose?: string }> => {
         try {
-
-            let userData = null;
-
-
-            const pendingReg = sessionStorage.getItem('pending_registration');
-
-            if (pendingReg) {
-                userData = JSON.parse(pendingReg);
+            otpSchema.parse({ email, otp });
+            setErrors({});
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                const formattedErrors: Record<string, string> = {};
+                error.issues.forEach((issue) => {
+                    if (issue.path[0]) formattedErrors[issue.path[0] as string] = issue.message;
+                });
+                setErrors(formattedErrors);
+                const otpMessage = formattedErrors.otp;
+                toast.error(
+                    otpMessage?.includes('6')
+                        ? 'OTP must be exactly 6 digits'
+                        : (otpMessage || error.issues[0]?.message || 'Please fix the errors in the form')
+                );
             }
+            return { success: false, error: 'Validation failed' };
+        }
+
+        setIsLoading(true);
+        try {
+            let userData = null;
+            const pendingReg = sessionStorage.getItem('pending_registration');
+            if (pendingReg) userData = JSON.parse(pendingReg);
 
             const purpose = getOtpPurpose(email) || undefined;
-            const result = await otpService.verify({ email, otp, userData, purpose });
+            const params: VerifyOtpParams = {
+                email,
+                otp,
+                ...(userData ? { userData } : {}),
+                purpose
+            };
+
+            const result = await otpService.verify(params);
 
             if (result.success) {
-
-
-                logger.info('OTP Verification Success', { email, purpose });
-
-
                 clearOtpTimer(email);
 
-
                 if (purpose === 'reset') {
-                    logger.info('OTP purpose is reset, returning for client-side redirection', { email });
                     return { success: true, purpose: 'reset' };
                 } else {
                     sessionStorage.removeItem('pending_registration');
                     clientCookies.delete('auth_action_pending');
-                    const apiUserData = result.data?.user;
-                    const accessToken = result.data?.accessToken;
-
-                    if (apiUserData) {
-                        const user = {
-                            id: apiUserData.id,
-                            email: apiUserData.email,
-                            role: apiUserData.role,
-                            username: apiUserData.username || null,
-                        };
+                    
+                    if (result.data?.user) {
+                        const user = mapAuthUser(result.data.user);
                         dispatch(setUser(user));
                         localStorage.setItem('user', JSON.stringify(user));
+
+                        if (result.data.accessToken) {
+                            clientCookies.set('token', result.data.accessToken, 7 * 24 * 60 * 60);
+                        }
+                        
+                        toast.success('Email verified successfully!');
+                        const role = user.role?.toLowerCase();
+                        if (role === 'admin') router.push(ADMIN_ROUTES.HOME);
+                        else if (role === 'doctor') router.push(DOCTOR_ROUTES.DASHBOARD);
+                        else router.push(PUBLIC_ROUTES.HOME);
                     }
-
-                    if (accessToken) {
-                        clientCookies.set('token', accessToken, 7 * 24 * 60 * 60);
-                    }
-
-
-
-                    toast.success('Email verified successfully!');
-
-
-
-
-                    const role = apiUserData?.role?.toLowerCase();
-                    if (role === 'admin') router.push('/admin/dashboard');
-                    else if (role === 'doctor') router.push('/doctor/dashboard');
-                    else router.push('/home');
-
                     return { success: true };
                 }
             } else {
-                toast.error(result.error || 'Invalid OTP.');
+                toast.error(result.message || result.error || 'Invalid OTP.');
                 return { success: false, error: result.error };
             }
-
-
-
-
-
         } catch (error) {
             logger.error('OTP verify error', error);
             toast.error('An error occurred. Please try again.');
@@ -189,32 +134,25 @@ export const useOtp = () => {
         }
     };
 
-
-
-
-
-
-
-
     const resend = async (email: string) => {
+        setIsLoading(true);
         try {
-            const result = await otpService.resend(email);
+            const params: ResendOtpParams = { email };
+            const result = await otpService.resend(params);
             if (result.success) {
                 setOtpTimer(email);
-
-
                 toast.success('OTP resent successfully!');
-
-
-
                 return { success: true };
             } else {
-                toast.error(result.error || 'Failed to resend OTP.');
+                toast.error(result.message || result.error || 'Failed to resend OTP.');
                 return { success: false };
             }
-        } catch {
+        } catch (error) {
+            logger.error('OTP resend error', error);
             toast.error('An error occurred.');
             return { success: false };
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -223,5 +161,6 @@ export const useOtp = () => {
         resend,
         verifyAction,
         isLoading,
+        errors,
     };
 };

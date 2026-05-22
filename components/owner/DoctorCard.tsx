@@ -4,6 +4,7 @@ import { Star, MapPin, Clock, } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
+import { OWNER_ROUTES } from "@/lib/constants/routes"
 
 export interface DoctorCardProps {
     id: string;
@@ -11,6 +12,7 @@ export interface DoctorCardProps {
     specialty: string;
     rating: number;
     reviewsCount: number;
+    ownerCount : number;
     location: string;
     duration: string;
     fee: string;
@@ -25,6 +27,7 @@ export function DoctorCard({
     specialty,
     rating,
     reviewsCount,
+    ownerCount,
     location,
     duration,
     fee,
@@ -64,10 +67,17 @@ export function DoctorCard({
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-rose-500 font-bold text-[10px] uppercase tracking-widest">{specialty}</span>
-                            {rating === 0 ? (
+                            {rating === 0 || reviewsCount === 0 ? (
                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter italic">Yet to be rated</span>
                             ) : (
-                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">{reviewsCount} Reviews</span>
+                                <>
+                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">
+                                    {reviewsCount} {reviewsCount === 1 ? 'Review' : 'Reviews'}
+                                </span>
+                                                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">
+                                    {ownerCount} {ownerCount === 1 ? 'Review' : 'Reviews'}
+                                </span>
+                                </>
                             )}
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -106,7 +116,7 @@ export function DoctorCard({
                         <p className="text-lg font-bold text-blue-900">₹{fee}</p>
                     </div>
                     <Link
-                        href={`/owner/services/${id}`}
+                        href={OWNER_ROUTES.SERVICE_DETAILS(id)}
                         className="bg-blue-950 text-white px-5 py-2 rounded-md text-xs font-bold hover:bg-blue-900 transition shadow-md active:scale-95 whitespace-nowrap"
                     >
                         Book Now

@@ -1,21 +1,22 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, Calendar, Clock, MapPin, Phone, Mail, FileText, Activity, Loader2, Download } from "lucide-react"
-import { userPetApi } from "@/lib/api/user/pet.api"
+import { ChevronLeft, Calendar, Clock, Phone, Mail, FileText, Activity, Loader2, Download } from "lucide-react"
 import { appointmentApi } from "@/lib/api/appointment.api"
 import { prescriptionApi } from "@/lib/api/prescription.api"
 import { toast } from "sonner"
 import { format, differenceInYears } from "date-fns"
 import { cn } from "@/lib/utils/utils"
+import type { Appointment } from "@/lib/types/admin/admin.types"
+import type { BookingPet } from "@/lib/types/owner/owner.types"
 
 export default function PatientDetailPage() {
     const router = useRouter()
     const { id } = useParams()
-    const [patient, setPatient] = useState<any>(null)
-    const [history, setHistory] = useState<any[]>([])
+    const [patient, setPatient] = useState<BookingPet | null>(null)
+    const [history, setHistory] = useState<Appointment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isDownloading, setIsDownloading] = useState<string | null>(null)
 
@@ -29,38 +30,39 @@ export default function PatientDetailPage() {
         setIsDownloading(null)
     }
 
-    useEffect(() => {
-        if (id) fetchPatientDetails()
-    }, [id])
-
-    const fetchPatientDetails = async () => {
+    const fetchPatientDetails = useCallback(async () => {
+        if (!id) return
         setIsLoading(true)
         try {
-            const [petRes, apptsRes] = await Promise.all([
-                userPetApi.getPetById(id as string),
-                appointmentApi.getDoctorAppointments(undefined, 1, 100)
-            ])
-
-            if (petRes.success) {
-                setPatient(petRes.data)
-            } else {
-                toast.error(petRes.error || "Failed to load pet details")
-                router.back()
-            }
+            const apptsRes = await appointmentApi.getDoctorAppointments(undefined, 1, 100)
 
             if (apptsRes.success) {
-                // Filter appointments for this specific pet
-                const petAppointments = apptsRes.data.filter((appt: any) => 
-                    (appt.petId?._id || appt.petId) === id
+                const items = apptsRes.data?.items || []
+                const petAppointments = items.filter((appt: Appointment) =>
+                    String(appt.petId?._id || appt.petId) === id
                 )
                 setHistory(petAppointments)
+
+                if (petAppointments.length > 0 && petAppointments[0].petId && typeof petAppointments[0].petId === 'object') {
+                    setPatient(petAppointments[0].petId)
+                } else {
+                    toast.error("No appointment history found for this pet")
+                    router.back()
+                }
+            } else {
+                toast.error(apptsRes.message || "Failed to load patient history")
+                router.back()
             }
-        } catch (error) {
+        } catch {
             toast.error("An unexpected error occurred")
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [id, router])
+
+    useEffect(() => {
+        if (id) fetchPatientDetails()
+    }, [id, fetchPatientDetails])
 
     if (isLoading) {
         return (
@@ -224,8 +226,13 @@ export default function PatientDetailPage() {
                                             <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-lg">View</span>
                                         </button>
                                         <button 
-                                            onClick={() => handleDownload(visit.prescriptionId?._id || visit.prescriptionId)}
-                                            disabled={isDownloading === (visit.prescriptionId?._id || visit.prescriptionId)}
+                                            onClick={() => {
+                                                const rxId = typeof visit.prescriptionId === "string"
+                                                    ? visit.prescriptionId
+                                                    : visit.prescriptionId?._id
+                                                if (rxId) handleDownload(rxId)
+                                            }}
+                                            disabled={isDownloading === (typeof visit.prescriptionId === "string" ? visit.prescriptionId : visit.prescriptionId?._id)}
                                             className="p-5 bg-yellow-400 hover:bg-yellow-500 text-black rounded-2xl transition-all shadow-md hover:shadow-lg disabled:opacity-50"
                                             title="Download Summary"
                                         >

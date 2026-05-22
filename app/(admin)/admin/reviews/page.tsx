@@ -1,24 +1,24 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Star, Eye, Trash2, Loader2 } from "lucide-react"
+import { Star, Eye } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
 import { reviewApi } from "@/lib/api/review.api"
 import { toast } from "sonner"
-import Swal from "sweetalert2"
 import { AdminPageContainer } from "../../../../components/common/layout/admin/PageContainer"
 import { SearchInput } from "../../../../components/common/ui/SearchInput"
 import { DataTable, Column } from "../../../../components/common/ui/DataTable"
 import { Pagination } from "../../../../components/common/ui/Pagination"
 import { useDebounce } from "@/lib/hooks/useDebounce"
+import type { Review } from "@/lib/types/owner/owner.types"
 
 export default function AdminReviewsListingPage() {
-    const [reviews, setReviews] = useState<any[]>([])
+    const [reviews, setReviews] = useState<Review[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
-    const debouncedSearch = useDebounce(searchTerm, 500)
+    const debouncedSearch = useDebounce(searchTerm, 1000)
     const [currentPage, setCurrentPage] = useState(1)
     const [totalEntries, setTotalEntries] = useState(0)
     const itemsPerPage = 4
@@ -26,50 +26,25 @@ export default function AdminReviewsListingPage() {
     const fetchReviews = useCallback(async (page: number, search: string) => {
         setIsLoading(true)
         const response = await reviewApi.getAllReviews(page, itemsPerPage, search)
-        if (response.success) {
-            setReviews(response.data)
-            setTotalEntries(response.total || 0)
+        if (response.success && response.data) {
+            setReviews(response.data.items || [])
+            setTotalEntries(response.data.total || 0)
         } else {
+            setReviews([])
+            setTotalEntries(0)
             toast.error(response.message || "Failed to fetch reviews")
         }
         setIsLoading(false)
     }, [itemsPerPage])
 
     useEffect(() => {
-        fetchReviews(1, debouncedSearch)
-        setCurrentPage(1)
-    }, [debouncedSearch, fetchReviews])
-
-    useEffect(() => {
         fetchReviews(currentPage, debouncedSearch)
     }, [currentPage, debouncedSearch, fetchReviews])
-
-    const handleDelete = async (id: string) => {
-        const result = await Swal.fire({
-            title: 'Delete Review?',
-            text: "This will permanently remove the review and any associated doctor reply.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            confirmButtonText: 'Yes, Delete',
-            customClass: { popup: 'rounded-[2rem]' }
-        })
-
-        if (result.isConfirmed) {
-            const response = await reviewApi.delete(id)
-            if (response.success) {
-                toast.success("Review deleted")
-                fetchReviews(currentPage, debouncedSearch)
-            } else {
-                toast.error(response.message || "Failed to delete review")
-            }
-        }
-    }
 
     // Backend handles pagination now
     const displayReviews = reviews
 
-    const columns: Column<any>[] = [
+    const columns: Column<Review>[] = [
         {
             header: "Doctor Name",
             accessor: (review) => (
@@ -108,7 +83,9 @@ export default function AdminReviewsListingPage() {
             accessor: (review) => (
                 <div className="space-y-0.5">
                     <p className="text-xs font-black text-gray-900 leading-none">
-                        {new Date(review.appointmentId?.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {review.appointmentId?.appointmentDate
+                            ? new Date(review.appointmentId.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : "—"}
                     </p>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                         {review.appointmentId?.appointmentStartTime}

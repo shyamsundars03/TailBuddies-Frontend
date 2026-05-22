@@ -30,8 +30,8 @@ const ErrorFallback = () => {
         </h2>
         
         <p className="text-gray-600 mb-8 leading-relaxed">
-          We've encountered an unexpected error on our side. 
-          Don't worry, your data is safe. Please try refreshing the page or come back later.
+          We&apos;ve encountered an unexpected error on our side. 
+          Don&apos;t worry, your data is safe. Please try refreshing the page or come back later.
         </p>
         
         <div className="space-y-3">

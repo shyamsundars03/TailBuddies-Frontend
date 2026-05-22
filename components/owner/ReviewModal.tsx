@@ -3,44 +3,45 @@
 import { useState, useEffect } from 'react'
 import { Star, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils/utils'
-import { reviewApi } from '@/lib/api/review.api'
+import { useOwnerReviews } from '@/lib/hooks/owner/useOwnerReviews'
+import { reviewSchema } from '@/lib/validation/owner/review.schema'
 import { toast } from 'sonner'
+import type { Review } from '@/lib/types/owner/owner.types'
 
 interface ReviewModalProps {
     isOpen: boolean
     onClose: () => void
     appointmentId: string
-    existingReview?: any
+    existingReview?: Review | null | undefined
     onSuccess: () => void
 }
 
 export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, onSuccess }: ReviewModalProps) => {
+    const { isLoading: isSubmitting, createReview, updateReview } = useOwnerReviews()
     const [rating, setRating] = useState(0)
     const [hoverRating, setHoverRating] = useState(0)
     const [comment, setComment] = useState('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [wordCount, setWordCount] = useState(0)
+    const wordCount = comment.trim().split(/\s+/).filter(Boolean).length
 
     useEffect(() => {
-        if (existingReview) {
-            setRating(existingReview.rating || 0)
-            setComment(existingReview.comment || '')
-        } else {
-            setRating(0)
-            setComment('')
-        }
+        const timer = setTimeout(() => {
+            if (existingReview) {
+                setRating(existingReview.rating || 0)
+                setComment(existingReview.comment || '')
+            } else {
+                setRating(0)
+                setComment('')
+            }
+        }, 0)
+        return () => clearTimeout(timer)
     }, [existingReview, isOpen])
-
-    useEffect(() => {
-        const count = comment.trim().split(/\s+/).filter(Boolean).length
-        setWordCount(count)
-    }, [comment])
 
     if (!isOpen) return null
 
     const handleSubmit = async () => {
-        if (rating === 0) {
-            toast.error("Please select a star rating")
+        const validationResult = reviewSchema.safeParse({ rating, comment })
+        if (!validationResult.success) {
+            toast.error(validationResult.error.issues[0].message)
             return
         }
 
@@ -49,19 +50,17 @@ export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, on
             return
         }
 
-        setIsSubmitting(true)
-        const response = existingReview
-            ? await reviewApi.update(existingReview._id, { rating, comment })
-            : await reviewApi.create({ appointmentId, rating, comment })
+        let success = false
+        if (existingReview) {
+            success = await updateReview(existingReview._id, rating, comment)
+        } else {
+            success = await createReview(appointmentId, rating, comment)
+        }
 
-        if (response.success) {
-            toast.success(existingReview ? "Review updated" : "Review submitted")
+        if (success) {
             onSuccess()
             onClose()
-        } else {
-            toast.error(response.message || "Failed to submit review")
         }
-        setIsSubmitting(false)
     }
 
     return (
@@ -160,3 +159,4 @@ export const ReviewModal = ({ isOpen, onClose, appointmentId, existingReview, on
         </div>
     )
 }
+

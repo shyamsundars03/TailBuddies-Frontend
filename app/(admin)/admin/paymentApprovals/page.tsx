@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { CheckCircle, XCircle, Eye, Loader2, IndianRupee } from "lucide-react"
+import { CheckCircle, XCircle, Eye, IndianRupee } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils/utils"
@@ -13,15 +13,16 @@ import { DataTable, Column } from "../../../../components/common/ui/DataTable"
 import { Pagination } from "../../../../components/common/ui/Pagination"
 import { SearchInput } from "../../../../components/common/ui/SearchInput"
 import { useDebounce } from "@/lib/hooks/useDebounce"
+import type { Transaction } from "@/lib/types/admin/admin.types"
 
 export default function AdminPaymentApprovalsPage() {
-    const [requests, setRequests] = useState<any[]>([])
+    const [requests, setRequests] = useState<Transaction[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [currentPage, setCurrentPage] = useState(1)
     const [statusTab, setStatusTab] = useState("Pending")
     const [totalEntries, setTotalEntries] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
-    const debouncedSearch = useDebounce(searchTerm, 500)
+    const debouncedSearch = useDebounce(searchTerm, 1000)
     const itemsPerPage = 8
 
     const statuses = ["All", "Pending", "Completed", "Rejected"]
@@ -32,9 +33,9 @@ export default function AdminPaymentApprovalsPage() {
             // If status is 'All', we pass empty string or handle it
             const statusQuery = status === "All" ? "" : status.toUpperCase()
             const response = await paymentApi.getAllTransactions(page, itemsPerPage, search, statusQuery)
-            if (response.success) {
-                setRequests(response.transactions || [])
-                setTotalEntries(response.total || 0)
+            if (response.success && response.data) {
+                setRequests(response.data.items || [])
+                setTotalEntries(response.data.total || 0)
             } else {
                 toast.error(response.message || "Failed to fetch requests")
             }
@@ -43,7 +44,7 @@ export default function AdminPaymentApprovalsPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [itemsPerPage])
+    }, [itemsPerPage, currentPage, debouncedSearch, statusTab])
 
     useEffect(() => {
         setCurrentPage(1)
@@ -73,7 +74,7 @@ export default function AdminPaymentApprovalsPage() {
                 } else {
                     toast.error(response.message || "Failed to approve withdrawal")
                 }
-            } catch (err) {
+            } catch {
                 toast.error("An error occurred during approval")
             }
         }
@@ -99,13 +100,13 @@ export default function AdminPaymentApprovalsPage() {
                 } else {
                     toast.error(response.message || "Failed to reject request")
                 }
-            } catch (err) {
+            } catch {
                 toast.error("An error occurred during rejection")
             }
         }
     }
 
-    const columns: Column<any>[] = [
+    const columns: Column<Transaction>[] = [
         {
             header: "Doctor",
             accessor: (tx) => (

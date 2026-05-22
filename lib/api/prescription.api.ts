@@ -1,46 +1,46 @@
 import apiClient from './apiClient';
+import { PRESCRIPTION_ENDPOINTS } from '../endpoints/prescription';
+import { handleApiError } from '../utils/api-error.handler';
+import { ApiResponse, Prescription } from '../types/api.types';
 import { AxiosError } from 'axios';
 
 export const prescriptionApi = {
-    create: async (data: any) => {
+    create: async (data: unknown): Promise<ApiResponse<Prescription>> => {
         try {
-            const response = await apiClient.post('/prescriptions', data);
+            const response = await apiClient.post(PRESCRIPTION_ENDPOINTS.CREATE, data);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to create prescription' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to create prescription');
         }
     },
 
-    getByAppointmentId: async (appointmentId: string) => {
+    getByAppointmentId: async (appointmentId: string): Promise<ApiResponse<Prescription>> => {
         try {
-            const response = await apiClient.get(`/prescriptions/appointment/${appointmentId}`);
+            const response = await apiClient.get(PRESCRIPTION_ENDPOINTS.BY_APPOINTMENT_ID(appointmentId), {
+                validateStatus: (status) => status === 200 || status === 404,
+                skipErrorLog: true,
+            } as Parameters<typeof apiClient.get>[1]);
+            if (response.status === 404) {
+                return { success: false, message: 'Prescription not found' };
+            }
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch prescription' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch prescription');
         }
     },
 
-    getById: async (id: string) => {
+    getById: async (id: string): Promise<ApiResponse<Prescription>> => {
         try {
-            const response = await apiClient.get(`/prescriptions/${id}`);
+            const response = await apiClient.get(PRESCRIPTION_ENDPOINTS.BY_ID(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch prescription' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch prescription');
         }
     },
 
-    downloadPdf: async (id: string) => {
+    downloadPdf: async (id: string): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.get(`/prescriptions/${id}/download`, {
+            const response = await apiClient.get(PRESCRIPTION_ENDPOINTS.DOWNLOAD_PDF(id), {
                 responseType: 'blob'
             });
             
@@ -74,9 +74,8 @@ export const prescriptionApi = {
                         return { success: false, message: 'Failed to download prescription' };
                     }
                 }
-                return { success: false, message: error.response?.data?.message || 'Failed to download prescription' };
             }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to download prescription');
         }
     }
 };

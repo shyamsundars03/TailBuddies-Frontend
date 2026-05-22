@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     rules: {
-      // "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-explicit-any": "error",
       
       // Allow console methods but with warnings
       "no-console": ["warn", { allow: ["warn", "error", "info", "debug", "log"] }],
@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
         argsIgnorePattern: "^_",
         varsIgnorePattern: "^_" 
       }],
+      // Data-fetch pages load via useEffect; full React Query migration is follow-up work.
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 
@@ -30,12 +32,6 @@ const eslintConfig = defineConfig([
     files: ["lib/logger/**/*.ts"],
     rules: {
       "no-console": "off", 
-    },
-  },
-   {
-    files: ["**/apiClient.ts"], 
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ]);

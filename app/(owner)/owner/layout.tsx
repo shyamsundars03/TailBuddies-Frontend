@@ -7,8 +7,9 @@ import { OwnerHeader } from "../../../components/common/layout/owner/Header"
 import { OwnerSidebar } from "../../../components/common/layout/owner/SideBar"
 import { PageContainer } from "../../../components/common/layout/owner/PageContainer"
 import { AiAssistant } from "../../../components/common/AiAssistant"
-import { Bot, MessageCircle } from "lucide-react"
+import { Bot } from "lucide-react"
 import { useState } from "react"
+import { OWNER_ROUTES } from "../../../lib/constants/routes"
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
     const { user } = useAppSelector((state) => state.auth)
@@ -16,15 +17,15 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
 
     // Determine active section from pathname for the sidebar highlighting
     const getActiveSection = () => {
-        if (pathname.startsWith('/owner/pets')) return 'pet'
-        if (pathname.startsWith('/owner/bookings')) return 'bookings'
-        if (pathname.startsWith('/owner/services')) return 'services'
-        if (pathname.startsWith('/owner/medical-records')) return 'medical'
-        if (pathname.startsWith('/owner/calendar')) return 'calendar'
+        if (pathname.startsWith(OWNER_ROUTES.PETS)) return 'pet'
+        if (pathname.startsWith(OWNER_ROUTES.BOOKINGS)) return 'bookings'
+        if (pathname.startsWith(OWNER_ROUTES.SERVICES)) return 'services'
+        if (pathname.startsWith(OWNER_ROUTES.MEDICAL_RECORDS)) return 'medical'
+        if (pathname.startsWith(OWNER_ROUTES.CALENDAR)) return 'calendar'
         if (pathname.startsWith('/owner/subscriptions')) return 'subscription'
         if (pathname.startsWith('/owner/chat')) return 'chat'
-        if (pathname.startsWith('/owner/profile')) return 'profile'
-        if (pathname.startsWith('/owner/account')) return 'account'
+        if (pathname.startsWith(OWNER_ROUTES.PROFILE)) return 'profile'
+        if (pathname.startsWith(OWNER_ROUTES.ACCOUNT)) return 'account'
         return 'account'
     }
 
@@ -33,7 +34,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         email: user?.email || "—",
     }
 
-    const isServicesPage = pathname.startsWith('/owner/services')
+    const isServicesPage = pathname.startsWith(OWNER_ROUTES.SERVICES)
     const isVideoCall = pathname.includes('/video-call/')
 
     // Excluded routes for AI Assistant

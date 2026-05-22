@@ -3,32 +3,31 @@
 import React, { useState, useEffect } from 'react'
 import { doctorApi } from '../../../lib/api/doctor/doctor.api'
 import { toast } from 'sonner'
-import { Clock, CheckCircle2, Circle, AlertCircle, RefreshCw, Copy, ChevronDown, ShieldCheck } from 'lucide-react'
+import { Clock, Circle, RefreshCw, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils/utils'
+import type {
+    DoctorBusinessHourEntry,
+    DoctorProfileTabProps,
+    DoctorProfileUpdate,
+} from '@/lib/types/doctor/doctor-profile.types'
 
-interface BusinessHoursProps {
-    doctor: any;
-    onUpdate?: (data: any) => void;
-    isEditable?: boolean;
-}
+type BusinessHoursTabProps = Pick<DoctorProfileTabProps, 'doctor' | 'onUpdate' | 'isEditable'>
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-const TIME_OPTIONS = Array.from({ length: 24 * 4 }).map((_, i) => {
-    const hours = Math.floor(i / 4).toString().padStart(2, '0')
-    const minutes = ((i % 4) * 15).toString().padStart(2, '0')
-    return `${hours}:${minutes}`
-})
 
-export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: BusinessHoursProps) => {
-    const [businessHours, setBusinessHours] = useState<any[]>(
-        DAYS.map(day => ({ 
-            day, 
-            isWorking: true, 
-            slots: [],
-            startTime: "09:00",
-            endTime: "17:00",
-            duration: "30"
-        }))
+const defaultBusinessHours = (): DoctorBusinessHourEntry[] =>
+    DAYS.map(day => ({
+        day,
+        isWorking: true,
+        slots: [],
+        startTime: "09:00",
+        endTime: "17:00",
+        duration: "30",
+    }))
+
+export const BusinessHoursTab = ({ doctor, onUpdate, isEditable: _isEditable = true }: BusinessHoursTabProps) => {
+    const [businessHours, setBusinessHours] = useState<DoctorBusinessHourEntry[]>(
+        defaultBusinessHours()
     )
     const [activeTab, setActiveTab] = useState(0)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -51,9 +50,10 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
     const [endDate, setEndDate] = useState("")
 
     useEffect(() => {
-        if (doctor?.businessHours && doctor.businessHours.length > 0) {
+        const hours = doctor?.businessHours
+        if (hours && hours.length > 0) {
             const merged = DAYS.map(day => {
-                const existing = doctor.businessHours.find((bh: any) => bh.day === day)
+                const existing = hours.find((bh) => bh.day === day)
                 if (existing) {
                     return {
                         ...existing,
@@ -79,9 +79,9 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
             const firstWorking = merged.find(d => d.isWorking)
             if (firstWorking) {
                 setGenConfig({
-                    startTime: firstWorking.startTime,
-                    endTime: firstWorking.endTime,
-                    duration: firstWorking.duration
+                    startTime: firstWorking.startTime ?? "09:00",
+                    endTime: firstWorking.endTime ?? "17:00",
+                    duration: firstWorking.duration ?? "30",
                 })
             }
 
@@ -126,7 +126,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                 slots.push(current.toTimeString().slice(0, 5))
                 current = new Date(current.getTime() + (durationMin + PLATFORM_BUFFER) * 60000)
             }
-        } catch (e) { return [] }
+        } catch { return [] }
         return slots
     }
 
@@ -152,7 +152,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
 
     const handleRegenerateDay = (idx: number) => {
         const day = businessHours[idx]
-        const newSlots = generateSlotsForDay(day.startTime, day.endTime, parseInt(day.duration))
+        const newSlots = generateSlotsForDay(day.startTime ?? "09:00", day.endTime ?? "17:00", parseInt(day.duration ?? "30"))
         const updated = [...businessHours]
         updated[idx] = { ...day, slots: newSlots, isWorking: true }
         setBusinessHours(updated)
@@ -175,14 +175,14 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
             const rruleString = `FREQ=WEEKLY;BYDAY=${activeDays || "MO,TU,WE,TH,FR"}`
 
             // Prepare the save payload
-            const payload: any = { 
+            const payload: DoctorProfileUpdate = { 
                 businessHours: businessHours.map(bh => ({
                     day: bh.day,
-                    isWorking: bh.isWorking,
+                    isWorking: !!bh.isWorking,
                     startTime: bh.startTime || "09:00",
                     endTime: bh.endTime || "17:00",
                     duration: bh.duration || "30",
-                    slots: bh.slots
+                    slots: bh.slots ?? []
                 })),
                 recurringSchedules: [{
                     id: "default",
@@ -203,20 +203,21 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
             const response = await doctorApi.updateProfile(payload)
             if (response.success) {
                 toast.success("Business hours saved successfully")
-                if (onUpdate) onUpdate(response.data)
+                if (onUpdate && response.data) onUpdate(response.data)
                 
                 // Immediately sync local state with response to avoid defaults overwrite
                 if (response.data?.businessHours) {
-                    const merged = DAYS.map(day => {
-                        const existing = response.data.businessHours.find((bh: any) => bh.day === day)
+                    const savedHours = response.data.businessHours as Array<{ day: string; isWorking?: boolean; slots?: string[]; startTime?: string; endTime?: string; duration?: string }>
+                    const merged: DoctorBusinessHourEntry[] = DAYS.map(day => {
+                        const existing = savedHours.find((bh) => bh.day === day)
                         if (existing) {
                             return {
-                                ...existing,
-                                startTime: existing.startTime,
-                                endTime: existing.endTime,
-                                duration: existing.duration,
-                                isWorking: existing.isWorking,
-                                slots: existing.slots || []
+                                day: existing.day,
+                                isWorking: !!existing.isWorking,
+                                startTime: existing.startTime ?? "09:00",
+                                endTime: existing.endTime ?? "17:00",
+                                duration: existing.duration ?? "30",
+                                slots: existing.slots ?? [],
                             }
                         }
                         return { day, isWorking: false, slots: [], startTime: "09:00", endTime: "17:00", duration: "30" }
@@ -226,7 +227,8 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
             } else {
                 toast.error(response.error || "Failed to save business hours")
             }
-        } catch (error) {
+        } catch (error: unknown) {
+            console.error("Business hours save error", error)
             toast.error("An error occurred while saving")
         } finally {
             setIsSubmitting(false)
@@ -456,7 +458,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                                     </button>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {currentDay.slots.map((slot: string, sIdx: number) => (
+                                    {(currentDay.slots ?? []).map((slot: string, sIdx: number) => (
                                         <div 
                                             key={sIdx}
                                             className="group relative px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center gap-1 text-[9px] font-black text-gray-600 hover:border-blue-200 transition-all cursor-default"
@@ -465,7 +467,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                                             <button
                                                 onClick={() => {
                                                     const updated = [...businessHours]
-                                                    updated[activeTab].slots = updated[activeTab].slots.filter((_: any, i: number) => i !== sIdx)
+                                                    updated[activeTab].slots = (updated[activeTab].slots ?? []).filter((_, i) => i !== sIdx)
                                                     setBusinessHours(updated)
                                                 }}
                                                 className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 hover:scale-100"
@@ -474,7 +476,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                                             </button>
                                         </div>
                                     ))}
-                                    {currentDay.slots.length === 0 && (
+                                    {(currentDay.slots ?? []).length === 0 && (
                                         <div className="w-full py-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-100 flex flex-col items-center justify-center text-center">
                                             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">No slots</p>
                                         </div>
@@ -492,7 +494,7 @@ export const BusinessHoursTab = ({ doctor, onUpdate, isEditable = true }: Busine
                     )}
 
                     <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{currentDay.slots.length} Slots</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{(currentDay.slots ?? []).length} Slots</p>
                         <button
                             onClick={handleSave}
                             disabled={isSubmitting}

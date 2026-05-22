@@ -3,20 +3,29 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { useAppSelector, useAppDispatch } from "../../lib/redux/hooks"
 import { setUser } from "../../lib/redux/slices/authSlice"
 import { useSignin } from "../../lib/hooks/auth/useSignin"
 import Swal from "sweetalert2"
-import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Video, Search, LogOut, ChevronUp } from "lucide-react"
+import { Bell, MessageSquare, User, Stethoscope, Phone, Calendar, Search, LogOut, ChevronUp } from "lucide-react"
 import { AiAssistant } from "../../components/common/AiAssistant"
+import { NotificationPopover } from "../../components/common/ui/NotificationPopover"
+import { ADMIN_ROUTES, DOCTOR_ROUTES, OWNER_ROUTES, AUTH_ROUTES, PUBLIC_ROUTES } from "../../lib/constants/routes"
+import { notificationApi } from "../../lib/api/notification.api"
+import { cn } from "../../lib/utils/utils"
 
 export default function HomePage() {
+  const router = useRouter()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const [isLoading, setIsLoading] = useState(true)
   const { logout } = useSignin()
   const [isAiChatOpen, setIsAiChatOpen] = useState(false)
   const [isAiChatMinimized, setIsAiChatMinimized] = useState(false)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const userRole = user?.role?.toLowerCase()
 
   useEffect(() => {
     try {
@@ -31,6 +40,29 @@ export default function HomePage() {
     }
   }, [dispatch])
 
+  useEffect(() => {
+    if (!user || userRole === "admin") {
+      setUnreadCount(0)
+      return
+    }
+
+    const fetchUnreadCount = async () => {
+      const response = await notificationApi.getNotifications("unread")
+      if (response.success) {
+        setUnreadCount(response.data?.length || 0)
+      }
+    }
+
+    fetchUnreadCount()
+    window.addEventListener("notification-received", fetchUnreadCount)
+    const interval = setInterval(fetchUnreadCount, 60000)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("notification-received", fetchUnreadCount)
+    }
+  }, [user, userRole])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -40,15 +72,44 @@ export default function HomePage() {
   }
 
   const roleUrlMap: Record<string, string> = {
-    admin: "/admin/dashboard",
-    doctor: "/doctor/dashboard",
-    owner: "/owner/profile",
+    admin: ADMIN_ROUTES.HOME,
+    doctor: DOCTOR_ROUTES.DASHBOARD,
+    owner: OWNER_ROUTES.PROFILE,
   }
 
   const dashboardUrl =
     user?.role
-      ? roleUrlMap[user.role.toLowerCase()] ?? "/home"
-      : "/home"
+      ? roleUrlMap[user.role.toLowerCase()] ?? PUBLIC_ROUTES.HOME
+      : PUBLIC_ROUTES.HOME
+
+  const servicesUrl = user
+    ? userRole === "doctor"
+      ? DOCTOR_ROUTES.DASHBOARD
+      : userRole === "admin"
+        ? ADMIN_ROUTES.HOME
+        : OWNER_ROUTES.SERVICES
+    : AUTH_ROUTES.SIGNIN
+
+
+  const handleAiChatOpen = () => {
+    if (!user) {
+      router.push(AUTH_ROUTES.SIGNIN)
+      return
+    }
+
+    if (userRole !== "owner") {
+      Swal.fire({
+        title: "Owner account needed",
+        text: "The AI pet assistant works with owner pets and bookings.",
+        icon: "info",
+        confirmButtonText: "Okay",
+      })
+      return
+    }
+
+    setIsAiChatOpen(true)
+    setIsAiChatMinimized(false)
+  }
 
   const handleLogout = () => {
     Swal.fire({
@@ -78,13 +139,13 @@ export default function HomePage() {
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-sm">
-          <Link href="/" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href={PUBLIC_ROUTES.LANDING} className="text-gray-700 hover:text-gray-900 font-medium">
             Home
           </Link>
           <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
             About
           </Link>
-          <Link href="/owner/services" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href={servicesUrl} className="text-gray-700 hover:text-gray-900 font-medium">
             Services
           </Link>
           <Link href="#" className="text-gray-700 hover:text-gray-900 font-medium">
@@ -100,20 +161,50 @@ export default function HomePage() {
                 href={dashboardUrl}
                 className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium"
               >
-                {user.role === "doctor" ? <Stethoscope size={16} /> : <User size={16} />}
-                {user.role === "admin" ? "Admin Panel" : "My Dashboard"}
+                {userRole === "doctor" ? <Stethoscope size={16} /> : <User size={16} />}
+                {userRole === "admin" ? "Admin Panel" : "My Dashboard"}
               </Link>
 
               <div className="flex items-center gap-3">
-                <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
+                <button
+                  onClick={() => router.push(servicesUrl)}
+                  className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition"
+                  title="Search services"
+                >
                   <Search size={18} className="text-gray-700" />
                 </button>
-                <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
-                  <Bell size={18} className="text-gray-700" />
-                </button>
-                <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
-                  <MessageSquare size={18} className="text-gray-700" />
-                </button>
+                {userRole !== "admin" && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsNotificationsOpen((open) => !open)}
+                      className={cn(
+                        "w-9 h-9 rounded-full flex items-center justify-center shadow hover:shadow-md transition relative",
+                        isNotificationsOpen ? "bg-blue-600 text-white" : "bg-white text-gray-700"
+                      )}
+                      title="Notifications"
+                    >
+                      <Bell size={18} />
+                      {unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <span className="text-[8px] font-bold text-white">{unreadCount}</span>
+                        </div>
+                      )}
+                    </button>
+                    {isNotificationsOpen && (
+                      <NotificationPopover
+                        onClose={() => {
+                          setIsNotificationsOpen(false)
+                          notificationApi.getNotifications("unread").then((response) => {
+                            if (response.success) {
+                              setUnreadCount(response.data?.length || 0)
+                            }
+                          })
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={handleLogout}
                   className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition text-gray-700"
@@ -126,14 +217,14 @@ export default function HomePage() {
           ) : (
             <div className="flex gap-2">
               <Link
-                href="/signin"
+                href={AUTH_ROUTES.SIGNIN}
                 className="px-6 py-2 bg-white hover:bg-gray-50 text-gray-900 font-semibold rounded-full text-sm transition"
               >
                 Owner
               </Link>
 
               <Link
-                href="/signin?role=doctor"
+                href={AUTH_ROUTES.DOCTOR_SIGNIN}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-full text-sm transition flex items-center gap-2"
               >
                 <Stethoscope size={16} />
@@ -171,7 +262,7 @@ export default function HomePage() {
                 anywhere.
               </p>
 
-              <Link href={user ? "/owner/services" : "/signup"}>
+              <Link href={user ? servicesUrl : AUTH_ROUTES.SIGNIN}>
                 <button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-3 rounded-full transition">
                   Get Started
                 </button>
@@ -195,7 +286,7 @@ export default function HomePage() {
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Quick Actions</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-            <Link href={user ? "/owner/services" : "/signup"}>
+            <Link href={user ? servicesUrl : AUTH_ROUTES.SIGNIN}>
               <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
                 <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Calendar className="text-pink-600" size={28} />
@@ -207,7 +298,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href={user ? "/owner/services" : "/signup"}>
+            <Link href={user ? servicesUrl : AUTH_ROUTES.SIGNIN}>
               <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Phone className="text-red-600" size={28} />
@@ -220,7 +311,7 @@ export default function HomePage() {
             </Link>
 
             <div
-              onClick={() => setIsAiChatOpen(true)}
+              onClick={handleAiChatOpen}
               className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition text-center cursor-pointer"
             >
               <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -605,4 +696,3 @@ export default function HomePage() {
     </div>
   )
 }
-

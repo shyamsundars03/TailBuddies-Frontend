@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Search, Bell, MessageSquare, User, LogOut } from "lucide-react"
+import { ADMIN_ROUTES, DOCTOR_ROUTES, OWNER_ROUTES, AUTH_ROUTES } from "../../../../lib/constants"
 import Image from "next/image"
 import { useAppSelector } from "../../../../lib/redux/hooks"
 import { useState, useEffect } from "react"
@@ -16,17 +18,36 @@ export interface OwnerHeaderProps {
     onChatClick?: () => void
 }
 
+
+
 export function OwnerHeader({ className, onChatClick }: OwnerHeaderProps) {
+
+   const router = useRouter()
     const { user } = useAppSelector((state) => state.auth)
     const { logout } = useSignin()
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
+const userRole = user?.role?.toLowerCase()
+
+
+
+  const servicesUrl = user
+    ? userRole === "doctor"
+      ? DOCTOR_ROUTES.DASHBOARD
+      : userRole === "admin"
+        ? ADMIN_ROUTES.HOME
+        : OWNER_ROUTES.SERVICES
+    : AUTH_ROUTES.SIGNIN
+
+
+
+
 
     useEffect(() => {
         const fetchUnreadCount = async () => {
             const response = await notificationApi.getNotifications('unread')
             if (response.success) {
-                setUnreadCount(response.notifications?.length || 0)
+                setUnreadCount(response.data?.length || 0)
             }
         }
         if (user) {
@@ -86,8 +107,12 @@ export function OwnerHeader({ className, onChatClick }: OwnerHeaderProps) {
                         </span>
                     </Link>
                 )}
-                <button className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition">
-                    <Search size={18} className="text-gray-700" />
+                <button
+                  onClick={() => router.push(servicesUrl)}
+                  className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:shadow-md transition"
+                  title="Search services"
+                >
+                  <Search size={18} className="text-gray-700" />
                 </button>
                 <div className="relative">
                     <button 
@@ -111,7 +136,7 @@ export function OwnerHeader({ className, onChatClick }: OwnerHeaderProps) {
                             const fetchUnreadCount = async () => {
                                 const response = await notificationApi.getNotifications('unread')
                                 if (response.success) {
-                                    setUnreadCount(response.notifications?.length || 0)
+                                    setUnreadCount(response.data?.length || 0)
                                 }
                             }
                             fetchUnreadCount()

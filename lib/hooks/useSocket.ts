@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { clientCookies } from '../utils/clientCookies';
+import { SOCKET_BASE_URL } from '../constants/api';
 
 export const useSocket = (userId?: string) => {
     const [socket, setSocket] = useState<Socket | null>(null);
+    const [isConnected, setIsConnected] = useState(false);
     const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
         if (!userId) return;
 
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const SOCKET_URL = API_URL.replace(/\/api$/, '');
+        const SOCKET_URL = SOCKET_BASE_URL;
 
         if (!socketRef.current) {
             const token = clientCookies.get('token');
@@ -23,10 +24,15 @@ export const useSocket = (userId?: string) => {
 
             socketInstance.on('connect', () => {
                 console.log('Global socket connected');
+                setIsConnected(true);
+                setSocket(socketInstance);
+            });
+
+            socketInstance.on('disconnect', () => {
+                setIsConnected(false);
             });
 
             socketRef.current = socketInstance;
-            setSocket(socketInstance);
         }
 
         return () => {
@@ -34,9 +40,10 @@ export const useSocket = (userId?: string) => {
                 socketRef.current.disconnect();
                 socketRef.current = null;
                 setSocket(null);
+                setIsConnected(false);
             }
         };
     }, [userId]);
 
-    return socket;
+    return { socket, isConnected };
 };

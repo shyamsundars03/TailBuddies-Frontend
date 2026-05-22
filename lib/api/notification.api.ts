@@ -1,42 +1,33 @@
 import apiClient from './apiClient';
-import { AxiosError } from 'axios';
+import { NOTIFICATION_ENDPOINTS } from '../endpoints/notification';
+import { handleApiError } from '../utils/api-error.handler';
+import { ApiResponse, NotificationItem } from '../types/api.types';
 
 export const notificationApi = {
-    getNotifications: async (status?: string) => {
+    getNotifications: async (status?: string): Promise<ApiResponse<NotificationItem[]>> => {
         try {
-            let url = '/notifications';
-            if (status) url += `?status=${status}`;
-            const response = await apiClient.get(url);
+            const response = await apiClient.get(NOTIFICATION_ENDPOINTS.LIST(status));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to fetch notifications' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to fetch notifications');
         }
     },
 
-    markAsRead: async (id: string) => {
+    markAsRead: async (id: string): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.patch(`/notifications/${id}/read`);
+            const response = await apiClient.patch(NOTIFICATION_ENDPOINTS.MARK_AS_READ(id));
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to update notification' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to update notification');
         }
     },
 
-    markAllAsRead: async () => {
+    markAllAsRead: async (): Promise<ApiResponse<void>> => {
         try {
-            const response = await apiClient.patch('/notifications/read-all');
+            const response = await apiClient.patch(NOTIFICATION_ENDPOINTS.MARK_ALL_AS_READ);
             return response.data;
         } catch (error: unknown) {
-            if (error instanceof AxiosError) {
-                return { success: false, message: error.response?.data?.message || 'Failed to update notifications' };
-            }
-            return { success: false, message: 'An unknown error occurred' };
+            return handleApiError(error, 'Failed to update notifications');
         }
     }
 };
