@@ -235,7 +235,7 @@ export default function DoctorServicesPage() {
                                     specialty={getSpecialtyLabel(doctor.profile?.specialtyId, doctor.profile?.designation || "Specialist")}
                                     rating={doctor.averageRating || 0}
                                     reviewsCount={doctor.reviewCount || 0}
-                                    ownerCount ={doctor.ownerCount ||0}
+                                    // ownerCount ={doctor.ownerCount ||0}
                                     location={doctor.clinicInfo?.address?.city || "N/A"}
                                     duration={`${doctor.appointmentDuration || 30} Min`}
                                     fee={String(doctor.profile?.consultationFees || 0)}

@@ -12,7 +12,7 @@ export interface DoctorCardProps {
     specialty: string;
     rating: number;
     reviewsCount: number;
-    ownerCount : number;
+    // ownerCount : number;
     location: string;
     duration: string;
     fee: string;
@@ -27,7 +27,7 @@ export function DoctorCard({
     specialty,
     rating,
     reviewsCount,
-    ownerCount,
+    // ownerCount,
     location,
     duration,
     fee,
@@ -70,14 +70,12 @@ export function DoctorCard({
                             {rating === 0 || reviewsCount === 0 ? (
                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter italic">Yet to be rated</span>
                             ) : (
-                                <>
+                                
                                 <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">
                                     {reviewsCount} {reviewsCount === 1 ? 'Review' : 'Reviews'}
                                 </span>
-                                                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">
-                                    {ownerCount} {ownerCount === 1 ? 'Review' : 'Reviews'}
-                                </span>
-                                </>
+                                                                
+                                
                             )}
                         </div>
                         <div className="flex items-center gap-1.5">
