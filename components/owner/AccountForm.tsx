@@ -217,7 +217,7 @@ export function AccountForm({ initialData, isReadOnly = false }: AccountFormProp
     }
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-100 border border-gray-100 p-8 md:p-10">
+        <div className="bg-white rounded-2xl md:rounded-[2rem] shadow-xl shadow-gray-100 border border-gray-100 p-4 sm:p-8 md:p-10">
             <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-bold text-blue-900/80 uppercase tracking-tight flex items-center gap-3">
                     <span className="w-1.5 h-8 bg-yellow-400 rounded-full" />

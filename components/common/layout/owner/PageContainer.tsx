@@ -11,13 +11,13 @@ export interface PageContainerProps {
 
 export function PageContainer({ children, title, className }: PageContainerProps) {
     return (
-        <div className={cn("min-h-screen bg-linear-to-b", className)}>
+        <div className={cn("min-h-screen bg-linear-to-b w-full min-w-0", className)}>
             {title && (
                 <div className="text-center py-8">
                     <h1 className="text-4xl font-bold text-gray-900">{title}</h1>
                 </div>
             )}
-            <div className="max-w-7xl mx-auto px-4 pb-16 pt-6">{children}</div>
+            <div className="max-w-7xl mx-auto px-0 md:px-4 pb-16 pt-6 w-full min-w-0">{children}</div>
         </div>
     )
 }

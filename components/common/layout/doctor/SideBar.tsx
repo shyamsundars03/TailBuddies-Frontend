@@ -2,6 +2,7 @@ import { Calendar, Users, ChevronRight, } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
+import { cn } from "../../../../lib/utils/utils"
 import { useAppSelector, useAppDispatch } from "../../../../lib/redux/hooks"
 import { useSignin } from "../../../../lib/hooks/auth/useSignin"
 import { useRef, useState } from "react"
@@ -35,6 +36,7 @@ interface DoctorSidebarProps {
   onSectionChange?: (sectionId: string) => void
   showStats?: boolean
   showChangeButton?: boolean
+  className?: string
 }
 
 interface DoctorSidebarMenuItem {
@@ -69,6 +71,7 @@ export function DoctorSidebar({
   onSectionChange,
   showStats = true,
   showChangeButton: _showChangeButton = false,
+  className,
 }: DoctorSidebarProps) {
   const pathname = usePathname()
   const isProfilePage = pathname === DOCTOR_ROUTES.PROFILE || pathname === DOCTOR_ROUTES.DASHBOARD
@@ -148,18 +151,18 @@ export function DoctorSidebar({
   }
 
   return (
-    <div className="w-full lg:w-80 shrink-0">
+    <div className={cn("w-16 md:w-80 shrink-0 transition-all duration-300", className)}>
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         {/* Profile Section */}
-        <div className="bg-linear-to-br from-blue-600 to-blue-500 p-6 text-center">
+        <div className="bg-linear-to-br from-blue-600 to-blue-500 p-2 md:p-6 text-center">
           <div
-            className="w-24 h-24 mx-auto bg-white rounded-full overflow-hidden mb-3 border-4 border-white shadow-lg cursor-pointer transition hover:scale-105 group relative"
+            className="w-10 h-10 md:w-24 md:h-24 mx-auto bg-white rounded-full overflow-hidden mb-0 md:mb-3 border-2 md:border-4 border-white shadow-lg cursor-pointer transition hover:scale-105 group relative shrink-0"
             onClick={handleProfileClick}
           >
             <Image src={user?.profilePic || "/placeholder.svg?height=96&width=96"} alt="Doctor" width={96} height={96} className="w-full h-full object-cover" />
             {isUploading && (
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 md:w-6 md:h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
           </div>
@@ -175,21 +178,21 @@ export function DoctorSidebar({
                 accept="image/jpeg,image/png,image/jpg"
               />
               <div
-                className="w-16 h-6 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-2 cursor-pointer hover:bg-red-600 shadow-md"
+                className="w-10 h-4 md:w-16 md:h-6 bg-red-500 rounded-full flex items-center justify-center mx-auto mt-1 md:mt-0 mb-0 md:mb-2 cursor-pointer hover:bg-red-600 shadow-md"
                 onClick={handleChangeClick}
               >
-                <span className="text-white text-xs font-bold">Change</span>
+                <span className="text-white text-[8px] md:text-xs font-bold">Change</span>
               </div>
             </>
           )}
 
-          <h3 className="text-white font-bold text-lg mb-1">{username}</h3>
-          <p className="text-blue-100 text-sm">{qualification}</p>
+          <h3 className="text-white font-bold text-xs md:text-lg hidden md:block mt-2 md:mt-1 mb-1">{username}</h3>
+          <p className="text-blue-100 text-[10px] md:text-sm hidden md:block">{qualification}</p>
         </div>
 
         {/* Specialty Label */}
         {specialty && (
-          <div className="px-6 py-3 text-center border-b border-gray-200">
+          <div className="px-2 py-2 md:px-6 md:py-3 text-center border-b border-gray-200 hidden md:block">
             <span className="text-sm font-medium text-gray-700">{specialty}</span>
           </div>
         )}
@@ -197,25 +200,8 @@ export function DoctorSidebar({
         {/* Stats */}
         {showStats && (
           <>
-            {/* <div className="grid grid-cols-2 border-b border-gray-200">
-              <div className="p-4 text-center border-r border-gray-200">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Users size={18} className="text-blue-600" />
-                  <span className="text-xs text-gray-600">Total Patient</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{totalPatients}</p>
-              </div>
-              <div className="p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Calendar size={18} className="text-blue-600" />
-                  <span className="text-xs text-gray-600">Patients Today</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{patientsToday}</p>
-              </div>
-            </div> */}
-
             {/* Availability */}
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-1 md:p-4 border-b border-gray-200 hidden md:block">
               <label className="block text-sm text-gray-600 mb-2">Availability :</label>
               <select
                 value={availability}
@@ -227,20 +213,11 @@ export function DoctorSidebar({
                 <option>Available Later</option>
               </select>
             </div>
-
-            {/* Appointments Today */}
-            {/* <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar size={18} className="text-blue-600" />
-                <span className="text-sm text-gray-600">Appointments Today</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{appointmentsToday}</p>
-            </div> */}
           </>
         )}
 
         {/* Menu Items - Updated with navigation */}
-        <div className="py-2">
+        <div className="p-1 md:py-2 md:px-0 space-y-1">
           {menuItems.map((item) => {
             const isActive = !isProfilePage && pathname === item.href
             const Icon = item.icon
@@ -250,32 +227,31 @@ export function DoctorSidebar({
                 key={item.id}
                 href={item.href}
                 onClick={() => onSectionChange?.(item.id)}
-                className={`w-full flex items-center justify-between px-5 py-3 text-left transition group ${isActive
-                  ? "bg-blue-50 border-l-4 border-blue-600"
-                  : "hover:bg-blue-50"
-                  }`}
+                className={cn(
+                  "w-full flex items-center justify-center md:justify-between px-2 py-2.5 md:px-5 md:py-3 text-left transition rounded-lg md:rounded-none",
+                  isActive ? "bg-blue-50 border-l-2 md:border-l-4 border-blue-600" : "hover:bg-blue-50"
+                )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-0 md:gap-3">
                   <Icon
                     size={18}
-                    className={
-                      isActive
-                        ? "text-blue-600"
-                        : "text-gray-600 group-hover:text-blue-600"
-                    }
+                    className={cn(
+                      "shrink-0",
+                      isActive ? "text-blue-600" : "text-gray-600 group-hover:text-blue-600"
+                    )}
                   />
 
                   <span
-                    className={`text-sm ${isActive
-                      ? "text-blue-600 font-medium"
-                      : "text-gray-700 group-hover:text-blue-600"
-                      }`}
+                    className={cn(
+                      "text-sm hidden md:inline",
+                      isActive ? "text-blue-600 font-medium" : "text-gray-700 group-hover:text-blue-600"
+                    )}
                   >
                     {item.label}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
                   {item.badge && (
                     <span className="w-2 h-2 bg-yellow-400 rounded-full" />
                   )}
@@ -289,19 +265,19 @@ export function DoctorSidebar({
               <button
                 key={item.id}
                 onClick={() => onSectionChange?.(item.id)}
-                className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-blue-50 transition group"
+                className="w-full flex items-center justify-center md:justify-between px-2 py-2.5 md:px-5 md:py-3 text-left hover:bg-blue-50 transition rounded-lg md:rounded-none"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-0 md:gap-3">
                   <Icon
                     size={18}
-                    className="text-gray-600 group-hover:text-blue-600"
+                    className="text-gray-600 group-hover:text-blue-600 shrink-0"
                   />
-                  <span className="text-sm text-gray-700 group-hover:text-blue-600">
+                  <span className="text-sm text-gray-700 group-hover:text-blue-600 hidden md:inline">
                     {item.label}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
                   {item.badge && (
                     <span className="w-2 h-2 bg-yellow-400 rounded-full" />
                   )}
@@ -314,13 +290,13 @@ export function DoctorSidebar({
           {/* Logout button at the bottom */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-red-50 transition group mt-2 border-t border-gray-100"
+            className="w-full flex items-center justify-center md:justify-between px-2 py-2.5 md:px-5 md:py-3 text-left hover:bg-red-50 transition group mt-2 border-t border-gray-100 rounded-lg md:rounded-none"
           >
-            <div className="flex items-center gap-3">
-              <span className="text-lg group-hover:scale-110 transition">🚪</span>
-              <span className="text-sm text-gray-700 group-hover:text-red-600">Logout</span>
+            <div className="flex items-center gap-0 md:gap-3">
+              <span className="text-base md:text-lg group-hover:scale-110 transition shrink-0">🚪</span>
+              <span className="text-sm text-gray-700 group-hover:text-red-600 hidden md:inline">Logout</span>
             </div>
-            <ChevronRight size={16} className="text-gray-400 group-hover:text-red-400" />
+            <ChevronRight size={16} className="text-gray-400 group-hover:text-red-400 hidden md:block" />
           </button>
         </div>
       </div>

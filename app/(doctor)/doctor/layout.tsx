@@ -133,7 +133,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             <DoctorHeader />
-            <div className="flex max-w-7xl mx-auto px-6 py-8 gap-12 w-full">
+            <div className="flex max-w-7xl mx-auto px-2 py-4 md:px-6 md:py-8 gap-2 md:gap-8 lg:gap-12 w-full min-w-0 flex-1">
                 <DoctorSidebar
                     username={user?.username || "Doctor"}
                     email={user?.email || ""}

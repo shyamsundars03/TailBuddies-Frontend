@@ -21,9 +21,9 @@ export interface ProfileViewProps {
 
 export function ProfileView({ data }: ProfileViewProps) {
     return (
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
             {/* Profile Header with Status */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-700">Account Status:</span>

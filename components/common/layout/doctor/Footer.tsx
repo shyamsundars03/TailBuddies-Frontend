@@ -3,8 +3,8 @@
 export function DoctorFooter() {
     return (
         <footer className="bg-white border-t border-gray-200 mt-12">
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="grid grid-cols-5 gap-8 mb-8">
+            <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-8">
                     <div>
                         <h4 className="font-semibold text-gray-900 mb-3 text-sm">Company</h4>
                         <ul className="space-y-2 text-sm text-gray-600">
@@ -172,9 +172,9 @@ export function DoctorFooter() {
                         </div>
                     </div>
                 </div>
-                <div className="pt-6 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600">
+                <div className="pt-6 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-600 text-center md:text-left">
                     <p>Copyright © 2025 TailBuddies. All Rights Reserved</p>
-                    <div className="flex gap-4">
+                    <div className="flex flex-wrap justify-center gap-4">
                         <a href="#" className="hover:text-blue-600">
                             Legal Notice
                         </a>
@@ -185,7 +185,7 @@ export function DoctorFooter() {
                             Refund Policy
                         </a>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-center gap-2">
                         <div className="h-5 w-8 bg-gray-200 rounded text-xs flex items-center justify-center">VISA</div>
                         <div className="h-5 w-8 bg-gray-200 rounded text-xs flex items-center justify-center">MC</div>
                         <div className="h-5 w-8 bg-gray-200 rounded text-xs flex items-center justify-center">MA</div>

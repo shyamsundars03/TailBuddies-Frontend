@@ -57,7 +57,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                 />
             )}
             <div className={cn(
-                "max-w-7xl mx-auto px-6 py-8 flex gap-8 w-full flex-1",
+                "max-w-7xl mx-auto px-2 py-4 md:px-6 md:py-8 flex gap-2 md:gap-8 w-full flex-1 min-w-0",
                 isServicesPage ? "flex-col" : "flex-row",
                 isVideoCall && "max-w-none px-0 py-0 flex-col gap-0 h-screen"
             )}>
@@ -69,7 +69,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                         onSectionChange={() => { }}
                     />
                 )}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                     <PageContainer>
                         {children}
                     </PageContainer>

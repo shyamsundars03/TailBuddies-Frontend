@@ -129,7 +129,7 @@ export default function AppointmentBookingPage() {
     }, [params.id, getDoctorById])
 
     return (
-        <div className="min-h-screen bg-gray-50/30 -mt-8 -mx-8 p-8">
+        <div className="min-h-screen bg-gray-50/30 -mt-4 md:-mt-8 -mx-2 md:-mx-8 p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-8 relative">
                 {/* Top Back Button (Only for Step 1) */}
                 {currentStep === 1 && (
@@ -158,7 +158,7 @@ export default function AppointmentBookingPage() {
 
                 {/* Stepper */}
                 <div className="flex items-center justify-center">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 md:gap-4">
                         {STEPS.map((step, index) => (
                             <div key={step.id} className="flex items-center">
                                 <button 
@@ -166,10 +166,10 @@ export default function AppointmentBookingPage() {
                                         if (step.id < currentStep) setCurrentStep(step.id)
                                     }}
                                     disabled={step.id >= currentStep}
-                                    className="flex flex-col items-center gap-2 cursor-pointer disabled:cursor-default"
+                                    className="flex flex-col items-center gap-1 md:gap-2 cursor-pointer disabled:cursor-default"
                                 >
                                     <div className={cn(
-                                        "w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500",
+                                        "w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500",
                                         currentStep === step.id
                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110"
                                             : currentStep > step.id
@@ -179,7 +179,7 @@ export default function AppointmentBookingPage() {
                                         {currentStep > step.id ? <Check size={16} /> : step.id}
                                     </div>
                                     <span className={cn(
-                                        "text-[10px] font-bold uppercase tracking-widest",
+                                        "text-[9px] md:text-[10px] font-bold uppercase tracking-widest hidden sm:block",
                                         currentStep >= step.id ? "text-blue-900" : "text-gray-400"
                                     )}>
                                         {step.name}
@@ -187,7 +187,7 @@ export default function AppointmentBookingPage() {
                                 </button>
                                 {index < STEPS.length - 1 && (
                                     <div className={cn(
-                                        "w-16 h-[2px] mx-4 -mt-6 transition-colors duration-500",
+                                        "w-4 md:w-16 h-[2px] mx-1 md:mx-4 -mt-3 sm:-mt-6 transition-colors duration-500",
                                         currentStep > step.id ? "bg-emerald-500" : "bg-gray-200"
                                     )}></div>
                                 )}

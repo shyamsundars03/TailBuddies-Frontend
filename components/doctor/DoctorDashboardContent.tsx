@@ -132,7 +132,7 @@ const DoctorDashboardContent = () => {
                     <div className="space-y-4">
                         {appointments.length > 0 ? (
                             appointments.map((apt) => (
-                                <Link href={`/doctor/appointments/${apt._id}`} key={apt._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
+                                <Link href={`/doctor/appointments/${apt._id}`} key={apt._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition group gap-2">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-gray-400 border border-gray-100 overflow-hidden relative">
                                             {apt.petId?.picture ? (
@@ -186,7 +186,7 @@ const DoctorDashboardContent = () => {
                                         <p className="text-blue-200 text-sm">Owner: {upcomingAppointment.ownerId?.username}</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
+                                <div className="flex flex-col sm:flex-row gap-4">
                                     <Link 
                                         href={`/doctor/appointments/${upcomingAppointment._id}`}
                                         className="flex-1 bg-white text-[#002B49] font-bold py-3 rounded-xl transition hover:bg-blue-50 text-center"

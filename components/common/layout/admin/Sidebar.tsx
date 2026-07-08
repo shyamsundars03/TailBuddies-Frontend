@@ -77,21 +77,21 @@ export const AdminSidebar = memo(function AdminSidebar({ onItemClick, className,
     }
 
     return (
-        <div className={cn("w-80 shrink-0", className)}>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
+        <div className={cn("w-16 md:w-80 shrink-0 transition-all duration-300", className)}>
+            <div className="bg-white rounded-xl md:rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
                 {/* Admin Profile Header (Grey Section) */}
-                <div className="bg-linear-to-br from-[#828282] to-[#606060] p-6 relative">
+                <div className="bg-linear-to-br from-[#828282] to-[#606060] p-2 md:p-6 relative">
                     <div className="flex flex-col items-center">
-                        <div className="w-20 h-20 rounded-full bg-white/10 border-4 border-white/20 flex items-center justify-center mb-3 overflow-hidden">
-                            <User size={32} className="text-white/60" />
+                        <div className="w-10 h-10 md:w-20 md:h-20 rounded-full bg-white/10 border-2 md:border-4 border-white/20 flex items-center justify-center mb-0 md:mb-3 overflow-hidden shrink-0">
+                            <User size={18} className="text-white/60 md:w-8 md:h-8" />
                         </div>
-                        <h3 className="text-white font-bold text-lg">{user?.username || "Admin User"}</h3>
-                        <p className="text-white/60 text-xs font-medium tracking-wide">SYSTEM ADMINISTRATOR</p>
+                        <h3 className="text-white font-bold text-sm md:text-lg hidden md:block mt-2 md:mt-0">{user?.username || "Admin User"}</h3>
+                        <p className="text-white/60 text-[9px] md:text-xs font-medium tracking-wide hidden md:block">SYSTEM ADMINISTRATOR</p>
                     </div>
                 </div>
 
                 {/* Navigation Menus */}
-                <div className="p-4 space-y-1">
+                <div className="p-1 md:p-4 space-y-1">
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href || activeItem === item.id
 
@@ -101,29 +101,29 @@ export const AdminSidebar = memo(function AdminSidebar({ onItemClick, className,
                                 href={item.href}
                                 onClick={() => onItemClick?.(item.id)}
                                 className={cn(
-                                    "flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 group",
+                                    "flex items-center justify-center md:justify-between px-2 py-2.5 md:px-4 md:py-2.5 rounded-lg md:rounded-xl transition-all duration-200 group",
                                     isActive
                                         ? "bg-blue-50 text-blue-600 font-semibold shadow-xs"
                                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                 )}
                             >
-                                <div className="flex items-center gap-3">
-                                    <item.icon size={18} className={cn("transition-colors", isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600")} />
-                                    <span className="text-sm">{item.label}</span>
+                                <div className="flex items-center gap-0 md:gap-3">
+                                    <item.icon size={18} className={cn("transition-colors shrink-0", isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600")} />
+                                    <span className="text-sm hidden md:inline">{item.label}</span>
                                 </div>
-                                {isActive && <ChevronRight size={14} className="text-blue-400" />}
+                                {isActive && <ChevronRight size={14} className="text-blue-400 hidden md:block" />}
                             </Link>
                         )
                     })}
 
                     {/* Logout */}
-                    <div className="pt-4 mt-4 border-t border-gray-100">
+                    <div className="pt-2 md:pt-4 mt-2 md:mt-4 border-t border-gray-100">
                         <button
                             onClick={handleLogout}
-                            className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 group"
+                            className="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 py-2.5 md:px-4 md:py-2.5 w-full rounded-lg md:rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 group"
                         >
-                            <LogOut size={18} className="text-gray-400 group-hover:text-red-500" />
-                            <span className="text-sm font-medium">Sign Out</span>
+                            <LogOut size={18} className="text-gray-400 group-hover:text-red-500 shrink-0" />
+                            <span className="text-sm font-medium hidden md:inline">Sign Out</span>
                         </button>
                     </div>
                 </div>

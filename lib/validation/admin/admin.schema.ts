@@ -7,3 +7,18 @@ export const specialtySchema = z.object({
     typicalKeywords: z.array(z.string()).min(1, "At least one keyword is required"),
     status: z.enum(["active", "inactive"]),
 })
+
+
+
+// app.use((req, res,next)=>{
+
+// let res =  req.file
+
+
+// next()
+// })
+
+
+
+
+

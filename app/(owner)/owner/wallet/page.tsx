@@ -84,9 +84,9 @@ function WalletPageContent() {
     }
 
     return (
-        <div className="space-y-8 max-w-6xl mx-auto pb-20">
+        <div className="space-y-8 max-w-6xl mx-auto px-4 md:px-0 pb-20">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-blue-950 uppercase tracking-tight mb-2">My Wallet</h1>
                     <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Manage your balance and view transactions</p>
@@ -102,7 +102,7 @@ function WalletPageContent() {
 
             {/* Wallet Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 bg-linear-to-br from-blue-600 to-blue-800 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden group">
+                <div className="md:col-span-2 bg-linear-to-br from-blue-600 to-blue-800 rounded-2xl md:rounded-[2.5rem] p-6 md:p-10 text-white shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform duration-700">
                         <Wallet size={180} />
                     </div>
@@ -114,7 +114,7 @@ function WalletPageContent() {
                             <span className="font-bold uppercase tracking-[0.2em] text-sm opacity-80">Current Balance</span>
                         </div>
                         <div className="space-y-2">
-                            <h2 className="text-6xl font-black tracking-tighter">₹{wallet?.balance?.toLocaleString() || "0"}</h2>
+                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter">₹{wallet?.balance?.toLocaleString() || "0"}</h2>
                             <p className="text-sm font-bold uppercase tracking-widest opacity-60">Verified & Secure</p>
                         </div>
                         <div className="flex gap-4">
@@ -132,8 +132,8 @@ function WalletPageContent() {
             </div>
 
             {/* Transaction History */}
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
-                <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+            <div className="bg-white rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+                <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                             <History size={18} />
