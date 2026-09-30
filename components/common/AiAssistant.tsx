@@ -26,6 +26,7 @@ import type { OwnerPet } from "@/lib/types/owner/owner.types"
 import { useAppSelector } from "@/lib/redux/hooks"
 import { toast } from "sonner"
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const CATEGORIES = [
     "Skin Related", "Digestion", "Dental", "Muscle/Joint",
@@ -424,8 +425,28 @@ export function AiAssistant({
                                         <Calendar size={12} className="text-blue-600" />
                                         One-Week Care Plan
                                     </h4>
-                                    <div className="prose prose-sm prose-blue max-w-none prose-p:text-[13px] prose-p:leading-relaxed prose-p:text-gray-600 prose-li:text-[13px] prose-strong:text-blue-900 border-l-2 border-blue-100 pl-4 font-black text-gray-500   ">
-                                        <ReactMarkdown>{state.carePlan}</ReactMarkdown>
+                                    <div className="prose prose-sm prose-blue max-w-none prose-p:text-[13px] prose-p:leading-relaxed prose-p:text-gray-600 prose-li:text-[13px] prose-strong:text-blue-900 border-l-2 border-blue-100 pl-4 font-black text-gray-500">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                table: ({ children }) => (
+                                                    <div className="overflow-x-auto my-3">
+                                                        <table className="w-full border-collapse text-[12px]">{children}</table>
+                                                    </div>
+                                                ),
+                                                th: ({ children }) => (
+                                                    <th className="bg-blue-50 text-blue-800 font-black uppercase tracking-wider text-[10px] px-3 py-2 border border-blue-100 text-left">{children}</th>
+                                                ),
+                                                td: ({ children }) => (
+                                                    <td className="px-3 py-2 border border-gray-100 text-gray-600 font-medium text-[12px] align-top">{children}</td>
+                                                ),
+                                                tr: ({ children }) => (
+                                                    <tr className="even:bg-gray-50/60">{children}</tr>
+                                                ),
+                                            }}
+                                        >
+                                            {state.carePlan}
+                                        </ReactMarkdown>
                                     </div>
                                 </div>
                             )}
